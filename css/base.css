@@ -46,6 +46,9 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
 ul { list-style: none; }
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; line-height: 1.3; }
 
+/* Public site body: topnav is position:fixed, so offset content below it */
+.site-body { padding-top: var(--nav-h); }
+
 .container { max-width: var(--container); margin: 0 auto; padding: 0 clamp(20px, 4vw, 40px); }
 .page-pad { padding: 28px 0 60px; }
 .hidden { display: none !important; }
@@ -59,7 +62,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 
 /* ---------- Top nav (flat — solid background, plain border, no blur/glow) ---------- */
 .topnav {
-  position: sticky; top: 0; z-index: 40;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 40;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-strong);
 }
