@@ -83,12 +83,19 @@ export async function logout() {
   navigate("#/login");
 }
 
-/* ---------- Profile page: edit name/phone/roll/institution, change password ---------- */
+/* ---------- Profile page: edit name/phone/institution, change password ----------
+   `roll` is intentionally NOT part of the editable fields here — it is
+   read-only for students, exactly like `email`. It is only ever written by
+   the roll-sync flow in page-profile.js (which passes it explicitly) or by
+   an admin from the admin panel. Omitting it from a call leaves the
+   existing value untouched (merge: true). ---------- */
 export async function updateUserProfile(user, { displayName, phone, roll, institution }) {
   if (displayName && displayName !== user.displayName) {
     await updateProfile(user, { displayName });
   }
-  await setDoc(doc(db, "users", user.uid), { displayName, phone, roll, institution }, { merge: true });
+  const payload = { displayName, phone, institution };
+  if (roll !== undefined) payload.roll = roll;
+  await setDoc(doc(db, "users", user.uid), payload, { merge: true });
 }
 
 export async function changePassword(user, currentPassword, newPassword) {

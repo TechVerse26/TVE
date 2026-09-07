@@ -1,33 +1,22 @@
 // ==========================================================================
 // page-profile.js — student profile: compact banner (avatar, badges, roll,
 // school, small atom watermark), a slim stat-chip strip, edit name/phone/
-// roll/school, change password. Same users/{uid} doc auth.js and nav.js
+// school, change password. Same users/{uid} doc auth.js and nav.js
 // already read. Every visual piece on this page (banner, stat chips, form
 // cards, logout card) is hand-styled in profile.css — no generic/site-wide
 // .card/.field/.btn classes are used here, so the whole section reads as
 // one consistent, purpose-built, high-density design.
+//
+// Roll number: read-only, exactly like email. A student can only ever
+// *claim* one via the "সিঙ্ক করুন" button, which hands out the next serial
+// number (0001, 0002, ...) from the shared atomic counter in roll.js — it
+// is never a free-text field the student can edit or overwrite.
 // ==========================================================================
 import { requireAuth, getUserProfile, escapeHtml, toast, formatDate } from "./utils.js";
 import { fetchMyResults } from "./exam-data.js";
 import { updateUserProfile, changePassword, logout } from "./auth.js";
 import { renderNav } from "./nav.js";
-import { db } from "./firebase-config.js";
-import { collection, query, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-// ---------- Random unique 6-digit roll generator ----------
-// Tries a fresh random roll against the `users` collection up to 8 times;
-// each candidate is a plain Firestore `where("roll","==",...)` existence
-// check, so a fresh signup gets a collision-free roll in one round trip
-// almost every time.
-async function generateUniqueRoll() {
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const candidate = String(Math.floor(100000 + Math.random() * 900000));
-    const snap = await getDocs(query(collection(db, "users"), where("roll", "==", candidate), limit(1)));
-    if (snap.empty) return candidate;
-  }
-  // Astronomically unlikely fallback: timestamp-derived, still 6 digits.
-  return String(Date.now()).slice(-6);
-}
+import { claimNextRoll } from "./roll.js";
 
 function initials(name) {
   return (name || "?").trim().charAt(0).toUpperCase();
@@ -140,7 +129,7 @@ export async function initProfilePage(params, container) {
             ${fieldMarkup({ id: "pf-name", label: "নাম", icon: "fa-user", value: name, required: true })}
             ${fieldMarkup({ id: "pf-email", label: "ইমেইল", icon: "fa-envelope", type: "email", value: user.email || "", disabled: true })}
             ${fieldMarkup({ id: "pf-phone", label: "ফোন নম্বর", icon: "fa-phone", type: "tel", value: profile.phone || "", placeholder: "যেমন 01XXXXXXXXX" })}
-            ${fieldMarkup({ id: "pf-roll", label: "রোল নম্বর", icon: "fa-id-badge", value: roll, placeholder: "যেমন 679587" })}
+            ${fieldMarkup({ id: "pf-roll", label: "রোল নম্বর (স্বয়ংক্রিয়, পরিবর্তনযোগ্য নয়)", icon: "fa-id-badge", value: roll, placeholder: "উপরে থেকে সিঙ্ক করুন", disabled: true })}
             ${fieldMarkup({ id: "pf-institution", label: "প্রতিষ্ঠানের নাম", icon: "fa-graduation-cap", value: institution, placeholder: "যেমন Scholars Model School and College" })}
             <button type="submit" class="tve-form-btn" id="pf-save"><i class="fa-solid fa-check"></i> পরিবর্তন সংরক্ষণ করুন</button>
           </form>
@@ -232,7 +221,7 @@ export async function initProfilePage(params, container) {
       rollSyncBtn.disabled = true;
       rollSyncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> সিঙ্ক হচ্ছে...';
       try {
-        const newRoll = await generateUniqueRoll();
+        const newRoll = await claimNextRoll();
         await updateUserProfile(user, { displayName: name, phone: profile.phone || "", roll: newRoll, institution });
         renderRollRow(newRoll, { animate: true });
         const rollInput = container.querySelector("#pf-roll");
@@ -249,22 +238,20 @@ export async function initProfilePage(params, container) {
   bindRollCopy();
   bindRollSync();
 
-  /* ---------- Edit name/phone/roll/institution ---------- */
+  /* ---------- Edit name/phone/institution (roll is never sent — read-only) ---------- */
   container.querySelector("#profile-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = container.querySelector("#pf-save");
     const newName = container.querySelector("#pf-name").value.trim();
     const phone = container.querySelector("#pf-phone").value.trim();
-    const newRoll = container.querySelector("#pf-roll").value.trim();
     const newInstitution = container.querySelector("#pf-institution").value.trim();
     if (!newName) { toast("নাম লিখুন", "error"); return; }
     setBtnLoading(btn, "সংরক্ষণ হচ্ছে...", btn.innerHTML);
     try {
-      await updateUserProfile(user, { displayName: newName, phone, roll: newRoll, institution: newInstitution });
+      await updateUserProfile(user, { displayName: newName, phone, institution: newInstitution });
       toast("প্রোফাইল আপডেট হয়েছে", "success");
       renderNav("profile");
       // Reflect changes in the banner immediately without a full re-render
-      renderRollRow(newRoll);
       const phoneField = container.querySelector('[data-field="phone"]');
       const instField = container.querySelector('[data-field="institution"]');
       if (phoneField) phoneField.textContent = phone || "ফোন নম্বর যোগ করা হয়নি";
