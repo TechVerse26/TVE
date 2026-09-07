@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>অ্যাডমিন প্যানেল — Tech Verse Exam</title>
+<title>Admin Panel — Tech Verse Exam</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="css/base.css">
@@ -11,7 +11,7 @@
 </head>
 <body>
 
-<div id="admin-gate" class="loading-screen"><span class="spinner"></span> যাচাই করা হচ্ছে...</div>
+<div id="admin-gate" class="loading-screen"><span class="spinner"></span> Verifying...</div>
 
 <div class="admin-app hidden" id="admin-shell">
   <header class="admin-topbar">
@@ -20,7 +20,7 @@
       <a href="index.html" class="admin-brand"><i class="fa-solid fa-graduation-cap"></i> Tech Verse <span class="admin-brand-tag">Admin</span></a>
     </div>
     <div class="admin-topbar-right">
-      <a href="index.html" class="admin-topbar-link"><i class="fa-solid fa-arrow-left"></i><span> সাইটে ফিরে যান</span></a>
+      <a href="index.html" class="admin-topbar-link"><i class="fa-solid fa-arrow-left"></i><span>Return to site</span></a>
       <button type="button" class="nav-user-chip" id="admin-logout-btn">
         <span class="nav-avatar" id="admin-user-avatar">?</span>
         <span id="admin-user-name">...</span>
@@ -49,8 +49,8 @@
       <!-- Overview -->
       <section class="admin-section active" id="section-overview">
         <div class="admin-section-head ov-head">
-          <div><h1>Overview</h1><p class="muted">এক্সাম সাইটের একনজর পরিসংখ্যান</p></div>
-          <button type="button" class="btn btn-outline btn-sm" id="overview-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> রিফ্রেশ</button>
+          <div><h1>Overview</h1><p class="muted">Exam site statistics at a glance</p></div>
+          <button type="button" class="btn btn-outline btn-sm" id="overview-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> Refresh</button>
         </div>
         <div class="ov-stat-grid" id="overview-stat-grid"><div class="loading-screen"><span class="spinner"></span></div></div>
       </section>
@@ -59,7 +59,7 @@
       <section class="admin-section" id="section-exams">
         <div class="admin-section-head">
           <h1>Exam Management</h1>
-          <p class="muted">এক্সাম তৈরি, এডিট এবং প্রশ্ন ম্যানেজ করুন</p>
+          <p class="muted">manage exams.</p>
           <button class="btn btn-primary" id="add-exam-btn-top">+ New Exam</button>
         </div>
         <div class="card">
@@ -74,17 +74,17 @@
       <section class="admin-section" id="section-results">
         <div class="admin-section-head">
           <h1>Results</h1>
-          <p class="muted">সব শিক্ষার্থীর সব এক্সাম অ্যাটেম্পটের ফলাফল</p>
+          <p class="muted">Results of all exam attempts</p>
         </div>
         <div class="card">
           <div class="res-toolbar">
             <div class="field" style="margin:0; flex:1.2; min-width:180px;">
               <label>Exam</label>
-              <select id="res-exam-filter"><option value="">সব এক্সাম</option></select>
+              <select id="res-exam-filter"><option value="">All exams</option></select>
             </div>
             <div class="field" style="margin:0; flex:1; min-width:180px;">
-              <label>খুঁজুন</label>
-              <input type="text" id="res-search" placeholder="নাম বা ইমেইল">
+              <label>Search</label>
+              <input type="text" id="res-search" placeholder="Name or email">
             </div>
             <button type="button" class="btn btn-outline" id="res-export-btn" style="margin-top:22px;"><i class="fa-solid fa-download"></i> CSV Export</button>
             <button type="button" class="btn btn-outline btn-sm" id="res-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
@@ -102,15 +102,15 @@
       <section class="admin-section" id="section-leaderboard">
         <div class="admin-section-head">
           <h1>Leaderboard</h1>
-          <p class="muted">সেরা রেজাল্ট অনুযায়ী র‍্যাঙ্কড তালিকা — শিক্ষার্থীর নামের উপর ক্লিক করলে তার সব এক্সামের বিস্তারিত দেখা যাবে</p>
+          <p class="muted">Ranked list according to best results</p>
         </div>
         <div class="card">
           <div class="res-toolbar">
             <div class="field" style="margin:0; flex:1; min-width:200px;">
-              <label>খুঁজুন</label>
-              <input type="text" id="lb-search" placeholder="নাম বা ইমেইল">
+              <label>Search</label>
+              <input type="text" id="lb-search" placeholder="Name or email">
             </div>
-            <button type="button" class="btn btn-teal" id="lb-pdf-btn" style="margin-top:22px;"><i class="fa-solid fa-file-pdf"></i> PDF ডাউনলোড করুন</button>
+            <button type="button" class="btn btn-teal" id="lb-pdf-btn" style="margin-top:22px;"><i class="fa-solid fa-file-pdf"></i>PDF</button>
             <button type="button" class="btn btn-outline btn-sm" id="lb-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
           </div>
         </div>
@@ -126,20 +126,20 @@
       <section class="admin-section" id="section-students">
         <div class="admin-section-head">
           <h1>Students</h1>
-          <p class="muted">এনরোলমেন্ট ও অ্যাটেম্পট ওভারভিউ — এনরোলমেন্ট এডিট করতে হলে মূল কোর্স সাইটের অ্যাডমিন প্যানেল ব্যবহার করুন</p>
+          <p class="muted">Enrollment and Attempt Overview</p>
         </div>
         <div class="card">
           <div class="res-toolbar">
             <div class="field" style="margin:0; flex:1; min-width:200px;">
-              <label>খুঁজুন</label>
-              <input type="text" id="stu-search" placeholder="নাম, ইমেইল বা রোল">
+              <label>Search</label>
+              <input type="text" id="stu-search" placeholder="Name, Email or Role">
             </div>
             <div class="field" style="margin:0; min-width:170px;">
-              <label>সর্ট করুন</label>
+              <label>Short</label>
               <select id="stu-sort">
-                <option value="roll-asc">রোল (ছোট থেকে বড়)</option>
-                <option value="roll-desc">রোল (বড় থেকে ছোট)</option>
-                <option value="name-asc">নাম (A–Z)</option>
+                <option value="roll-asc">Roll low to high</option>
+                <option value="roll-desc">Roll high to low</option>
+                <option value="name-asc">All users</option>
               </select>
             </div>
             <button type="button" class="btn btn-outline btn-sm" id="stu-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
