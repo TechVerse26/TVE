@@ -7,6 +7,7 @@ import { requireAdmin, logout } from "../utils.js";
 import { loadOverview } from "./overview.js";
 import { loadExamsTable } from "./exams.js";
 import { loadResultsTable, bindResultsControls } from "./results.js";
+import { loadLeaderboard, bindLeaderboardControls } from "./leaderboard.js";
 import { loadStudentsTable, bindStudentsControls } from "./students.js";
 
 export let me = null;
@@ -57,12 +58,14 @@ async function init() {
 
   bindSidebar();
   bindResultsControls();
+  bindLeaderboardControls();
   bindStudentsControls();
 
   await refreshCourses();
   loadOverview();
   loadExamsTable();
   loadResultsTable();
+  loadLeaderboard();
   loadStudentsTable();
 }
 
