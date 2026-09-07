@@ -11,104 +11,116 @@
 </head>
 <body>
 
-<div id="topnav-root"></div>
-
 <div id="admin-gate" class="loading-screen"><span class="spinner"></span> যাচাই করা হচ্ছে...</div>
 
-<div class="admin-shell hidden" id="admin-shell">
-  <div class="admin-mobile-topbar">
-    <button class="admin-drawer-toggle" id="admin-drawer-toggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
-    <span class="admin-mobile-topbar-title" id="admin-mobile-topbar-title">Overview</span>
-  </div>
+<div class="admin-app hidden" id="admin-shell">
+  <header class="admin-topbar">
+    <div class="admin-topbar-left">
+      <button class="admin-drawer-toggle" id="admin-drawer-toggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+      <a href="index.html" class="admin-brand"><i class="fa-solid fa-graduation-cap"></i> Tech Verse <span class="admin-brand-tag">Admin</span></a>
+    </div>
+    <div class="admin-topbar-right">
+      <a href="index.html" class="admin-topbar-link"><i class="fa-solid fa-arrow-left"></i><span> সাইটে ফিরে যান</span></a>
+      <button type="button" class="nav-user-chip" id="admin-logout-btn">
+        <span class="nav-avatar" id="admin-user-avatar">?</span>
+        <span id="admin-user-name">...</span>
+      </button>
+    </div>
+  </header>
+
   <div class="admin-sidebar-backdrop" id="admin-sidebar-backdrop"></div>
 
-  <aside class="admin-sidebar" id="admin-sidebar">
-    <div class="admin-sidebar-title">Control Center <button class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button></div>
-    <nav class="admin-nav" id="admin-nav">
-      <button class="admin-nav-item active" data-section="overview" data-label="Overview"><span><i class="fa-solid fa-chart-pie"></i></span> Overview</button>
-      <button class="admin-nav-item" data-section="exams" data-label="Exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
-      <button class="admin-nav-item" data-section="results" data-label="Results"><span><i class="fa-solid fa-chart-simple"></i></span> Results</button>
-      <button class="admin-nav-item" data-section="students" data-label="Students"><span><i class="fa-solid fa-users"></i></span> Students</button>
-    </nav>
-    <a href="index.html" class="admin-sidebar-back"><i class="fa-solid fa-arrow-left"></i> সাইটে ফিরে যান</a>
-  </aside>
+  <div class="admin-body">
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="admin-sidebar-mobile-head">
+        <span>মেনু</span>
+        <button class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <nav class="admin-nav" id="admin-nav">
+        <button class="admin-nav-item active" data-section="overview"><span><i class="fa-solid fa-chart-pie"></i></span> Overview</button>
+        <button class="admin-nav-item" data-section="exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
+        <button class="admin-nav-item" data-section="results"><span><i class="fa-solid fa-chart-simple"></i></span> Results</button>
+        <button class="admin-nav-item" data-section="students"><span><i class="fa-solid fa-users"></i></span> Students</button>
+      </nav>
+    </aside>
 
-  <main class="admin-main">
-    <!-- Overview -->
-    <section class="admin-section active" id="section-overview">
-      <div class="admin-section-head ov-head">
-        <div><h1>Overview</h1><p class="muted">এক্সাম সাইটের একনজর পরিসংখ্যান</p></div>
-        <button type="button" class="btn btn-outline btn-sm" id="overview-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> রিফ্রেশ</button>
-      </div>
-      <div class="ov-stat-grid" id="overview-stat-grid"><div class="loading-screen"><span class="spinner"></span></div></div>
-    </section>
-
-    <!-- Exams -->
-    <section class="admin-section" id="section-exams">
-      <div class="admin-section-head">
-        <h1>Exam Management</h1>
-        <p class="muted">এক্সাম তৈরি, এডিট এবং প্রশ্ন ম্যানেজ করুন</p>
-        <button class="btn btn-primary" id="add-exam-btn-top">+ New Exam</button>
-      </div>
-      <div class="card">
-        <div class="table-wrap"><table class="data-table" id="exams-table">
-          <thead><tr><th>Exam</th><th>Course Tag</th><th>Scope</th><th>Questions</th><th>Time</th><th>Settings</th><th>Schedule</th><th></th></tr></thead>
-          <tbody><tr><td colspan="8"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
-        </table></div>
-      </div>
-    </section>
-
-    <!-- Results -->
-    <section class="admin-section" id="section-results">
-      <div class="admin-section-head">
-        <h1>Results</h1>
-        <p class="muted">সব শিক্ষার্থীর সব এক্সাম অ্যাটেম্পটের ফলাফল</p>
-      </div>
-      <div class="card">
-        <div class="res-toolbar">
-          <div class="field" style="margin:0; flex:1.2; min-width:180px;">
-            <label>Exam</label>
-            <select id="res-exam-filter"><option value="">সব এক্সাম</option></select>
-          </div>
-          <div class="field" style="margin:0; flex:1; min-width:180px;">
-            <label>খুঁজুন</label>
-            <input type="text" id="res-search" placeholder="নাম বা ইমেইল">
-          </div>
-          <button type="button" class="btn btn-outline" id="res-export-btn" style="margin-top:22px;"><i class="fa-solid fa-download"></i> CSV Export</button>
-          <button type="button" class="btn btn-outline btn-sm" id="res-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+    <main class="admin-main">
+      <!-- Overview -->
+      <section class="admin-section active" id="section-overview">
+        <div class="admin-section-head ov-head">
+          <div><h1>Overview</h1><p class="muted">এক্সাম সাইটের একনজর পরিসংখ্যান</p></div>
+          <button type="button" class="btn btn-outline btn-sm" id="overview-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> রিফ্রেশ</button>
         </div>
-      </div>
-      <div class="card mt-16">
-        <div class="table-wrap"><table class="data-table" id="results-table">
-          <thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Percent</th><th>Attempt</th><th>Submitted</th></tr></thead>
-          <tbody><tr><td colspan="6"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
-        </table></div>
-      </div>
-    </section>
+        <div class="ov-stat-grid" id="overview-stat-grid"><div class="loading-screen"><span class="spinner"></span></div></div>
+      </section>
 
-    <!-- Students -->
-    <section class="admin-section" id="section-students">
-      <div class="admin-section-head">
-        <h1>Students</h1>
-        <p class="muted">এনরোলমেন্ট ও অ্যাটেম্পট ওভারভিউ — এনরোলমেন্ট এডিট করতে হলে মূল কোর্স সাইটের অ্যাডমিন প্যানেল ব্যবহার করুন</p>
-      </div>
-      <div class="card">
-        <div class="res-toolbar">
-          <div class="field" style="margin:0; flex:1; min-width:200px;">
-            <label>খুঁজুন</label>
-            <input type="text" id="stu-search" placeholder="নাম বা ইমেইল">
-          </div>
-          <button type="button" class="btn btn-outline btn-sm" id="stu-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+      <!-- Exams -->
+      <section class="admin-section" id="section-exams">
+        <div class="admin-section-head">
+          <h1>Exam Management</h1>
+          <p class="muted">এক্সাম তৈরি, এডিট এবং প্রশ্ন ম্যানেজ করুন</p>
+          <button class="btn btn-primary" id="add-exam-btn-top">+ New Exam</button>
         </div>
-      </div>
-      <div class="card mt-16">
-        <div class="table-wrap"><table class="data-table" id="students-table">
-          <thead><tr><th>Student</th><th>Enrolled Courses</th><th>Attempts</th><th>Role</th></tr></thead>
-          <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
-        </table></div>
-      </div>
-    </section>
-  </main>
+        <div class="card">
+          <div class="table-wrap"><table class="data-table" id="exams-table">
+            <thead><tr><th>Exam</th><th>Course Tag</th><th>Scope</th><th>Questions</th><th>Time</th><th>Settings</th><th>Schedule</th><th></th></tr></thead>
+            <tbody><tr><td colspan="8"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Results -->
+      <section class="admin-section" id="section-results">
+        <div class="admin-section-head">
+          <h1>Results</h1>
+          <p class="muted">সব শিক্ষার্থীর সব এক্সাম অ্যাটেম্পটের ফলাফল</p>
+        </div>
+        <div class="card">
+          <div class="res-toolbar">
+            <div class="field" style="margin:0; flex:1.2; min-width:180px;">
+              <label>Exam</label>
+              <select id="res-exam-filter"><option value="">সব এক্সাম</option></select>
+            </div>
+            <div class="field" style="margin:0; flex:1; min-width:180px;">
+              <label>খুঁজুন</label>
+              <input type="text" id="res-search" placeholder="নাম বা ইমেইল">
+            </div>
+            <button type="button" class="btn btn-outline" id="res-export-btn" style="margin-top:22px;"><i class="fa-solid fa-download"></i> CSV Export</button>
+            <button type="button" class="btn btn-outline btn-sm" id="res-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+          </div>
+        </div>
+        <div class="card mt-16">
+          <div class="table-wrap"><table class="data-table" id="results-table">
+            <thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Percent</th><th>Attempt</th><th>Submitted</th></tr></thead>
+            <tbody><tr><td colspan="6"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Students -->
+      <section class="admin-section" id="section-students">
+        <div class="admin-section-head">
+          <h1>Students</h1>
+          <p class="muted">এনরোলমেন্ট ও অ্যাটেম্পট ওভারভিউ — এনরোলমেন্ট এডিট করতে হলে মূল কোর্স সাইটের অ্যাডমিন প্যানেল ব্যবহার করুন</p>
+        </div>
+        <div class="card">
+          <div class="res-toolbar">
+            <div class="field" style="margin:0; flex:1; min-width:200px;">
+              <label>খুঁজুন</label>
+              <input type="text" id="stu-search" placeholder="নাম বা ইমেইল">
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="stu-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+          </div>
+        </div>
+        <div class="card mt-16">
+          <div class="table-wrap"><table class="data-table" id="students-table">
+            <thead><tr><th>Student</th><th>Enrolled Courses</th><th>Attempts</th><th>Role</th></tr></thead>
+            <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+    </main>
+  </div>
 </div>
 
 <script type="module" src="js/admin/admin.js"></script>
