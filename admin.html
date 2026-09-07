@@ -40,6 +40,7 @@
         <button class="admin-nav-item active" data-section="overview"><span><i class="fa-solid fa-chart-pie"></i></span> Overview</button>
         <button class="admin-nav-item" data-section="exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
         <button class="admin-nav-item" data-section="results"><span><i class="fa-solid fa-chart-simple"></i></span> Results</button>
+        <button class="admin-nav-item" data-section="leaderboard"><span><i class="fa-solid fa-ranking-star"></i></span> Leaderboard</button>
         <button class="admin-nav-item" data-section="students"><span><i class="fa-solid fa-users"></i></span> Students</button>
       </nav>
     </aside>
@@ -97,6 +98,30 @@
         </div>
       </section>
 
+      <!-- Leaderboard -->
+      <section class="admin-section" id="section-leaderboard">
+        <div class="admin-section-head">
+          <h1>Leaderboard</h1>
+          <p class="muted">সেরা রেজাল্ট অনুযায়ী র‍্যাঙ্কড তালিকা — শিক্ষার্থীর নামের উপর ক্লিক করলে তার সব এক্সামের বিস্তারিত দেখা যাবে</p>
+        </div>
+        <div class="card">
+          <div class="res-toolbar">
+            <div class="field" style="margin:0; flex:1; min-width:200px;">
+              <label>খুঁজুন</label>
+              <input type="text" id="lb-search" placeholder="নাম বা ইমেইল">
+            </div>
+            <button type="button" class="btn btn-teal" id="lb-pdf-btn" style="margin-top:22px;"><i class="fa-solid fa-file-pdf"></i> PDF ডাউনলোড করুন</button>
+            <button type="button" class="btn btn-outline btn-sm" id="lb-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+          </div>
+        </div>
+        <div class="card mt-16">
+          <div class="table-wrap"><table class="data-table" id="leaderboard-table">
+            <thead><tr><th>Rank</th><th>Student</th></tr></thead>
+            <tbody><tr><td colspan="2"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
       <!-- Students -->
       <section class="admin-section" id="section-students">
         <div class="admin-section-head">
@@ -107,15 +132,23 @@
           <div class="res-toolbar">
             <div class="field" style="margin:0; flex:1; min-width:200px;">
               <label>খুঁজুন</label>
-              <input type="text" id="stu-search" placeholder="নাম বা ইমেইল">
+              <input type="text" id="stu-search" placeholder="নাম, ইমেইল বা রোল">
+            </div>
+            <div class="field" style="margin:0; min-width:170px;">
+              <label>সর্ট করুন</label>
+              <select id="stu-sort">
+                <option value="roll-asc">রোল (ছোট থেকে বড়)</option>
+                <option value="roll-desc">রোল (বড় থেকে ছোট)</option>
+                <option value="name-asc">নাম (A–Z)</option>
+              </select>
             </div>
             <button type="button" class="btn btn-outline btn-sm" id="stu-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
           </div>
         </div>
         <div class="card mt-16">
           <div class="table-wrap"><table class="data-table" id="students-table">
-            <thead><tr><th>Student</th><th>Enrolled Courses</th><th>Attempts</th><th>Role</th></tr></thead>
-            <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+            <thead><tr><th>Student</th><th>Roll</th><th>Enrolled Courses</th><th>Attempts</th><th>Role</th></tr></thead>
+            <tbody><tr><td colspan="5"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
           </table></div>
         </div>
       </section>
