@@ -135,3 +135,87 @@
 .q-explanation-input { width: 100%; background: var(--bg-elevated); border: 1.5px solid var(--border-strong); color: var(--text-primary); padding: 9px 11px; border-radius: var(--radius-sm); resize: vertical; }
 
 .settings-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---------- Leaderboard ---------- */
+.lb-row { cursor: pointer; }
+.lb-row:hover td { background: var(--bg-elevated-2); }
+.lb-rank {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; background: var(--bg-elevated-2);
+  border: 1px solid var(--border-strong); font-weight: 700; font-size: 0.85rem; color: var(--text-muted);
+}
+.lb-rank-gold { background: #E8A33D; border-color: transparent; color: #2B1C00; }
+.lb-rank-silver { background: #C7CBD8; border-color: transparent; color: #23262F; }
+.lb-rank-bronze { background: #C98A54; border-color: transparent; color: #2B1200; }
+.lb-user { display: flex; align-items: center; gap: 12px; }
+.lb-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
+}
+.lb-user-name { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.lb-user-email { color: var(--text-muted); font-size: 0.82rem; margin-top: 2px; }
+.lb-chevron { font-size: 0.72rem; color: var(--text-muted); transition: transform .18s; }
+.lb-chevron-open { transform: rotate(180deg); color: var(--accent-soft); }
+
+.lb-details-row td { background: var(--bg-elevated-2); padding: 0 !important; border-bottom: 1px solid var(--border) !important; }
+.lb-details { padding: 16px 18px 20px; animation: admin-fade-in .16s ease; }
+.lb-details-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.lb-chip {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--bg-elevated);
+  border: 1px solid var(--border-strong); border-radius: 999px; padding: 5px 12px;
+  font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+}
+.lb-chip i { color: var(--accent-soft); }
+.lb-inner-table { background: var(--bg-elevated); }
+.lb-inner-table th, .lb-inner-table td { font-size: 0.84rem; }
+.lb-empty-details { padding: 6px 0 14px; color: var(--text-muted); font-size: 0.88rem; }
+
+/* ---------- Leaderboard PDF export ----------
+   Uses the browser's own print pipeline (print dialog → "Save as PDF") —
+   no external PDF library. #lb-print-area is a plain, light, report-styled
+   view built on demand in leaderboard.js; it's invisible in normal
+   browsing and only shown (with everything else hidden) while printing. */
+.lb-print-only { display: none; }
+@media print {
+  body.lb-printing > *:not(.lb-print-only) { display: none !important; }
+  .lb-print-only {
+    display: block !important; position: static; background: #fff; color: #1C1D26;
+    font-family: 'Hind Siliguri', 'Segoe UI', sans-serif; padding: 0; margin: 0;
+  }
+}
+@page { size: A4; margin: 14mm 12mm; }
+
+.pr-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-28deg); opacity: 0.06; pointer-events: none; z-index: 0; }
+.pr-watermark img { width: 420px; }
+.pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #6C5CE7; padding-bottom: 14px; margin-bottom: 20px; position: relative; z-index: 1; }
+.pr-logo { width: 52px; height: 52px; object-fit: contain; }
+.pr-header h1 { font-size: 1.25rem; color: #1C1D26; margin-bottom: 3px; }
+.pr-header p { font-size: 0.82rem; color: #666A80; }
+.pr-table { width: 100%; border-collapse: collapse; position: relative; z-index: 1; }
+.pr-table th, .pr-table td { border: 1px solid #D8D9E4; padding: 8px 10px; text-align: left; font-size: 0.82rem; }
+.pr-table th { background: #F1EFFF; color: #4A3FB0; font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.4px; }
+.pr-table tbody tr:nth-child(even) { background: #FAFAFD; }
+.pr-table .pr-rank, .pr-table .pr-num { font-weight: 700; text-align: center; }
+.pr-footer { margin-top: 16px; font-size: 0.72rem; color: #9497AB; text-align: center; position: relative; z-index: 1; }
+
+/* ---------- Roll chip (students table) — serial, read-only display + admin-only edit ---------- */
+.roll-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong);
+  border-radius: 999px; padding: 5px 6px 5px 13px;
+}
+.roll-chip-num { font-family: var(--font-display); font-weight: 700; font-size: 0.86rem; letter-spacing: 0.4px; color: var(--accent-soft); font-variant-numeric: tabular-nums; }
+.roll-edit-btn {
+  width: 22px; height: 22px; border-radius: 50%; border: none; background: transparent;
+  color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.66rem; flex-shrink: 0; transition: background .15s, color .15s;
+}
+.roll-edit-btn:hover { background: var(--accent-soft); color: #fff; }
+.roll-gen-btn {
+  display: inline-flex; align-items: center; gap: 6px; background: transparent;
+  border: 1px dashed var(--border-strong); color: var(--text-muted); border-radius: 999px;
+  padding: 6px 13px; font-size: 0.8rem; font-weight: 600; transition: border-color .15s, color .15s;
+}
+.roll-gen-btn:hover:not(:disabled) { border-color: var(--accent-soft); color: var(--accent-soft); }
+.roll-gen-btn:disabled { opacity: 0.6; cursor: default; }
+.roll-gen-btn i { font-size: 0.72rem; }
