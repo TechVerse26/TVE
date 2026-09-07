@@ -9,6 +9,7 @@ export async function initLoginPage(params, container) {
   container.innerHTML = `
     <div class="auth-shell">
       <div class="auth-card card">
+        <div class="auth-logo"><img src="assets/logo.png" alt="TVexam"></div>
         <h1><i class="fa-solid fa-graduation-cap"></i> লগইন করুন</h1>
         <p class="auth-sub">Tech Verse Course অ্যাকাউন্ট দিয়েই এক্সাম সাইটে প্রবেশ করুন</p>
         <form id="login-form" class="auth-form">

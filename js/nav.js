@@ -20,7 +20,7 @@ export async function renderNav(activePage = "") {
   root.innerHTML = `
     <nav class="topnav">
       <div class="container topnav-inner">
-        <a href="#/home" class="brand"><i class="fa-solid fa-graduation-cap"></i> Tech Verse Exam</a>
+        <a href="#/home" class="brand"><img src="assets/logo.png" alt="TVexam" class="brand-logo"></a>
         <button class="nav-hamburger" id="nav-hamburger" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
         <div class="nav-links" id="nav-links">
           <a href="#/home" class="nav-link ${activePage === "exam" ? "active" : ""}">এক্সাম</a>

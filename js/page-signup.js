@@ -10,6 +10,7 @@ export async function initSignupPage(params, container) {
   container.innerHTML = `
     <div class="auth-shell">
       <div class="auth-card card">
+        <div class="auth-logo"><img src="assets/logo.png" alt="TVexam"></div>
         <h1><i class="fa-solid fa-user-plus"></i> সাইন-আপ করুন</h1>
         <p class="auth-sub">Tech Verse Course-এ যে ইমেইল দিয়ে এনরোল করেছেন সেটাই ব্যবহার করুন</p>
         <form id="signup-form" class="auth-form">
