@@ -1,0 +1,177 @@
+// ==========================================================================
+// exam.js — the exam section's public entry point (SPA route handler).
+// URL scheme: #/exam                → exam list (course picker)
+//             #/exam?course=xxx     → one course's exams
+//             #/exam?id=xxx         → verification → take → result
+// ==========================================================================
+import { requireAuth, toast, getUserProfile, getExamQuestionCount } from "./utils.js";
+import { navigate } from "./router.js";
+import { state, resetSessionState, buildQuestionPool, scoreExam } from "./exam-engine.js";
+import { fetchQuestions, saveResult } from "./exam-data.js";
+import { runVerification, renderRulesGate } from "./exam-guard.js";
+import { renderExamCourseList, renderExamList, renderQuestion, renderAllQuestions, renderResult } from "./exam-render.js";
+import { startExamTimer, stopExamTimer, formatClock } from "./exam-timer.js";
+import { renderNav } from "./nav.js";
+
+let listView, verifyView, takeView, resultView, refs;
+
+let controlsBound = false;
+function bindStaticControlsOnce() {
+  if (controlsBound) return;
+  controlsBound = true;
+
+  document.getElementById("q-prev")?.addEventListener("click", () => {
+    if (state.currentIndex > 0) { state.currentIndex--; renderQuestion(refs); }
+  });
+  document.getElementById("q-next")?.addEventListener("click", () => {
+    if (state.currentIndex < state.questions.length - 1) { state.currentIndex++; renderQuestion(refs); }
+  });
+  document.getElementById("exam-submit-form")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    submitExam();
+  });
+  document.getElementById("exam-back-btn")?.addEventListener("click", () => navigate("#/exam"));
+}
+
+export async function initExamPage(params) {
+  const myToken = ++state.navToken;
+  stopExamTimer();
+
+  const examId = params.get("id");
+  resetSessionState(examId);
+
+  listView = document.getElementById("exam-list-view");
+  verifyView = document.getElementById("exam-verify-view");
+  takeView = document.getElementById("exam-take-view");
+  resultView = document.getElementById("exam-result-view");
+
+  refs = {
+    questionArea: document.getElementById("question-area"),
+    progressFill: document.getElementById("q-progress-fill"),
+    prevBtn: document.getElementById("q-prev"),
+    nextBtn: document.getElementById("q-next"),
+    submitBtn: document.getElementById("q-submit"),
+  };
+
+  listView.classList.remove("hidden");
+  verifyView.classList.add("hidden");
+  verifyView.innerHTML = "";
+  takeView.classList.add("hidden");
+  resultView.classList.add("hidden");
+  resultView.innerHTML = "";
+
+  bindStaticControlsOnce();
+  await renderNav("exam");
+
+  state.currentUser = await requireAuth();
+  if (myToken !== state.navToken) return cleanup;
+  if (!state.currentUser) return cleanup;
+  state.userProfile = await getUserProfile(state.currentUser.uid);
+  if (myToken !== state.navToken) return cleanup;
+
+  if (examId) {
+    await runExamEntry(examId, myToken);
+  } else {
+    const grid = document.getElementById("exam-grid");
+    const courseKey = params.get("course");
+    if (courseKey) await renderExamList(grid, courseKey);
+    else await renderExamCourseList(grid);
+  }
+
+  return cleanup;
+  function cleanup() { stopExamTimer(); }
+}
+
+async function runExamEntry(examId, myToken) {
+  listView.classList.add("hidden");
+  verifyView.classList.remove("hidden");
+
+  const verdict = await runVerification(verifyView, examId, myToken);
+  if (myToken !== state.navToken) return;
+  if (!verdict.ok) return;
+
+  const totalMarks = getExamQuestionCount(verdict.exam);
+  const gateResult = await renderRulesGate(verifyView, verdict.exam, {
+    attemptsSoFar: verdict.attemptsSoFar, maxAttempts: verdict.maxAttempts, totalMarks,
+  });
+  if (myToken !== state.navToken) return;
+  if (gateResult === "away") return;
+  if (gateResult !== "confirmed") { navigate("#/exam"); return; }
+
+  await beginAttempt(verdict.exam, myToken);
+}
+
+async function beginAttempt(exam, myToken) {
+  const questionBank = await fetchQuestions(state.examId);
+  if (myToken !== state.navToken) return;
+  if (!questionBank.length) {
+    verifyView.innerHTML = `<div class="exs-empty"><p>এই এক্সামে কোনো প্রশ্ন নেই</p></div>`;
+    return;
+  }
+
+  state.exam = exam;
+  state.questions = buildQuestionPool(exam, questionBank);
+  state.examLayout = exam.layout === "all" ? "all" : "one";
+  state.answers = {};
+  state.lockedQuestions = new Set();
+  state.currentIndex = 0;
+  state.secondsLeft = (exam.duration || 10) * 60;
+
+  verifyView.classList.add("hidden");
+  takeView.classList.remove("hidden");
+  document.getElementById("exam-take-title").textContent = exam.title;
+
+  const navRow = document.querySelector(".exam-nav-row");
+  const progressTrack = document.querySelector(".q-progress-track");
+  if (state.examLayout === "all") {
+    refs.prevBtn.classList.add("hidden");
+    refs.nextBtn.classList.add("hidden");
+    refs.submitBtn.classList.remove("hidden");
+    progressTrack.classList.add("hidden");
+  } else {
+    refs.prevBtn.classList.remove("hidden");
+    refs.nextBtn.classList.remove("hidden");
+    progressTrack.classList.remove("hidden");
+  }
+  navRow.classList.remove("hidden");
+
+  const timerEl = document.getElementById("exam-timer");
+  startExamTimer(
+    (secondsLeft) => {
+      timerEl.innerHTML = `<i class="fa-solid fa-stopwatch"></i> ${formatClock(secondsLeft)}`;
+      timerEl.classList.toggle("low", secondsLeft <= 60);
+    },
+    () => { toast("সময় শেষ! আপনার উত্তর জমা দেওয়া হচ্ছে...", "error"); submitExam(); }
+  );
+
+  if (state.examLayout === "all") renderAllQuestions(refs);
+  else renderQuestion(refs);
+}
+
+async function submitExam() {
+  stopExamTimer();
+  const exam = state.exam;
+  const breakdown = scoreExam(exam);
+  const attemptNumber = state.attemptsSoFar + 1;
+  const examTitle = exam?.title || document.getElementById("exam-take-title").textContent;
+
+  await saveResult({
+    uid: state.currentUser.uid,
+    examId: state.examId,
+    examTitle,
+    score: breakdown.score,
+    total: state.questions.length,
+    percent: breakdown.percent,
+    correctCount: breakdown.correctCount,
+    wrongCount: breakdown.wrongCount,
+    unansweredCount: breakdown.unansweredCount,
+    negativeMarking: breakdown.negativeMarking,
+    timeTakenSeconds: breakdown.timeTakenSeconds,
+    answers: state.answers,
+    attemptNumber,
+  });
+
+  takeView.classList.add("hidden");
+  resultView.classList.remove("hidden");
+  renderResult(resultView, { score: breakdown.score, total: state.questions.length, percent: breakdown.percent, examTitle, breakdown });
+}
