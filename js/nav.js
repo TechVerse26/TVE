@@ -159,8 +159,8 @@ export async function renderNav(activePage = "") {
     logout();
   });
 
-  // Close drawer on nav item click (mobile)
-  document.querySelectorAll(".nav-drawer-item").forEach((item) => {
+  // Close drawer on nav item or profile card click (mobile)
+  document.querySelectorAll(".nav-drawer-item, .nav-drawer-profile-card").forEach((item) => {
     item.addEventListener("click", () => {
       const drawer = document.getElementById("nav-drawer");
       const backdrop = document.getElementById("nav-drawer-backdrop");

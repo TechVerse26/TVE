@@ -157,15 +157,17 @@ export async function initProfilePage(params, container) {
         </div>`}
       </div>
 
-      <div class="tve-card tve-danger-card">
-        <div class="tve-card-head">
-          <span class="tve-card-icon tve-card-icon-coral"><i class="fa-solid fa-right-from-bracket"></i></span>
+      <div class="tve-signout-bar">
+        <div class="tve-signout-info">
+          <span class="tve-signout-icon"><i class="fa-solid fa-right-from-bracket"></i></span>
           <div>
-            <h3>লগআউট</h3>
-            <p class="tve-muted">এই ডিভাইস থেকে আপনার অ্যাকাউন্ট থেকে বের হয়ে যান</p>
+            <p class="tve-signout-title">Sign Out</p>
+            <p class="tve-signout-sub">এই ডিভাইস থেকে অ্যাকাউন্ট থেকে বের হয়ে যান</p>
           </div>
         </div>
-        <button type="button" class="tve-form-btn tve-form-btn-outline" id="pf-logout">লগআউট করুন</button>
+        <button type="button" class="tve-signout-btn" id="pf-logout">
+          <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+        </button>
       </div>
     </div>`;
 
@@ -222,13 +224,17 @@ export async function initProfilePage(params, container) {
       rollSyncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> সিঙ্ক হচ্ছে...';
       try {
         const newRoll = await claimNextRoll();
-        await updateUserProfile(user, { displayName: name, phone: profile.phone || "", roll: newRoll, institution });
+        const currentPhone = container.querySelector("#pf-phone")?.value?.trim() || profile.phone || "";
+        const currentInstitution = container.querySelector("#pf-institution")?.value?.trim() || institution || "";
+        const currentName = container.querySelector("#pf-name")?.value?.trim() || name;
+        await updateUserProfile(user, { displayName: currentName, phone: currentPhone, roll: newRoll, institution: currentInstitution });
         renderRollRow(newRoll, { animate: true });
         const rollInput = container.querySelector("#pf-roll");
         if (rollInput) rollInput.value = newRoll;
-        renderNav("profile");
+        await renderNav("profile");
         toast(`রোল সিঙ্ক করা হয়েছে: ${newRoll}`, "success");
-      } catch {
+      } catch (err) {
+        console.error("Roll sync error:", err);
         toast("রোল সিঙ্ক করা যায়নি, আবার চেষ্টা করুন", "error");
         rollSyncBtn.disabled = false;
         rollSyncBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> সিঙ্ক করুন';
