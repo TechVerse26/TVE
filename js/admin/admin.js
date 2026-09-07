@@ -3,8 +3,7 @@
 // ==========================================================================
 import { db } from "../firebase-config.js";
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { requireAdmin } from "../utils.js";
-import { renderNav } from "../nav.js";
+import { requireAdmin, logout } from "../utils.js";
 import { loadOverview } from "./overview.js";
 import { loadExamsTable } from "./exams.js";
 import { loadResultsTable, bindResultsControls } from "./results.js";
@@ -24,7 +23,6 @@ function bindSidebar() {
   const backdrop = document.getElementById("admin-sidebar-backdrop");
   const drawerToggle = document.getElementById("admin-drawer-toggle");
   const drawerClose = document.getElementById("admin-drawer-close");
-  const mobileTitle = document.getElementById("admin-mobile-topbar-title");
 
   const closeDrawer = () => { sidebar?.classList.remove("open"); backdrop?.classList.remove("open"); };
   drawerToggle?.addEventListener("click", () => { sidebar?.classList.toggle("open"); backdrop?.classList.toggle("open"); });
@@ -37,16 +35,23 @@ function bindSidebar() {
       document.querySelectorAll(".admin-section").forEach((s) => s.classList.remove("active"));
       btn.classList.add("active");
       document.getElementById(`section-${btn.dataset.section}`).classList.add("active");
-      if (mobileTitle) mobileTitle.textContent = btn.dataset.label || btn.textContent.trim();
       closeDrawer();
     });
   });
 }
 
+function renderAdminHeader(profile, user) {
+  const name = profile?.displayName || user.email || "Admin";
+  const initial = name.trim().charAt(0).toUpperCase();
+  document.getElementById("admin-user-avatar").textContent = initial;
+  document.getElementById("admin-user-name").textContent = name;
+  document.getElementById("admin-logout-btn").addEventListener("click", () => logout());
+}
+
 async function init() {
-  await renderNav("");
   me = await requireAdmin();
   if (!me) return;
+  renderAdminHeader(me.profile, me.user);
   document.getElementById("admin-gate").classList.add("hidden");
   document.getElementById("admin-shell").classList.remove("hidden");
 
