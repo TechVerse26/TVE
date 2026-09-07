@@ -1,228 +1,120 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Exam Admin · Tech Verse</title>
-  <link rel="icon" href="assets/icons/favicon.ico" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-  <link rel="stylesheet" href="css/base.css" />
-  <link rel="stylesheet" href="css/admin.css" />
-  <!-- jsPDF for PDF export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>অ্যাডমিন প্যানেল — Tech Verse Exam</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
-  <div id="admin-gate" class="admin-gate">
-    <div class="loading-screen"><span class="spinner"></span> Verifying admin…</div>
+
+<div id="topnav-root"></div>
+
+<div id="admin-gate" class="loading-screen"><span class="spinner"></span> যাচাই করা হচ্ছে...</div>
+
+<div class="admin-shell hidden" id="admin-shell">
+  <div class="admin-mobile-topbar">
+    <button class="admin-drawer-toggle" id="admin-drawer-toggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+    <span class="admin-mobile-topbar-title" id="admin-mobile-topbar-title">Overview</span>
   </div>
+  <div class="admin-sidebar-backdrop" id="admin-sidebar-backdrop"></div>
 
-  <div class="admin-shell hidden" id="admin-shell">
-    <div class="admin-topbar">
-      <a href="index.html" class="admin-topbar-brand"><img src="assets/logo.png" alt="" /> Exam Control</a>
-      <div style="display:flex;align-items:center;gap:0.5rem">
-        <button type="button" class="theme-btn" id="theme-btn" style="width:34px;height:34px"><i class="fa-solid fa-sun"></i></button>
-        <button type="button" class="theme-btn" id="admin-signout-btn-mobile" style="width:34px;height:34px" title="Sign Out"><i class="fa-solid fa-right-from-bracket"></i></button>
-        <button type="button" class="admin-sidebar-toggle" id="admin-sidebar-toggle" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="admin-sidebar-title">Control Center <button class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button></div>
+    <nav class="admin-nav" id="admin-nav">
+      <button class="admin-nav-item active" data-section="overview" data-label="Overview"><span><i class="fa-solid fa-chart-pie"></i></span> Overview</button>
+      <button class="admin-nav-item" data-section="exams" data-label="Exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
+      <button class="admin-nav-item" data-section="results" data-label="Results"><span><i class="fa-solid fa-chart-simple"></i></span> Results</button>
+      <button class="admin-nav-item" data-section="students" data-label="Students"><span><i class="fa-solid fa-users"></i></span> Students</button>
+    </nav>
+    <a href="index.html" class="admin-sidebar-back"><i class="fa-solid fa-arrow-left"></i> সাইটে ফিরে যান</a>
+  </aside>
+
+  <main class="admin-main">
+    <!-- Overview -->
+    <section class="admin-section active" id="section-overview">
+      <div class="admin-section-head ov-head">
+        <div><h1>Overview</h1><p class="muted">এক্সাম সাইটের একনজর পরিসংখ্যান</p></div>
+        <button type="button" class="btn btn-outline btn-sm" id="overview-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> রিফ্রেশ</button>
       </div>
-    </div>
-    <aside class="admin-sidebar" id="admin-sidebar">
-      <div class="admin-user-card">
-        <span class="avatar-fallback" id="admin-nav-avatar">A</span>
-        <div class="admin-user-card-text">
-          <span class="admin-greet-msg" data-greet-msg>Welcome</span>
-          <span class="admin-greet-time" data-greet-time>--:--</span>
+      <div class="ov-stat-grid" id="overview-stat-grid"><div class="loading-screen"><span class="spinner"></span></div></div>
+    </section>
+
+    <!-- Exams -->
+    <section class="admin-section" id="section-exams">
+      <div class="admin-section-head">
+        <h1>Exam Management</h1>
+        <p class="muted">এক্সাম তৈরি, এডিট এবং প্রশ্ন ম্যানেজ করুন</p>
+        <button class="btn btn-primary" id="add-exam-btn-top">+ New Exam</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table class="data-table" id="exams-table">
+          <thead><tr><th>Exam</th><th>Course Tag</th><th>Scope</th><th>Questions</th><th>Time</th><th>Settings</th><th>Schedule</th><th></th></tr></thead>
+          <tbody><tr><td colspan="8"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section class="admin-section" id="section-results">
+      <div class="admin-section-head">
+        <h1>Results</h1>
+        <p class="muted">সব শিক্ষার্থীর সব এক্সাম অ্যাটেম্পটের ফলাফল</p>
+      </div>
+      <div class="card">
+        <div class="res-toolbar">
+          <div class="field" style="margin:0; flex:1.2; min-width:180px;">
+            <label>Exam</label>
+            <select id="res-exam-filter"><option value="">সব এক্সাম</option></select>
+          </div>
+          <div class="field" style="margin:0; flex:1; min-width:180px;">
+            <label>খুঁজুন</label>
+            <input type="text" id="res-search" placeholder="নাম বা ইমেইল">
+          </div>
+          <button type="button" class="btn btn-outline" id="res-export-btn" style="margin-top:22px;"><i class="fa-solid fa-download"></i> CSV Export</button>
+          <button type="button" class="btn btn-outline btn-sm" id="res-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
         </div>
       </div>
-      <nav>
-        <button class="admin-nav-item active" data-section="overview"><i class="fa-solid fa-chart-pie"></i> Overview</button>
-        <button class="admin-nav-item" data-section="analytics"><i class="fa-solid fa-chart-line"></i> Analytics</button>
-        <button class="admin-nav-item" data-section="exams"><i class="fa-solid fa-file-pen"></i> Exams</button>
-        <button class="admin-nav-item" data-section="results"><i class="fa-solid fa-trophy"></i> Results</button>
-        <button class="admin-nav-item" data-section="leaderboard"><i class="fa-solid fa-ranking-star"></i> Leaderboard</button>
-      </nav>
-      <div style="margin-top:1.5rem;padding:0 0.5rem;display:flex;flex-direction:column;gap:0.4rem">
-        <a href="index.html" class="btn btn-outline btn-sm btn-block">← Exam Site</a>
-        <a href="#" id="course-admin-link" class="btn btn-ghost btn-sm btn-block" target="_blank">Course Admin</a>
-        <button type="button" class="btn btn-ghost btn-sm btn-block" id="admin-signout-btn" style="color:var(--danger)"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+      <div class="card mt-16">
+        <div class="table-wrap"><table class="data-table" id="results-table">
+          <thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Percent</th><th>Attempt</th><th>Submitted</th></tr></thead>
+          <tbody><tr><td colspan="6"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+        </table></div>
       </div>
-    </aside>
+    </section>
 
-    <main class="admin-main">
+    <!-- Students -->
+    <section class="admin-section" id="section-students">
+      <div class="admin-section-head">
+        <h1>Students</h1>
+        <p class="muted">এনরোলমেন্ট ও অ্যাটেম্পট ওভারভিউ — এনরোলমেন্ট এডিট করতে হলে মূল কোর্স সাইটের অ্যাডমিন প্যানেল ব্যবহার করুন</p>
+      </div>
+      <div class="card">
+        <div class="res-toolbar">
+          <div class="field" style="margin:0; flex:1; min-width:200px;">
+            <label>খুঁজুন</label>
+            <input type="text" id="stu-search" placeholder="নাম বা ইমেইল">
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="stu-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+        </div>
+      </div>
+      <div class="card mt-16">
+        <div class="table-wrap"><table class="data-table" id="students-table">
+          <thead><tr><th>Student</th><th>Enrolled Courses</th><th>Attempts</th><th>Role</th></tr></thead>
+          <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+        </table></div>
+      </div>
+    </section>
+  </main>
+</div>
 
-      <!-- ===== OVERVIEW ===== -->
-      <section class="admin-section active" id="section-overview">
-        <div class="admin-section-head">
-          <div>
-            <h2>Overview</h2>
-            <p class="muted">Exam platform snapshot</p>
-          </div>
-        </div>
-        <div class="stat-grid" id="stat-grid"><div class="loading-screen"><span class="spinner"></span></div></div>
-        <div class="card" style="margin-bottom:1.25rem">
-          <h3 style="margin:0 0 0.75rem">Score distribution</h3>
-          <div id="score-distribution"></div>
-        </div>
-        <div class="card">
-          <h3 style="margin:0 0 0.75rem">Recent submissions</h3>
-          <div id="recent-results"><div class="loading-screen"><span class="spinner"></span></div></div>
-        </div>
-      </section>
-
-      <!-- ===== ANALYTICS ===== -->
-      <section class="admin-section" id="section-analytics">
-        <div class="admin-section-head">
-          <div>
-            <h2>Analytics</h2>
-            <p class="muted">Exam performance insights & question difficulty</p>
-          </div>
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-            <select id="analytics-exam-filter" class="btn btn-outline btn-sm" style="padding:0.45rem 0.75rem;font-size:0.85rem">
-              <option value="">All Exams</option>
-            </select>
-            <button class="btn btn-outline btn-sm" id="analytics-refresh-btn"><i class="fa-solid fa-rotate"></i> Refresh</button>
-          </div>
-        </div>
-
-        <!-- KPI row -->
-        <div class="stat-grid" id="analytics-kpi-grid"><div class="loading-screen"><span class="spinner"></span></div></div>
-
-        <!-- Charts — swipeable so 2 charts never squeeze/break the page on small screens -->
-        <div class="analytics-scroll-outer">
-          <button type="button" class="analytics-scroll-nav prev" id="analytics-scroll-prev" aria-label="Scroll left"><i class="fa-solid fa-chevron-left"></i></button>
-          <div class="analytics-scroll-row" id="analytics-scroll-row">
-            <div class="card analytics-scroll-card">
-              <h3><i class="fa-solid fa-chart-line" style="color:var(--primary-hover)"></i> Daily Attempts (30 days)</h3>
-              <div id="analytics-daily-chart" class="mini-chart-wrap"></div>
-            </div>
-            <div class="card analytics-scroll-card">
-              <h3><i class="fa-solid fa-circle-half-stroke" style="color:var(--accent)"></i> Pass vs Fail</h3>
-              <div id="analytics-passfail"></div>
-            </div>
-          </div>
-          <button type="button" class="analytics-scroll-nav next" id="analytics-scroll-next" aria-label="Scroll right"><i class="fa-solid fa-chevron-right"></i></button>
-          <div class="analytics-scroll-dots" id="analytics-scroll-dots"></div>
-        </div>
-
-        <!-- Question difficulty -->
-        <div class="card" style="margin-bottom:1.25rem">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem">
-            <div>
-              <h3 style="margin:0 0 0.25rem;font-size:1rem"><i class="fa-solid fa-brain" style="color:var(--warning)"></i> Question Difficulty Analysis</h3>
-              <p class="muted" style="margin:0;font-size:0.82rem">Pick an exam, then open its full question-by-question report in its own view.</p>
-            </div>
-            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
-              <select id="analytics-qd-exam" class="btn btn-outline btn-sm" style="padding:0.45rem 0.75rem;font-size:0.85rem">
-                <option value="">Select exam…</option>
-              </select>
-              <button type="button" class="btn btn-primary btn-sm" id="analytics-qd-view-btn" disabled>
-                <i class="fa-solid fa-up-right-from-square"></i> View Report
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top performers -->
-        <div class="card">
-          <h3 style="margin:0 0 0.75rem;font-size:1rem"><i class="fa-solid fa-medal" style="color:#f59e0b"></i> Top Performers</h3>
-          <div id="analytics-top-performers"></div>
-        </div>
-      </section>
-
-      <!-- ===== EXAMS ===== -->
-      <section class="admin-section" id="section-exams">
-        <div class="admin-section-head">
-          <div>
-            <h2>Exams</h2>
-            <p class="muted">Create, edit questions, link to courses</p>
-          </div>
-          <button type="button" class="btn btn-primary" id="add-exam-btn"><i class="fa-solid fa-plus"></i> New Exam</button>
-        </div>
-        <div class="toolbar">
-          <div class="toolbar-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="exams-search" placeholder="Search by title, course, category…" />
-          </div>
-          <select id="exams-status-filter">
-            <option value="">All statuses</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-          </select>
-        </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table class="data-table" id="exams-table">
-              <thead><tr><th>Title</th><th>Course</th><th>Questions</th><th>Duration</th><th>Status</th><th></th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== RESULTS ===== -->
-      <section class="admin-section" id="section-results">
-        <div class="admin-section-head">
-          <div>
-            <h2>All Results</h2>
-            <p class="muted">Every student attempt — full history, not just latest</p>
-          </div>
-          <button type="button" class="btn btn-outline" id="results-export-btn"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-        </div>
-        <div class="toolbar">
-          <div class="toolbar-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="results-search" placeholder="Search by student or exam…" />
-          </div>
-        </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table class="data-table" id="results-table">
-              <thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Attempt</th><th>Date</th><th></th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== LEADERBOARD ===== -->
-      <section class="admin-section" id="section-leaderboard">
-        <div class="admin-section-head">
-          <div>
-            <h2>Leaderboard</h2>
-            <p class="muted">Tap any student to see full history · PDF export available</p>
-          </div>
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-            <button class="btn btn-outline btn-sm" id="lb-export-all-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Export Full PDF</button>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:flex-end">
-          <div class="field" style="margin:0;min-width:220px;flex:1">
-            <label style="font-size:0.8rem">Filter by Exam</label>
-            <select id="admin-lb-exam"></select>
-          </div>
-          <div class="toolbar-search" style="flex:1;min-width:200px">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="admin-lb-search" placeholder="Search student…" />
-          </div>
-        </div>
-
-        <!-- LB stats summary -->
-        <div class="stat-grid" id="lb-summary-grid" style="margin-bottom:1.25rem"></div>
-
-        <!-- LB list (slim rows) -->
-        <div class="card" style="padding:0;overflow:hidden" id="admin-lb-list-wrap">
-          <div id="admin-lb-list"><div class="loading-screen"><span class="spinner"></span></div></div>
-          <!-- pagination -->
-          <div id="lb-pagination" style="display:flex;gap:0.5rem;justify-content:center;padding:1rem;border-top:1px solid var(--border);flex-wrap:wrap"></div>
-        </div>
-      </section>
-
-    </main>
-  </div>
-
-  <div id="toast-root"></div>
-  <script type="module" src="js/admin.js"></script>
+<script type="module" src="js/admin/admin.js"></script>
+<script type="module">
+  import { loadOverview } from "./js/admin/overview.js";
+  document.getElementById("overview-refresh-btn")?.addEventListener("click", loadOverview);
+</script>
 </body>
 </html>

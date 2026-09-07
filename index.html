@@ -1,232 +1,72 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tech Verse Exam</title>
-  <meta name="description" content="Take exams linked to your Tech Verse courses. Same account, dedicated exam experience." />
-  <link rel="icon" href="assets/icons/favicon.ico" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-  <link rel="stylesheet" href="css/base.css" />
-  <link rel="stylesheet" href="css/exam-app.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tech Verse Exam — আপনার কোর্সের এক্সাম</title>
+<meta name="description" content="Tech Verse Course শিক্ষার্থীদের জন্য এক্সাম প্ল্যাটফর্ম">
+<link rel="icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/auth.css">
+<link rel="stylesheet" href="css/exam.css">
 </head>
 <body>
-  <nav class="topnav">
-    <div class="topnav-bar">
-      <a href="#/" class="brand">
-        <img src="assets/logo.png" alt="" class="brand-logo" />
-        <span>Tech Verse</span>
-        <span class="brand-badge">Exam</span>
-      </a>
 
-      <div class="nav-links" id="nav-links">
-        <a href="#/" data-nav="home">Dashboard</a>
-        <a href="#/exams" data-nav="exams">Exams</a>
-        <a href="#/results" data-nav="results">My Results</a>
-        <a href="#/leaderboard" data-nav="leaderboard">Leaderboard</a>
-        <a href="#/profile" data-nav="profile">Profile</a>
-        <a href="#" id="course-site-link-mobile" class="nav-only-mobile" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp; Course Site</a>
-        <a href="admin.html" class="nav-link-admin hidden" id="nav-admin-link"><i class="fa-solid fa-gear"></i> Admin</a>
-      </div>
+<div id="topnav-root"></div>
 
-      <div class="nav-right">
-        <div class="nav-greet" id="nav-greet">
-          <span class="nav-greet-time" data-greet-time>--:--</span>
-          <span class="nav-greet-msg" data-greet-msg>Welcome</span>
+<!-- Exam section shell — persistent across #/home, #/exam?course=, #/exam?id= visits.
+     Flow for #/exam?id=xxx: exam-list-view → exam-verify-view (checklist + rules gate)
+     → exam-take-view → exam-result-view. -->
+<div id="page-exam" class="hidden exam-shell">
+  <main class="container">
+    <div id="exam-list-view">
+      <div class="section-head mt-24">
+        <div>
+          <button type="button" id="exam-back-btn" class="exs-back-btn hidden"><i class="fa-solid fa-arrow-left"></i> কোর্স তালিকা</button>
+          <h2 id="exam-section-title">নিজেকে যাচাই করুন</h2>
+          <p id="exam-section-sub">আপনার এনরোল করা কোর্সের এক্সাম দিন, নিজের স্কোর দেখুন</p>
         </div>
-        <button type="button" class="theme-btn" id="theme-btn" title="Toggle theme"><i class="fa-solid fa-sun"></i></button>
-        <a class="btn btn-outline btn-sm" id="course-site-link" href="#" target="_blank" rel="noopener">Course Site</a>
-        <div class="user-menu" id="user-menu">
-          <button type="button" class="user-chip hidden" id="user-chip">
-            <span class="avatar-fallback" id="nav-avatar">U</span>
-            <span id="nav-name">User</span>
-            <i class="fa-solid fa-chevron-down user-chip-caret"></i>
-          </button>
-          <div class="user-dropdown hidden" id="user-dropdown">
-            <a href="#/profile" class="user-dropdown-item"><i class="fa-solid fa-user"></i> Profile</a>
-            <a href="#/results" class="user-dropdown-item"><i class="fa-solid fa-chart-line"></i> My Results</a>
-            <button type="button" class="user-dropdown-item user-dropdown-signout" id="user-signout-btn"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
-          </div>
-        </div>
-        <button type="button" class="btn btn-primary btn-sm hidden" id="nav-login-btn">Sign In</button>
-        <button class="hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
-
       </div>
+      <div class="exam-grid" id="exam-grid"></div>
     </div>
-  </nav>
 
-  <main id="app">
-    <!-- Dashboard -->
-    <section class="page" id="page-home">
-      <div class="container">
-        <div class="page-head">
-          <h1>Exam Dashboard</h1>
-          <p>Your available exams, recent scores, and quick actions.</p>
-        </div>
-        <div class="stat-grid" id="home-stats">
-          <div class="loading-screen"><span class="spinner"></span></div>
-        </div>
-        <div class="card" style="margin-bottom:1.25rem">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-            <h3 style="margin:0">Available Exams</h3>
-            <a href="#/exams" class="btn btn-ghost btn-sm">View all</a>
-          </div>
-          <div id="home-exams"><div class="loading-screen"><span class="spinner"></span></div></div>
-        </div>
-        <div class="card">
-          <h3 style="margin:0 0 0.75rem">Recent Results</h3>
-          <div id="home-results"><div class="loading-screen"><span class="spinner"></span></div></div>
-        </div>
-      </div>
-    </section>
+    <div id="exam-verify-view" class="exs-verify-wrap hidden"></div>
 
-    <!-- Exam list -->
-    <section class="page" id="page-exams">
-      <div class="container">
-        <div class="page-head">
-          <h1>All Exams</h1>
-          <p>Exams for free courses and courses you’ve unlocked.</p>
+    <div id="exam-take-view" class="exam-take-wrap hidden">
+      <div class="exam-sticky-bar">
+        <div class="exam-top-bar">
+          <h2 id="exam-take-title">Exam</h2>
+          <div class="exam-timer" id="exam-timer"><i class="fa-solid fa-stopwatch"></i><span class="exam-timer-value">00:00</span></div>
         </div>
-        <div class="toolbar">
-          <div class="toolbar-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="exam-search" placeholder="Search exam by name or category…" />
-          </div>
-          <select id="exam-filter-status">
-            <option value="">All Exams</option>
-            <option value="open">Not Attempted Yet</option>
-            <option value="done">Completed</option>
-          </select>
-          <select id="exam-filter-category">
-            <option value="">All Categories</option>
-          </select>
-          <select id="exam-sort">
-            <option value="new">Newest First</option>
-            <option value="az">Name (A–Z)</option>
-            <option value="duration">By Duration</option>
-          </select>
-        </div>
-        <div id="exam-deeplink-banner" class="deeplink-banner hidden"></div>
-        <div id="exams-grid" class="exam-grid">
-          <div class="loading-screen"><span class="spinner"></span></div>
-        </div>
+        <div class="q-progress-track"><div class="q-progress-fill" id="q-progress-fill"></div></div>
       </div>
-    </section>
+      <form id="exam-submit-form">
+        <div id="question-area"></div>
+        <div class="exam-nav-row">
+          <button type="button" class="btn btn-outline" id="q-prev"><i class="fa-solid fa-arrow-left"></i> আগের</button>
+          <button type="button" class="btn btn-primary" id="q-next">পরের <i class="fa-solid fa-arrow-right"></i></button>
+          <button type="submit" class="btn btn-teal hidden" id="q-submit">এক্সাম জমা দিন</button>
+        </div>
+      </form>
+    </div>
 
-    <!-- Take exam -->
-    <section class="page" id="page-take">
-      <div class="container exam-take-shell">
-        <div id="take-view"><div class="loading-screen"><span class="spinner"></span> Loading exam…</div></div>
-      </div>
-    </section>
-
-    <!-- Results -->
-    <section class="page" id="page-results">
-      <div class="container">
-        <div class="page-head">
-          <h1>My Results</h1>
-          <p>History of every exam you’ve attempted — every attempt is saved, not just the latest.</p>
-        </div>
-        <div class="stat-grid" id="results-stats"></div>
-        <div class="card">
-          <div id="results-list"><div class="loading-screen"><span class="spinner"></span></div></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Leaderboard -->
-    <section class="page" id="page-leaderboard">
-      <div class="container">
-        <div class="page-head">
-          <h1>Leaderboard</h1>
-          <p>Top scores across every exam — stay ahead of the competition!</p>
-        </div>
-        <div class="toolbar">
-          <div class="toolbar-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="lb-search" placeholder="Search student name…" />
-          </div>
-          <select id="lb-exam-select"><option value="">All Exams</option></select>
-        </div>
-        <div class="card" style="padding:0;overflow:hidden" id="lb-list">
-          <div class="loading-screen"><span class="spinner"></span></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Profile -->
-    <section class="page" id="page-profile">
-      <div class="container">
-        <div class="page-head">
-          <h1>Profile</h1>
-          <p>Same account as the Course site. Changes sync via shared Firebase Auth.</p>
-        </div>
-        <div class="card" id="profile-view"><div class="loading-screen"><span class="spinner"></span></div></div>
-      </div>
-    </section>
-
-    <!-- Auth pages -->
-    <section class="page" id="page-login">
-      <div class="auth-wrap">
-        <div class="auth-card">
-          <h1>Sign in to Exam</h1>
-          <p class="sub">Use the same email & password as the Course site.</p>
-          <form id="login-form">
-            <div class="field"><label>Email</label><input type="email" id="login-email" required autocomplete="email" /></div>
-            <div class="field"><label>Password</label><input type="password" id="login-password" required autocomplete="current-password" /></div>
-            <button type="submit" class="btn btn-primary btn-block">Sign In</button>
-          </form>
-          <div class="auth-footer">
-            <a href="#/forgot">Forgot password?</a> · <a href="#/signup">Create account</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="page" id="page-signup">
-      <div class="auth-wrap">
-        <div class="auth-card">
-          <h1>Create account</h1>
-          <p class="sub">One account works on both Course & Exam sites.</p>
-          <form id="signup-form">
-            <div class="field"><label>Full name</label><input type="text" id="signup-name" required autocomplete="name" /></div>
-            <div class="field"><label>Email</label><input type="email" id="signup-email" required autocomplete="email" /></div>
-            <div class="field"><label>Password</label><input type="password" id="signup-password" required minlength="6" autocomplete="new-password" /></div>
-            <button type="submit" class="btn btn-primary btn-block">Create Account</button>
-          </form>
-          <div class="auth-footer">Already have an account? <a href="#/login">Sign in</a></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="page" id="page-forgot">
-      <div class="auth-wrap">
-        <div class="auth-card">
-          <h1>Reset password</h1>
-          <p class="sub">We’ll email you a reset link (same Auth as Course site).</p>
-          <form id="forgot-form">
-            <div class="field"><label>Email</label><input type="email" id="forgot-email" required /></div>
-            <button type="submit" class="btn btn-primary btn-block">Send Reset Link</button>
-          </form>
-          <div class="auth-footer"><a href="#/login">Back to sign in</a></div>
-        </div>
-      </div>
-    </section>
+    <div id="exam-result-view" class="exam-take-wrap hidden"></div>
   </main>
+</div>
 
-  <footer class="site-footer">
-    <div class="container">
-      Tech Verse Exam · Linked with <a id="footer-course-link" href="#" target="_blank" rel="noopener">Course Site</a>
-    </div>
-  </footer>
+<!-- Generic single-mount shell — login / signup / my-results / 404 -->
+<div id="page-generic" class="hidden">
+  <div id="generic-page-content"></div>
+</div>
 
-  <div id="toast-root"></div>
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <span>&copy; <span id="footer-year"></span> Tech Verse Course — Exam Portal</span>
+  </div>
+</footer>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script type="module" src="js/app.js"></script>
+<script>document.getElementById("footer-year").textContent = new Date().getFullYear();</script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
