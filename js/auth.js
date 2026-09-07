@@ -83,12 +83,12 @@ export async function logout() {
   navigate("#/login");
 }
 
-/* ---------- Profile page: edit name/phone, change password ---------- */
-export async function updateUserProfile(user, { displayName, phone }) {
+/* ---------- Profile page: edit name/phone/roll/institution, change password ---------- */
+export async function updateUserProfile(user, { displayName, phone, roll, institution }) {
   if (displayName && displayName !== user.displayName) {
     await updateProfile(user, { displayName });
   }
-  await setDoc(doc(db, "users", user.uid), { displayName, phone }, { merge: true });
+  await setDoc(doc(db, "users", user.uid), { displayName, phone, roll, institution }, { merge: true });
 }
 
 export async function changePassword(user, currentPassword, newPassword) {
