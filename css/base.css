@@ -87,10 +87,19 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   display: flex; align-items: center; gap: 9px; margin-inline-start: 6px;
   padding: 6px 14px 6px 6px; border-radius: 999px; border: 1px solid var(--border-strong);
   background: var(--bg-elevated-2); color: var(--text-muted); font-weight: 600; font-size: 0.87rem;
+  max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: background .15s, color .15s, border-color .15s;
 }
 .nav-user-chip:hover { color: var(--text-primary); border-color: var(--accent-soft); background: var(--bg-elevated); }
+.nav-user-chip.active { color: var(--accent-soft); border-color: var(--accent-soft); }
 .nav-avatar { width: 27px; height: 27px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
+.nav-logout-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-muted);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.nav-logout-btn:hover { color: #fff; background: var(--accent-coral); border-color: transparent; }
+.nav-logout-label { display: none; }
 
 @media (max-width: 920px) {
   .nav-hamburger { display: inline-flex; }
@@ -103,8 +112,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   .nav-links.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
   .nav-link { border-radius: var(--radius-sm); }
   .nav-link.active { background: var(--bg-elevated-2); color: var(--accent-soft); }
-  .nav-user-chip { margin-inline-start: 0; border-radius: var(--radius-sm); justify-content: center; }
+  .nav-user-chip { margin-inline-start: 0; border-radius: var(--radius-sm); justify-content: center; max-width: none; }
   .nav-link, .nav-user-chip, .btn { width: 100%; justify-content: center; }
+  .nav-logout-btn { width: 100%; height: auto; padding: 9px 16px; border-radius: var(--radius-sm); justify-content: center; }
+  .nav-logout-label { display: inline; }
 }
 
 /* ---------- Buttons (flat, solid fills — no gradient / glow shadow) ---------- */
@@ -136,6 +147,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   padding: 10px 12px; border-radius: var(--radius-sm);
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent-soft); }
+.field input:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.75; }
 .form-hint { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 5px; }
 
 /* ---------- Modal (flat — dim scrim, plain card, no blur) ---------- */
