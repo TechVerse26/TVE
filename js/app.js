@@ -6,6 +6,7 @@
 import { Router } from "./router.js";
 import { initExamPage } from "./exam.js";
 import { initResultsPage } from "./page-results.js";
+import { initProfilePage } from "./page-profile.js";
 import { initLoginPage } from "./page-login.js";
 import { initSignupPage } from "./page-signup.js";
 
@@ -47,6 +48,7 @@ const router = new Router(
     home: homeRoute,
     exam: examRoute,
     results: genericRoute(initResultsPage, "আমার ফলাফল — Tech Verse Exam"),
+    profile: genericRoute(initProfilePage, "প্রোফাইল — Tech Verse Exam"),
     login: genericRoute(initLoginPage, "লগইন — Tech Verse Exam"),
     signup: genericRoute(initSignupPage, "সাইন-আপ — Tech Verse Exam"),
     404: genericRoute(async (_p, mount) => {

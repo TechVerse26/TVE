@@ -27,7 +27,8 @@ export async function renderNav(activePage = "") {
           ${user ? `<a href="#/results" class="nav-link ${activePage === "results" ? "active" : ""}">আমার ফলাফল</a>` : ""}
           ${profile?.isAdmin ? `<a href="admin.html" class="nav-link">অ্যাডমিন প্যানেল</a>` : ""}
           ${user
-            ? `<button type="button" class="nav-user-chip" id="nav-logout-btn"><span class="nav-avatar">${escapeHtml(initials(profile?.displayName || user.email))}</span> লগআউট</button>`
+            ? `<a href="#/profile" class="nav-user-chip ${activePage === "profile" ? "active" : ""}"><span class="nav-avatar">${escapeHtml(initials(profile?.displayName || user.email))}</span> ${escapeHtml(profile?.displayName || "প্রোফাইল")}</a>
+               <button type="button" class="nav-logout-btn" id="nav-logout-btn" aria-label="লগআউট" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-logout-label">লগআউট</span></button>`
             : `<a href="#/login" class="btn btn-primary btn-sm">লগইন</a>`}
         </div>
       </div>

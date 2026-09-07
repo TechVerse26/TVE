@@ -6,6 +6,7 @@ import { auth, db } from "./firebase-config.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   GoogleAuthProvider, signInWithPopup, updateProfile,
+  EmailAuthProvider, reauthenticateWithCredential, updatePassword,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { toast, consumePostLoginRedirect } from "./utils.js";
@@ -37,6 +38,7 @@ function mapAuthError(code) {
     "auth/wrong-password": "পাসওয়ার্ড ভুল",
     "auth/invalid-credential": "ইমেইল বা পাসওয়ার্ড ভুল",
     "auth/too-many-requests": "অনেকবার চেষ্টা হয়েছে, একটু পর আবার চেষ্টা করুন",
+    "auth/requires-recent-login": "নিরাপত্তার জন্য আবার লগইন করে তারপর চেষ্টা করুন",
   };
   return map[code] || "কিছু একটা সমস্যা হয়েছে, আবার চেষ্টা করুন";
 }
@@ -79,4 +81,26 @@ export async function loginWithGoogle() {
 export async function logout() {
   await signOut(auth);
   navigate("#/login");
+}
+
+/* ---------- Profile page: edit name/phone, change password ---------- */
+export async function updateUserProfile(user, { displayName, phone }) {
+  if (displayName && displayName !== user.displayName) {
+    await updateProfile(user, { displayName });
+  }
+  await setDoc(doc(db, "users", user.uid), { displayName, phone }, { merge: true });
+}
+
+export async function changePassword(user, currentPassword, newPassword) {
+  try {
+    const cred = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, cred);
+    await updatePassword(user, newPassword);
+    return true;
+  } catch (err) {
+    toast(err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"
+      ? "বর্তমান পাসওয়ার্ড ভুল"
+      : mapAuthError(err.code), "error");
+    return false;
+  }
 }
