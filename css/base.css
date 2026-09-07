@@ -60,62 +60,314 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   outline-offset: 2px;
 }
 
-/* ---------- Top nav (flat — solid background, plain border, no blur/glow) ---------- */
+/* ==========================================================================
+   Top Navbar — Desktop + Mobile Drawer
+   Pure CSS, flat design. No blur, no glow, no gradient.
+   ========================================================================== */
+
+/* --- Topbar shell --- */
 .topnav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-strong);
 }
-.topnav-inner { display: flex; align-items: center; justify-content: space-between; padding: 17px clamp(20px, 4vw, 40px); gap: 20px; min-height: var(--nav-h); }
-.brand { display: flex; align-items: center; }
-.brand-logo { height: 36px; width: auto; display: block; }
-.nav-hamburger {
-  display: none; width: 38px; height: 38px; border-radius: var(--radius-sm);
-  align-items: center; justify-content: center; font-size: 1.1rem; color: var(--text-primary);
-  border: 1px solid var(--border-strong);
+.topnav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 clamp(20px, 4vw, 40px); gap: 16px; min-height: var(--nav-h);
 }
-.nav-hamburger:hover { background: var(--bg-elevated-2); }
-.nav-links { display: flex; align-items: center; gap: 6px; }
+
+/* --- Brand logo --- */
+.brand { display: flex; align-items: center; }
+.brand-logo { height: 34px; width: auto; display: block; }
+
+/* --- Desktop nav links --- */
+.nav-links { display: flex; align-items: center; gap: 4px; }
+
 .nav-link {
-  padding: 9px 16px; border-radius: 999px; font-weight: 600; font-size: 0.91rem;
-  letter-spacing: 0.1px; color: var(--text-muted); border: 1px solid transparent;
-  transition: background .15s, color .15s, border-color .15s;
+  padding: 8px 15px; border-radius: var(--radius-sm);
+  font-weight: 600; font-size: 0.9rem; letter-spacing: 0.1px;
+  color: var(--text-muted); border: 1px solid transparent;
+  transition: background .14s, color .14s;
 }
 .nav-link:hover { color: var(--text-primary); background: var(--bg-elevated-2); }
-.nav-link.active { color: #fff; background: var(--accent); }
-.nav-user-chip {
-  display: flex; align-items: center; gap: 9px; margin-inline-start: 6px;
-  padding: 6px 14px 6px 6px; border-radius: 999px; border: 1px solid var(--border-strong);
-  background: var(--bg-elevated-2); color: var(--text-muted); font-weight: 600; font-size: 0.87rem;
-  max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: background .15s, color .15s, border-color .15s;
-}
-.nav-user-chip:hover { color: var(--text-primary); border-color: var(--accent-soft); background: var(--bg-elevated); }
-.nav-user-chip.active { color: var(--accent-soft); border-color: var(--accent-soft); }
-.nav-avatar { width: 27px; height: 27px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
-.nav-logout-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0;
-  width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-muted);
-  transition: background .15s, color .15s, border-color .15s;
-}
-.nav-logout-btn:hover { color: #fff; background: var(--accent-coral); border-color: transparent; }
-.nav-logout-label { display: none; }
+.nav-link.active { color: var(--accent-soft); background: var(--bg-elevated-2); border-color: var(--border-strong); }
 
+/* --- Profile chip (desktop) --- */
+.nav-user-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-inline-start: 6px;
+  padding: 5px 10px 5px 5px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated-2);
+  color: var(--text-muted);
+  font-weight: 600; font-size: 0.875rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 200px;
+  transition: background .14s, color .14s, border-color .14s;
+  position: relative;
+}
+.nav-user-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-soft);
+  background: var(--bg-elevated);
+}
+.nav-user-chip.active {
+  color: var(--accent-soft);
+  border-color: var(--accent-soft);
+  background: var(--bg-elevated);
+}
+
+/* avatar square */
+.nav-avatar {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.78rem; flex-shrink: 0;
+  letter-spacing: 0;
+}
+.nav-user-name {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+.nav-user-chip-arrow {
+  font-size: 0.62rem; color: var(--text-muted); flex-shrink: 0;
+  opacity: 0.6; margin-inline-start: 2px;
+}
+.nav-user-chip:hover .nav-user-chip-arrow,
+.nav-user-chip.active .nav-user-chip-arrow { opacity: 1; color: var(--accent-soft); }
+
+/* --- Hamburger (hidden on desktop) --- */
+.nav-hamburger {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: transparent; cursor: pointer;
+  padding: 0; flex-shrink: 0;
+}
+.nav-hamburger-bar {
+  display: block; width: 15px; height: 1.5px;
+  background: var(--text-primary); border-radius: 2px;
+  transition: transform .22s, opacity .22s, width .22s;
+  transform-origin: center;
+}
+/* X state */
+.nav-hamburger.open .nav-hamburger-bar:nth-child(1) { transform: translateY(5.5px) rotate(45deg); }
+.nav-hamburger.open .nav-hamburger-bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.nav-hamburger.open .nav-hamburger-bar:nth-child(3) { transform: translateY(-5.5px) rotate(-45deg); }
+
+/* ==========================================================================
+   Mobile Drawer — slides in from the right
+   ========================================================================== */
+
+/* Backdrop */
+.nav-drawer-backdrop {
+  display: none;
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(6, 6, 14, 0.65);
+  opacity: 0;
+  transition: opacity .22s;
+}
+.nav-drawer-backdrop.open { display: block; opacity: 1; }
+
+/* Drawer panel */
+.nav-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 75;
+  width: 300px; max-width: 88vw;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border-strong);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .25s cubic-bezier(.4, 0, .2, 1);
+  overflow: hidden;
+}
+.nav-drawer.open { transform: translateX(0); }
+
+/* --- Drawer head: user card --- */
+.nav-drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 18px 18px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nav-drawer-user {
+  display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;
+}
+.nav-drawer-avatar {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.05rem; flex-shrink: 0;
+  font-family: var(--font-display);
+}
+.nav-drawer-user-info { min-width: 0; }
+.nav-drawer-user-name {
+  font-weight: 700; font-size: 0.92rem; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nav-drawer-user-email {
+  font-size: 0.76rem; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+}
+.nav-drawer-brand { display: flex; align-items: center; }
+
+/* Close button */
+.nav-drawer-close {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: color .14s, background .14s;
+}
+.nav-drawer-close:hover { color: var(--text-primary); background: var(--bg-elevated-2); }
+
+/* --- Drawer nav items --- */
+.nav-drawer-nav {
+  flex: 1; overflow-y: auto; padding: 10px 10px 6px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav-drawer-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 13px; border-radius: var(--radius-sm);
+  font-weight: 600; font-size: 0.92rem; color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: background .14s, color .14s, border-color .14s;
+  text-decoration: none; position: relative;
+}
+.nav-drawer-item:hover { background: var(--bg-elevated-2); color: var(--text-primary); }
+.nav-drawer-item.active {
+  background: var(--bg-elevated-2); color: var(--accent-soft);
+  border-color: var(--border-strong);
+}
+.nav-drawer-item.active .nav-drawer-item-icon { color: var(--accent-soft); }
+
+.nav-drawer-item-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; color: var(--text-muted); flex-shrink: 0;
+  transition: background .14s, color .14s;
+}
+.nav-drawer-item:hover .nav-drawer-item-icon { background: var(--bg); color: var(--text-primary); }
+
+.nav-drawer-item-arrow {
+  margin-inline-start: auto; font-size: 0.65rem; color: var(--text-muted); opacity: 0.5;
+}
+.nav-drawer-item:hover .nav-drawer-item-arrow { opacity: 1; }
+.nav-drawer-item.active .nav-drawer-item-arrow { opacity: 1; color: var(--accent-soft); }
+
+/* -----------------------------------------------------------------------
+   Profile Card — drawer-এর ভেতরে standalone smart profile entry
+   ----------------------------------------------------------------------- */
+.nav-drawer-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated-2);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .15s, background .15s;
+}
+
+/* subtle left accent bar */
+.nav-drawer-profile-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.nav-drawer-profile-card:hover {
+  border-color: var(--accent-soft);
+  background: var(--bg-elevated);
+}
+.nav-drawer-profile-card.active {
+  border-color: var(--accent-soft);
+  background: var(--bg-elevated);
+}
+.nav-drawer-profile-card.active::before { background: var(--accent-soft); }
+
+/* avatar square inside the card */
+.nav-drawer-profile-card-avatar {
+  width: 40px; height: 40px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1rem;
+  font-family: var(--font-display);
+  flex-shrink: 0;
+  letter-spacing: 0;
+}
+
+/* text block */
+.nav-drawer-profile-card-body {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0; flex: 1;
+}
+.nav-drawer-profile-card-name {
+  font-weight: 700; font-size: 0.88rem;
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block;
+}
+.nav-drawer-profile-card-sub {
+  font-size: 0.72rem; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block;
+}
+
+/* arrow */
+.nav-drawer-profile-card-arrow {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity .15s, color .15s, transform .15s;
+}
+.nav-drawer-profile-card:hover .nav-drawer-profile-card-arrow,
+.nav-drawer-profile-card.active .nav-drawer-profile-card-arrow {
+  opacity: 1;
+  color: var(--accent-soft);
+  transform: translateX(2px);
+}
+
+/* Login item */
+.nav-drawer-login { color: var(--accent-soft); }
+.nav-drawer-login .nav-drawer-item-icon { background: rgba(108, 92, 231, 0.14); color: var(--accent-soft); border-color: transparent; }
+
+/* --- Drawer footer: sign out --- */
+.nav-drawer-footer {
+  padding: 10px 10px 18px; border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.nav-drawer-signout {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 11px 13px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); font-weight: 600; font-size: 0.9rem;
+  font-family: var(--font-body); cursor: pointer;
+  transition: color .14s, border-color .14s, background .14s;
+}
+.nav-drawer-signout i { font-size: 0.9rem; }
+.nav-drawer-signout:hover {
+  color: var(--accent-coral);
+  border-color: rgba(225, 95, 82, 0.4);
+  background: rgba(225, 95, 82, 0.06);
+}
+
+/* ==========================================================================
+   Responsive — show hamburger, hide desktop links below 920px
+   ========================================================================== */
 @media (max-width: 920px) {
-  .nav-hamburger { display: inline-flex; }
-  .nav-links {
-    position: fixed; top: var(--nav-h); right: 0; left: 0; z-index: 45;
-    background: var(--bg-elevated); border-bottom: 1px solid var(--border-strong);
-    flex-direction: column; align-items: stretch; gap: 4px; padding: 12px 20px 20px;
-    transform: translateY(-8px); opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s;
-  }
-  .nav-links.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
-  .nav-link { border-radius: var(--radius-sm); }
-  .nav-link.active { background: var(--bg-elevated-2); color: var(--accent-soft); }
-  .nav-user-chip { margin-inline-start: 0; border-radius: var(--radius-sm); justify-content: center; max-width: none; }
-  .nav-link, .nav-user-chip, .btn { width: 100%; justify-content: center; }
-  .nav-logout-btn { width: 100%; height: auto; padding: 9px 16px; border-radius: var(--radius-sm); justify-content: center; }
-  .nav-logout-label { display: inline; }
+  .nav-hamburger { display: flex; }
+  .nav-links { display: none; }
 }
 
 /* ---------- Buttons (flat, solid fills — no gradient / glow shadow) ---------- */
