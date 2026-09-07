@@ -3,45 +3,83 @@
    ========================================================================== */
 .loading-screen { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 16px; color: var(--text-muted); }
 
-.admin-shell { display: flex; min-height: calc(100vh - 60px); }
-.admin-mobile-topbar { display: none; align-items: center; gap: 14px; padding: 12px 16px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 25; }
-.admin-mobile-topbar-title { font-weight: 700; }
-.admin-drawer-toggle, .admin-drawer-close { font-size: 1.1rem; }
+/* ---------- Admin app shell: full-bleed topbar + sidebar/main body ----------
+   The public site's centered .topnav is NOT used here on purpose — a
+   max-width-1180px-centered bar sitting above an edge-to-edge sidebar
+   layout is what made the nav look "misplaced". This topbar spans the
+   full width and the sidebar sits flush under its left edge. ---------- */
+.admin-app { display: flex; flex-direction: column; min-height: 100vh; }
+
+.admin-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; padding: 0 22px; height: 60px; flex-shrink: 0;
+  background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 70;
+}
+.admin-topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.admin-drawer-toggle { display: none; font-size: 1.15rem; color: var(--text-primary); flex-shrink: 0; }
+.admin-drawer-close { font-size: 1.05rem; color: var(--text-muted); }
+.admin-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-brand i { color: var(--accent-soft); flex-shrink: 0; }
+.admin-brand-tag { color: var(--text-muted); font-family: var(--font-body); font-weight: 600; font-size: 0.76rem; border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 9px; margin-inline-start: 2px; }
+.admin-topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.admin-topbar-link { display: flex; align-items: center; gap: 7px; font-size: 0.86rem; font-weight: 600; color: var(--text-muted); padding: 8px 10px; border-radius: var(--radius-sm); }
+.admin-topbar-link:hover { color: var(--text-primary); background: var(--bg-elevated-2); }
+
 .admin-sidebar-backdrop { display: none; }
 
-.admin-sidebar { width: 230px; flex-shrink: 0; background: var(--bg-elevated); border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
-.admin-sidebar-title { font-family: var(--font-display); font-weight: 700; padding: 6px 8px 16px; display: flex; justify-content: space-between; align-items: center; }
-.admin-nav { display: flex; flex-direction: column; gap: 3px; flex: 1; }
-.admin-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--text-muted); font-weight: 600; font-size: 0.9rem; text-align: left; }
-.admin-nav-item span { width: 18px; text-align: center; }
-.admin-nav-item:hover { background: var(--bg-elevated-2); color: var(--text-primary); }
-.admin-nav-item.active { background: var(--accent); color: #fff; }
-.admin-sidebar-back { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 8px; padding-top: 16px; }
-.admin-sidebar-back:hover { color: var(--text-primary); }
+.admin-body { display: flex; flex: 1; min-height: 0; }
 
-.admin-main { flex: 1; min-width: 0; padding: 26px 28px 70px; }
+.admin-sidebar {
+  width: 240px; flex-shrink: 0; background: var(--bg-elevated); border-right: 1px solid var(--border);
+  padding: 18px 12px; display: flex; flex-direction: column; gap: 4px;
+  position: sticky; top: 60px; align-self: flex-start; height: calc(100vh - 60px); overflow-y: auto;
+}
+.admin-sidebar-mobile-head { display: none; }
+.admin-nav { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.admin-nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 11px 13px; border-radius: var(--radius-sm);
+  color: var(--text-muted); font-weight: 600; font-size: 0.92rem; text-align: left;
+  border-inline-start: 3px solid transparent; transition: background .15s, color .15s, border-color .15s;
+}
+.admin-nav-item span:first-child { width: 18px; text-align: center; font-size: 0.95rem; }
+.admin-nav-item:hover { background: var(--bg-elevated-2); color: var(--text-primary); }
+.admin-nav-item.active { background: var(--bg-elevated-2); color: var(--accent-soft); border-inline-start-color: var(--accent-soft); }
+
+.admin-main { flex: 1; min-width: 0; padding: 28px 30px 80px; }
 .admin-section { display: none; }
-.admin-section.active { display: block; }
-.admin-section-head { margin-bottom: 20px; }
-.admin-section-head h1 { font-size: 1.4rem; margin-bottom: 4px; }
+.admin-section.active { display: block; animation: admin-fade-in .18s ease; }
+@keyframes admin-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.admin-section-head { margin-bottom: 22px; }
+.admin-section-head h1 { font-size: 1.45rem; margin-bottom: 4px; }
 .admin-section-head .muted { color: var(--text-muted); font-size: 0.9rem; }
 .admin-section-head .btn { margin-top: 12px; }
 .ov-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
-.ov-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-.stat-card { display: flex; align-items: center; gap: 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; }
+.ov-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.stat-card { display: flex; align-items: center; gap: 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; border-inline-start: 3px solid var(--accent-soft); transition: transform .15s, border-color .15s; }
+.stat-card:hover { transform: translateY(-2px); border-color: var(--border-strong); }
 .stat-icon { width: 44px; height: 44px; border-radius: var(--radius-sm); background: var(--bg-elevated-2); display: flex; align-items: center; justify-content: center; color: var(--accent-soft); font-size: 1.1rem; flex-shrink: 0; }
-.stat-value { display: block; font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; }
+.stat-value { display: block; font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; }
 .stat-label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
 
 .res-toolbar { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
 
 @media (max-width: 900px) {
-  .admin-mobile-topbar { display: flex; }
-  .admin-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 60; transform: translateX(-100%); transition: transform .2s; height: 100vh; }
+  .admin-drawer-toggle { display: inline-flex; }
+  .admin-sidebar-mobile-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 16px; font-weight: 700; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .admin-sidebar {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 90; width: 260px;
+    transform: translateX(-100%); transition: transform .2s; height: 100vh;
+  }
   .admin-sidebar.open { transform: translateX(0); }
-  .admin-sidebar-backdrop.open { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 55; }
-  .admin-main { padding: 18px 16px 60px; }
+  .admin-sidebar-backdrop.open { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 80; }
+  .admin-main { padding: 20px 16px 60px; }
+  .admin-topbar-link span { display: none; }
+}
+@media (max-width: 480px) {
+  .admin-brand-tag { display: none; }
+  #admin-user-name { display: none; }
 }
 
 /* ---------- Admin grid / schedule box / switch ---------- */

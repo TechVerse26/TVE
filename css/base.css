@@ -74,7 +74,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .nav-user-chip:hover { color: var(--text-primary); border-color: var(--accent-soft); }
 .nav-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
 
-@media (max-width: 760px) {
+@media (max-width: 920px) {
   .nav-hamburger { display: inline-flex; }
   .nav-links {
     position: fixed; top: 62px; right: 0; left: 0; z-index: 45;
