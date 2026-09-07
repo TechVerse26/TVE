@@ -1,0 +1,8 @@
+.auth-shell { min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 40px 16px; }
+.auth-card { width: 100%; max-width: 400px; }
+.auth-card h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.auth-card h1 i { color: var(--accent-soft); }
+.auth-sub { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 22px; }
+.auth-form { margin-bottom: 14px; }
+.auth-switch { text-align: center; margin-top: 16px; font-size: 0.88rem; color: var(--text-muted); }
+.auth-switch a { color: var(--accent-soft); font-weight: 600; }
