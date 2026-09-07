@@ -63,7 +63,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-strong);
 }
-.topnav-inner { display: flex; align-items: center; justify-content: space-between; padding: 17px 0; gap: 20px; min-height: var(--nav-h); }
+.topnav-inner { display: flex; align-items: center; justify-content: space-between; padding: 17px clamp(20px, 4vw, 40px); gap: 20px; min-height: var(--nav-h); }
 .brand { display: flex; align-items: center; }
 .brand-logo { height: 36px; width: auto; display: block; }
 .nav-hamburger {
