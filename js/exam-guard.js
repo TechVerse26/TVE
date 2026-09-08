@@ -76,7 +76,7 @@ export async function runVerification(container, examId, myToken) {
   if (myToken !== state.navToken) return { ok: false };
   if (!visible) {
     setStep(container, "access", "fail");
-    failScreen(container, { title: "এক্সাম পাওয়া যায়নি", message: "এই এক্সামটি সরিয়ে ফেলা হয়েছে, অথবা লিংকটি সঠিক নয়।", backLabel: "সব এক্সাম দেখুন", backHref: "#/exam" });
+    failScreen(container, { title: "Exam not found.", message: "This exam has been removed, or the link is incorrect.", backLabel: "View all exams", backHref: "#/exam" });
     return { ok: false };
   }
   setStep(container, "access", "ok");
@@ -85,12 +85,12 @@ export async function runVerification(container, examId, myToken) {
   const { state: availState, publishAt, closesAt } = getExamAvailability(exam);
   if (availState === "upcoming") {
     setStep(container, "window", "fail");
-    failScreen(container, { title: "এক্সাম এখনো শুরু হয়নি", message: `এই এক্সাম চালু হবে ${formatDateTime(publishAt)}।`, backLabel: "এই কোর্সের এক্সামে ফিরে যান", backHref: courseBackHref });
+    failScreen(container, { title: "The exam hasn't started yet.", message: `This exam will be started ${formatDateTime(publishAt)}।`, backLabel: "Go back", backHref: courseBackHref });
     return { ok: false };
   }
   if (availState === "closed") {
     setStep(container, "window", "fail");
-    failScreen(container, { title: "এক্সামের সময় শেষ", message: `এই এক্সাম খোলা ছিল ${formatDateTime(closesAt)} পর্যন্ত।`, backLabel: "Return course exam", backHref: courseBackHref });
+    failScreen(container, { title: "Exam time is over.", message: `This exam was open ${formatDateTime(closesAt)} until.`, backLabel: "Go back", backHref: courseBackHref });
     return { ok: false };
   }
   setStep(container, "window", "ok");
@@ -102,7 +102,7 @@ export async function runVerification(container, examId, myToken) {
     if (myToken !== state.navToken) return { ok: false };
     if (attemptsSoFar >= maxAttempts) {
       setStep(container, "attempts", "fail");
-      failScreen(container, { title: "অ্যাটেম্পট শেষ", message: `এই এক্সামে সর্বোচ্চ ${maxAttempts} বার অ্যাটেম্পট দেওয়া যায় — আপনি ইতিমধ্যে সবগুলো ব্যবহার করে ফেলেছেন।`, backLabel: "এই কোর্সের এক্সামে ফিরে যান", backHref: courseBackHref });
+      failScreen(container, { title: "Attempt ended", message: `এই এক্সামে সর্বোচ্চ ${maxAttempts} বার অ্যাটেম্পট দেওয়া যায় — আপনি ইতিমধ্যে সবগুলো ব্যবহার করে ফেলেছেন।`, backLabel: "এই কোর্সের এক্সামে ফিরে যান", backHref: courseBackHref });
       return { ok: false };
     }
   }
