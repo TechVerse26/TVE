@@ -25,7 +25,7 @@ function renderTable() {
   if (!tbody) return;
   const filtered = applyFilters();
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon"><i class="fa-solid fa-chart-simple"></i></div><p>কোনো ফলাফল পাওয়া যায়নি</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon"><i class="fa-solid fa-chart-simple"></i></div><p>কোনো ফলাফল পাওয়া যায়নি</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map((r) => {
@@ -34,6 +34,7 @@ function renderTable() {
     <tr>
       <td data-label="Student"><div class="cell-title"><div><div class="t">${escapeHtml(u?.displayName || "অজানা")}</div><div class="muted" style="font-size:0.8em">${escapeHtml(u?.email || r.uid)}</div></div></div></td>
       <td data-label="Exam">${escapeHtml(r.examTitle || "—")}</td>
+      <td data-label="Type">${r.examType === "practice" ? `<span class="badge"><i class="fa-solid fa-dumbbell"></i> Practice</span>` : `<span class="badge badge-teal"><i class="fa-solid fa-satellite-dish"></i> Live</span>`}</td>
       <td data-label="Score">${formatScore(r.score)} / ${r.total}</td>
       <td data-label="Percent"><span class="badge ${r.percent >= 60 ? "badge-teal" : "badge-coral"}">${r.percent}%</span></td>
       <td data-label="Attempt">#${r.attemptNumber || 1}</td>
@@ -44,7 +45,7 @@ function renderTable() {
 
 export async function loadResultsTable() {
   const tbody = document.querySelector("#results-table tbody");
-  if (tbody) tbody.innerHTML = `<tr><td colspan="6"><div class="loading-screen"><span class="spinner"></span></div></td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr><td colspan="7"><div class="loading-screen"><span class="spinner"></span></div></td></tr>`;
   try {
     const [results, exams, users] = await Promise.all([fetchAllResultsAdmin(), fetchAllExams(), fetchAllUsersAdmin()]);
     allResults = results;
@@ -57,7 +58,7 @@ export async function loadResultsTable() {
     }
     renderTable();
   } catch {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>লোড করা যায়নি</p></div></td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><p>লোড করা যায়নি</p></div></td></tr>`;
   }
 }
 
@@ -66,10 +67,10 @@ export function bindResultsControls() {
   document.getElementById("res-search")?.addEventListener("input", renderTable);
   document.getElementById("res-export-btn")?.addEventListener("click", () => {
     const filtered = applyFilters();
-    const rows = [["Student", "Email", "Exam", "Score", "Total", "Percent", "Attempt", "Submitted"]];
+    const rows = [["Student", "Email", "Exam", "Type", "Score", "Total", "Percent", "Attempt", "Submitted"]];
     filtered.forEach((r) => {
       const u = usersById[r.uid];
-      rows.push([u?.displayName || "", u?.email || r.uid, r.examTitle || "", formatScore(r.score), r.total, `${r.percent}%`, r.attemptNumber || 1, formatDateTime(r.submittedAt)]);
+      rows.push([u?.displayName || "", u?.email || r.uid, r.examTitle || "", r.examType === "practice" ? "Practice" : "Live", formatScore(r.score), r.total, `${r.percent}%`, r.attemptNumber || 1, formatDateTime(r.submittedAt)]);
     });
     downloadCsv(`exam-results-${Date.now()}.csv`, rows);
   });

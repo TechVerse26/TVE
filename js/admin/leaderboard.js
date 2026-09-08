@@ -6,6 +6,8 @@
 // Ranking = average of their BEST result per exam (so a retake can only
 // help a student's rank, never hurt it), tie-broken by best single score,
 // then by how many exams they've actually attempted, then by name.
+// Practice-exam results never enter the leaderboard at all — practice is
+// meant to be risk-free, so it's excluded before any grouping happens.
 //
 // PDF export uses the browser's own print pipeline (print dialog → "Save
 // as PDF") — no external PDF library, pure HTML/CSS/JS. A dedicated,
@@ -14,7 +16,7 @@
 // window.print() runs the export.
 // ==========================================================================
 import { escapeHtml, toast, formatScore, formatDateTime } from "../utils.js";
-import { fetchAllResultsAdmin, fetchAllUsersAdmin } from "../exam-data.js";
+import { fetchAllResultsAdmin, fetchAllUsersAdmin, publishPercentileStats } from "../exam-data.js";
 
 let leaderboard = []; // ranked: [{ uid, displayName, email, results[], examsTaken, totalAttempts, avgPercent, bestPercent }]
 
@@ -24,8 +26,9 @@ function initials(name) {
 
 function buildLeaderboard(users, results) {
   const usersById = Object.fromEntries(users.map((u) => [u.id, u]));
+  const liveResults = results.filter((r) => r.examType !== "practice");
   const byUser = {};
-  results.forEach((r) => { (byUser[r.uid] ||= []).push(r); });
+  liveResults.forEach((r) => { (byUser[r.uid] ||= []).push(r); });
 
   const rows = Object.entries(byUser).map(([uid, userResults]) => {
     const u = usersById[uid] || {};
@@ -148,6 +151,12 @@ export async function loadLeaderboard() {
     const [users, results] = await Promise.all([fetchAllUsersAdmin(), fetchAllResultsAdmin()]);
     leaderboard = buildLeaderboard(users, results);
     renderTable();
+    // Refresh the anonymous percentile pool every time an admin opens this
+    // tab, so students' "my rank" card (My Results page) has a reasonably
+    // fresh comparison set without ever letting a student query the raw
+    // results collection themselves. Best-effort — a student's own rank
+    // card still works from whatever was last published if this fails.
+    publishPercentileStats(leaderboard.map((row) => row.avgPercent)).catch(() => {});
   } catch {
     if (tbody) tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state"><p>লোড করা যায়নি</p></div></td></tr>`;
   }

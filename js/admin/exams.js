@@ -24,12 +24,13 @@ export async function loadExamsTable() {
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   if (!currentExams.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon"><i class="fa-solid fa-file-pen"></i></div><p>No exams created yet</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon"><i class="fa-solid fa-file-pen"></i></div><p>No exams created yet</p></div></td></tr>`;
   } else {
     tbody.innerHTML = currentExams
       .map((ex) => `
       <tr>
         <td data-label="Exam"><div class="cell-title"><div><div class="t">${escapeHtml(ex.title)}</div></div></div></td>
+        <td data-label="Type">${examTypeBadge(ex)}</td>
         <td data-label="Course Tag">${escapeHtml(ex.courseName || "—")}</td>
         <td data-label="Scope">${examScopeBadge(ex)}</td>
         <td data-label="Questions">${
@@ -42,13 +43,50 @@ export async function loadExamsTable() {
         <td data-label="Schedule">${scheduleBadge(ex)}</td>
         <td data-label=""><div class="row-actions">
           <button class="icon-btn" data-edit-exam="${ex.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+          ${ex.examType !== "practice" ? `<button class="icon-btn" data-dup-exam="${ex.id}" title="Duplicate as Practice exam"><i class="fa-solid fa-clone"></i></button>` : ""}
           <button class="icon-btn danger" data-del-exam="${ex.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
         </div></td>
       </tr>`)
       .join("");
   }
   tbody.querySelectorAll("[data-edit-exam]").forEach((b) => b.addEventListener("click", () => openExamModal(b.dataset.editExam)));
+  tbody.querySelectorAll("[data-dup-exam]").forEach((b) => b.addEventListener("click", () => duplicateExamAsPractice(b.dataset.dupExam)));
   tbody.querySelectorAll("[data-del-exam]").forEach((b) => b.addEventListener("click", () => deleteExam(b.dataset.delExam)));
+}
+
+/* ---------- One-click: copy a Live exam (settings + full question bank) into
+   a brand new Practice exam — always open, no schedule, fresh empty results. ---------- */
+async function duplicateExamAsPractice(examId) {
+  const ex = currentExams.find((x) => x.id === examId);
+  if (!ex) return;
+  if (!(await confirmAction(`"${ex.title}" এর একটি Practice কপি তৈরি করবেন? (একই প্রশ্নব্যাংক সহ, নতুন এক্সাম হিসেবে)`))) return;
+  try {
+    const qSnap = await getDocs(query(collection(db, "exams", ex.id, "questions"), orderBy("order")));
+    const questions = qSnap.docs.map((d) => d.data());
+    const { id, createdAt, examType, publishAt, closesAt, availableHours, ...rest } = ex;
+    const newRef = await addDoc(collection(db, "exams"), {
+      ...rest,
+      title: `${ex.title} (Practice)`,
+      examType: "practice",
+      publishAt: null,
+      closesAt: null,
+      availableHours: 0,
+      createdAt: serverTimestamp(),
+    });
+    await Promise.all(questions.map((q, i) => addDoc(collection(db, "exams", newRef.id, "questions"), { ...q, order: i })));
+    toast("Practice exam তৈরি হয়েছে", "success");
+    loadExamsTable();
+    loadOverview();
+  } catch {
+    toast("Could not duplicate", "error");
+  }
+}
+
+/* ---------- Practice (always open, no schedule) vs Live (scheduled) ---------- */
+function examTypeBadge(ex) {
+  return ex.examType === "practice"
+    ? `<span class="badge" title="Always open — students can retake anytime"><i class="fa-solid fa-dumbbell"></i> Practice</span>`
+    : `<span class="badge badge-teal" title="Follows the publish schedule below"><i class="fa-solid fa-satellite-dish"></i> Live</span>`;
 }
 
 /* ---------- What this exam actually covers — whole course vs specific lesson(s) ---------- */
@@ -115,6 +153,14 @@ async function openExamModal(examId) {
       </div>
 
       <div class="exam-tab-panel" id="em-panel-settings">
+        <div class="field">
+          <label>Exam Type</label>
+          <select id="em-exam-type">
+            <option value="live" ${!ex || ex.examType !== "practice" ? "selected" : ""}>Live — follows a publish schedule (shows in Upcoming, then Live)</option>
+            <option value="practice" ${ex && ex.examType === "practice" ? "selected" : ""}>Practice — always open, students can retake anytime (shows in Practice)</option>
+          </select>
+          <span class="form-hint">This decides which of the three student-facing tabs (Upcoming / Live / Practice) the exam shows up under</span>
+        </div>
         <div class="admin-grid">
           <div class="field"><label>Exam Title</label><input type="text" id="em-title" required value="${ex ? escapeHtml(ex.title) : ""}"></div>
           <div class="field"><label>Course Name (as tag)</label><input type="text" id="em-course" value="${ex ? escapeHtml(ex.courseName || "") : ""}"></div>
@@ -187,7 +233,7 @@ async function openExamModal(examId) {
           </div>
         </div>
 
-        <div class="schedule-box">
+        <div class="schedule-box" id="em-schedule-box">
           <div class="schedule-box-title"><i class="fa-solid fa-calendar-days"></i> Publish Schedule</div>
           <div class="admin-grid">
             <div class="field">
@@ -239,6 +285,13 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
   /* ---------- Exam scope: whole course vs specific lesson(s) ----------
      The lesson picker only makes sense once a course is chosen (lessons live
      under a course), so it stays hidden until #em-course-id has a value. ---------- */
+  /* ---------- Practice exams have no schedule — hide that box entirely ---------- */
+  const examTypeSelect = overlay.querySelector("#em-exam-type");
+  const scheduleBox = overlay.querySelector("#em-schedule-box");
+  function refreshScheduleVisibility() { scheduleBox.hidden = examTypeSelect.value === "practice"; }
+  examTypeSelect.addEventListener("change", refreshScheduleVisibility);
+  refreshScheduleVisibility();
+
   const scopeField = overlay.querySelector("#em-scope-field");
   const lessonsField = overlay.querySelector("#em-lessons-field");
   const scopeSelect = overlay.querySelector("#em-scope");
@@ -480,7 +533,9 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span>`;
     try {
+      const examTypeVal = overlay.querySelector("#em-exam-type").value === "practice" ? "practice" : "live";
       const payload = {
+        examType: examTypeVal,
         title: overlay.querySelector("#em-title").value.trim(),
         description: overlay.querySelector("#em-desc").value.trim(),
         courseName: overlay.querySelector("#em-course").value.trim(),
@@ -496,14 +551,21 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         shuffle: overlay.querySelector("#em-shuffle").checked,
       };
 
-      // Publish schedule — leave empty for "publish now", leave hours empty/0 for "unlimited"
-      const publishRaw = overlay.querySelector("#em-publish-at").value;
-      const hoursRaw = overlay.querySelector("#em-available-hours").value.trim();
-      const publishDate = publishRaw ? new Date(publishRaw) : new Date();
-      const availableHours = hoursRaw ? Math.max(0, Number(hoursRaw)) : 0;
-      payload.publishAt = Timestamp.fromDate(publishDate);
-      payload.availableHours = availableHours;
-      payload.closesAt = availableHours > 0 ? Timestamp.fromDate(new Date(publishDate.getTime() + availableHours * 3600000)) : null;
+      // Publish schedule — leave empty for "publish now", leave hours empty/0 for "unlimited".
+      // Practice exams ignore this entirely: always open, no publishAt/closesAt saved.
+      if (examTypeVal === "practice") {
+        payload.publishAt = null;
+        payload.availableHours = 0;
+        payload.closesAt = null;
+      } else {
+        const publishRaw = overlay.querySelector("#em-publish-at").value;
+        const hoursRaw = overlay.querySelector("#em-available-hours").value.trim();
+        const publishDate = publishRaw ? new Date(publishRaw) : new Date();
+        const availableHours = hoursRaw ? Math.max(0, Number(hoursRaw)) : 0;
+        payload.publishAt = Timestamp.fromDate(publishDate);
+        payload.availableHours = availableHours;
+        payload.closesAt = availableHours > 0 ? Timestamp.fromDate(new Date(publishDate.getTime() + availableHours * 3600000)) : null;
+      }
 
       let examRef;
       if (ex) {
