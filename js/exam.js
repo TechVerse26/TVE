@@ -9,7 +9,7 @@ import { navigate } from "./router.js";
 import { state, resetSessionState, buildQuestionPool, scoreExam } from "./exam-engine.js";
 import { fetchQuestions, saveResult } from "./exam-data.js";
 import { runVerification, renderRulesGate } from "./exam-guard.js";
-import { renderExamCourseList, renderExamList, renderQuestion, renderAllQuestions, renderResult } from "./exam-render.js";
+import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult } from "./exam-render.js";
 import { startExamTimer, stopExamTimer, formatClock } from "./exam-timer.js";
 import { renderNav } from "./nav.js";
 
@@ -30,7 +30,7 @@ function bindStaticControlsOnce() {
     e.preventDefault();
     submitExam();
   });
-  document.getElementById("exam-back-btn")?.addEventListener("click", () => navigate("#/exam"));
+  document.getElementById("exam-back-btn")?.addEventListener("click", (e) => navigate(e.currentTarget.dataset.href || "#/exam"));
 }
 
 export async function initExamPage(params) {
@@ -74,7 +74,9 @@ export async function initExamPage(params) {
   } else {
     const grid = document.getElementById("exam-grid");
     const courseKey = params.get("course");
-    if (courseKey) await renderExamList(grid, courseKey);
+    const bucketKey = params.get("type");
+    if (courseKey && bucketKey) await renderExamList(grid, courseKey, bucketKey);
+    else if (courseKey) await renderExamCourseHub(grid, courseKey);
     else await renderExamCourseList(grid);
   }
 
@@ -155,10 +157,26 @@ async function submitExam() {
   const attemptNumber = state.attemptsSoFar + 1;
   const examTitle = exam?.title || document.getElementById("exam-take-title").textContent;
 
+  // Snapshot of exactly what THIS attempt asked and answered — question
+  // pools can be randomized per attempt (buildQuestionPool), so the only
+  // reliable record of "what did attempt #N actually look like" is captured
+  // right now, at submit time. Stored per-attempt (exam-data.js saveResult)
+  // so "আমার ফলাফল" can show a full question-by-question review for ANY
+  // past attempt later, not just the most recent one.
+  const reviewSnapshot = state.questions.map((q) => ({
+    id: q.id,
+    text: q.text,
+    options: q.options,
+    correctIndex: q.correctIndex,
+    explanation: q.explanation || "",
+    selected: state.answers[q.id] !== undefined ? state.answers[q.id] : null,
+  }));
+
   await saveResult({
     uid: state.currentUser.uid,
     examId: state.examId,
     examTitle,
+    examType: exam?.examType === "practice" ? "practice" : "live",
     score: breakdown.score,
     total: state.questions.length,
     percent: breakdown.percent,
@@ -169,6 +187,7 @@ async function submitExam() {
     timeTakenSeconds: breakdown.timeTakenSeconds,
     answers: state.answers,
     attemptNumber,
+    reviewSnapshot,
   });
 
   takeView.classList.add("hidden");

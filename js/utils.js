@@ -177,8 +177,13 @@ export function timeAgo(ts) {
   return `${Math.floor(diff / 86400)} দিন আগে`;
 }
 
-/* ---------- Exam schedule / availability ---------- */
+/* ---------- Exam schedule / availability ----------
+   Practice exams (exam.examType === "practice") ignore any schedule
+   entirely and are always "open" — practice is meant to be available
+   any time, so a publishAt/closesAt left over from before the type was
+   switched (or copy-pasted from a live exam) is never honored. ---------- */
 export function getExamAvailability(exam) {
+  if (exam.examType === "practice") return { state: "open", publishAt: null, closesAt: null };
   const now = new Date();
   const publishAt = exam.publishAt?.toDate ? exam.publishAt.toDate() : exam.publishAt ? new Date(exam.publishAt) : null;
   const closesAt = exam.closesAt?.toDate ? exam.closesAt.toDate() : exam.closesAt ? new Date(exam.closesAt) : null;
@@ -186,6 +191,16 @@ export function getExamAvailability(exam) {
   if (publishAt && now < publishAt) state = "upcoming";
   else if (closesAt && now > closesAt) state = "closed";
   return { state, publishAt, closesAt };
+}
+/* ---------- Which of the 3 student-facing buckets an exam belongs to ----------
+   "practice" — exam.examType === "practice", always open.
+   "upcoming" — a live exam scheduled in the future (not published yet).
+   "live"     — every other live exam (currently open, or already closed —
+                closed ones still belong here, just shown locked). ---------- */
+export function getExamBucket(exam) {
+  if (exam.examType === "practice") return "practice";
+  const { state } = getExamAvailability(exam);
+  return state === "upcoming" ? "upcoming" : "live";
 }
 export function getExamQuestionCount(exam = {}) {
   const perAttempt = Number(exam.questionsPerAttempt) || 0;

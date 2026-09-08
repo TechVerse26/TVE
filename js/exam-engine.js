@@ -58,9 +58,12 @@ export function buildQuestionPool(exam, questionBank) {
   return pool;
 }
 
-/* ---------- Scoring: +1 per correct, −negativeMarking per wrong ---------- */
+/* ---------- Scoring: +1 per correct, −negativeMarking per wrong ----------
+   Practice exams are risk-free by design — negative marking never applies
+   during practice, no matter what's set on the exam, so retrying doesn't
+   punish a wrong guess the way a real Live exam does. ---------- */
 export function scoreExam(exam) {
-  const negativeMarking = Math.max(0, Number(exam?.negativeMarking) || 0);
+  const negativeMarking = exam?.examType === "practice" ? 0 : Math.max(0, Number(exam?.negativeMarking) || 0);
   let correctCount = 0;
   let wrongCount = 0;
   state.questions.forEach((q) => {

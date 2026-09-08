@@ -3,7 +3,7 @@
 // No Firestore calls here (exam-data.js), no scoring/shuffle rules here
 // (exam-engine.js) — this file only turns fetched data into HTML.
 // ==========================================================================
-import { escapeHtml, formatScore, formatDuration, getExamAvailability, formatDateTime, getExamQuestionCount } from "./utils.js";
+import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBucket, formatDateTime, getExamQuestionCount } from "./utils.js";
 import { fetchAllExams, fetchResult, checkExamVisibility } from "./exam-data.js";
 import { startCountdowns } from "./exam-timer.js";
 import { state } from "./exam-engine.js";
@@ -14,13 +14,48 @@ function lessonTagHtml(ex) {
     : "";
 }
 
-export function setExamSectionHeader({ title, sub, showBack }) {
+/* ---------- Small Live/Practice corner badge — shown on every exam card ---------- */
+function typeBadgeHtml(ex) {
+  return ex.examType === "practice"
+    ? `<span class="exs-type-badge exs-type-badge--practice">Practice</span>`
+    : `<span class="exs-type-badge exs-type-badge--live">Live</span>`;
+}
+
+/* ---------- Practice score history — a small pure-CSS sparkline ----------
+   Only appears once there's an actual trend to show (2+ attempts). Bars are
+   sized with a --pct custom property (same pattern as the result ring),
+   the most recent attempt is highlighted, and each bar's title attribute
+   gives the exact score on hover — no JS charting library involved. ---------- */
+function practiceHistoryHtml(result) {
+  const attempts = result?.attempts;
+  if (!attempts || attempts.length < 2) return "";
+  const recent = attempts.slice(-10);
+  const best = Math.max(...attempts.map((a) => Number(a.percent) || 0));
+  const bars = recent.map((a, i) => {
+    const pct = Math.max(6, Math.round(Number(a.percent) || 0));
+    const isLast = i === recent.length - 1;
+    return `<div class="exs-spark-bar${isLast ? " is-latest" : ""}" style="--pct:${pct}" title="অ্যাটেম্পট ${attempts.length - recent.length + i + 1}: ${formatScore(a.score)}/${a.total} (${Math.round(Number(a.percent) || 0)}%)"></div>`;
+  }).join("");
+  return `
+    <div class="exs-spark">
+      <div class="exs-spark-head">
+        <span class="exs-spark-label"><i class="fa-solid fa-chart-line"></i> ${attempts.length} বার দিয়েছেন</span>
+        <span class="exs-spark-best">সেরা: ${Math.round(best)}%</span>
+      </div>
+      <div class="exs-spark-bars">${bars}</div>
+    </div>`;
+}
+
+export function setExamSectionHeader({ title, sub, showBack, backHref }) {
   const titleEl = document.getElementById("exam-section-title");
   const subEl = document.getElementById("exam-section-sub");
   const backBtn = document.getElementById("exam-back-btn");
   if (titleEl) titleEl.textContent = title;
   if (subEl) subEl.textContent = sub || "";
-  if (backBtn) backBtn.classList.toggle("hidden", !showBack);
+  if (backBtn) {
+    backBtn.classList.toggle("hidden", !showBack);
+    backBtn.dataset.href = backHref || "#/exam";
+  }
 }
 
 function groupExamsByCourse(exams) {
@@ -100,20 +135,26 @@ export async function renderExamCourseList(grid) {
   }
 }
 
-/* ---------- Exam list — all exams, or one course's exams ----------
-   Re-checks visibility itself (not just trusting the picker), so a direct
-   #/exam?course=xxx URL to a course the student isn't enrolled in shows
-   nothing rather than leaking the exam list. ---------- */
-export async function renderExamList(grid, courseKey = null) {
+/* ---------- Course hub — landing page for one course's exams ----------
+   Shown right after picking a course: three buttons (Upcoming / Live /
+   Practice) instead of dumping every exam — upcoming and live exams no
+   longer get mixed together in one list. ---------- */
+const HUB_TABS = [
+  { key: "upcoming", label: "Upcoming", sub: "আসন্ন লাইভ এক্সামের সিডিউল", icon: "fa-hourglass-half" },
+  { key: "live", label: "Live", sub: "চলমান / সমাপ্ত লাইভ এক্সাম", icon: "fa-satellite-dish" },
+  { key: "practice", label: "Practice", sub: "যেকোনো সময় অনুশীলন করুন", icon: "fa-dumbbell" },
+];
+
+export async function renderExamCourseHub(grid, courseKey) {
   grid.classList.remove("exam-grid--courses");
   grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> লোড হচ্ছে...</div>`;
   const myToken = state.navToken;
   try {
-    if (courseKey && courseKey !== "general") {
+    if (courseKey !== "general") {
       const info = await checkExamVisibility(courseKey, state.userProfile);
       if (state.navToken !== myToken) return;
       if (!info.visible) {
-        setExamSectionHeader({ title: "কোর্স পাওয়া যায়নি", sub: "", showBack: true });
+        setExamSectionHeader({ title: "কোর্স পাওয়া যায়নি", sub: "", showBack: true, backHref: "#/exam" });
         grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-lock"></i><p>এই কোর্সে আপনি এনরোল করা নেই</p></div>`;
         return;
       }
@@ -121,20 +162,79 @@ export async function renderExamList(grid, courseKey = null) {
 
     const allExams = await fetchAllExams();
     if (state.navToken !== myToken) return;
-    const exams = courseKey ? allExams.filter((ex) => (ex.courseId || "general") === courseKey) : allExams;
+    const exams = allExams.filter((ex) => (ex.courseId || "general") === courseKey);
 
-    if (courseKey) {
-      let title = "কোর্সের এক্সাম";
-      if (courseKey === "general") title = "সাধারণ এক্সাম (সবার জন্য)";
-      else {
-        const info = await checkExamVisibility(courseKey, state.userProfile);
-        title = info.title || exams[0]?.courseName || "কোর্সের এক্সাম";
-      }
-      setExamSectionHeader({ title, sub: exams.length ? `এই কোর্সে মোট ${exams.length} টি এক্সাম রয়েছে` : "এই কোর্সে এখনো কোনো এক্সাম যোগ করা হয়নি", showBack: true });
+    let title = "কোর্সের এক্সাম";
+    if (courseKey === "general") title = "সাধারণ এক্সাম (সবার জন্য)";
+    else {
+      const info = await checkExamVisibility(courseKey, state.userProfile);
+      title = info.title || exams[0]?.courseName || "কোর্সের এক্সাম";
     }
+    setExamSectionHeader({ title, sub: exams.length ? `এই কোর্সে মোট ${exams.length} টি এক্সাম রয়েছে` : "এই কোর্সে এখনো কোনো এক্সাম যোগ করা হয়নি", showBack: true, backHref: "#/exam" });
 
     if (!exams.length) {
       grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>এই কোর্সে এখনো কোনো এক্সাম নেই</p></div>`;
+      return;
+    }
+
+    const counts = { upcoming: 0, live: 0, practice: 0 };
+    exams.forEach((ex) => { counts[getExamBucket(ex)]++; });
+
+    grid.classList.add("exs-hub-grid");
+    grid.innerHTML = HUB_TABS.map((tab) => `
+      <a href="#/exam?course=${encodeURIComponent(courseKey)}&type=${tab.key}" class="exs-hub-btn exs-hub-btn--${tab.key}">
+        <div class="exs-hub-icon"><i class="fa-solid ${tab.icon}"></i></div>
+        <div class="exs-hub-body">
+          <h3>${tab.label}</h3>
+          <p>${tab.sub}</p>
+        </div>
+        <span class="exs-hub-count">${counts[tab.key]}</span>
+        <i class="fa-solid fa-chevron-right exs-hub-arrow"></i>
+      </a>`).join("");
+  } catch {
+    if (state.navToken !== myToken) return;
+    grid.innerHTML = `<div class="exs-empty"><p>এক্সাম লোড করা যায়নি</p></div>`;
+  }
+}
+
+/* ---------- Exam list — one course's exams, filtered to one bucket ----------
+   Re-checks visibility itself (not just trusting the hub), so a direct
+   #/exam?course=xxx&type=yyy URL to a course the student isn't enrolled in
+   shows nothing rather than leaking the exam list. ---------- */
+export async function renderExamList(grid, courseKey = null, bucketKey = null) {
+  grid.classList.remove("exam-grid--courses");
+  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> লোড হচ্ছে...</div>`;
+  const myToken = state.navToken;
+  const backHref = courseKey ? `#/exam?course=${encodeURIComponent(courseKey)}` : "#/exam";
+  const hubTab = HUB_TABS.find((t) => t.key === bucketKey);
+  try {
+    if (courseKey && courseKey !== "general") {
+      const info = await checkExamVisibility(courseKey, state.userProfile);
+      if (state.navToken !== myToken) return;
+      if (!info.visible) {
+        setExamSectionHeader({ title: "কোর্স পাওয়া যায়নি", sub: "", showBack: true, backHref: "#/exam" });
+        grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-lock"></i><p>এই কোর্সে আপনি এনরোল করা নেই</p></div>`;
+        return;
+      }
+    }
+
+    const allExams = await fetchAllExams();
+    if (state.navToken !== myToken) return;
+    let exams = courseKey ? allExams.filter((ex) => (ex.courseId || "general") === courseKey) : allExams;
+    if (bucketKey) exams = exams.filter((ex) => getExamBucket(ex) === bucketKey);
+
+    if (courseKey) {
+      let title = hubTab ? hubTab.label : "কোর্সের এক্সাম";
+      if (courseKey === "general" && !hubTab) title = "সাধারণ এক্সাম (সবার জন্য)";
+      setExamSectionHeader({ title, sub: exams.length ? `${exams.length} টি এক্সাম` : "এখানে এখনো কোনো এক্সাম নেই", showBack: true, backHref });
+    }
+
+    if (!exams.length) {
+      const emptyMsg = bucketKey === "practice" ? "এখনো কোনো প্র্যাকটিস এক্সাম যোগ করা হয়নি"
+        : bucketKey === "upcoming" ? "কোনো আসন্ন এক্সাম নেই"
+        : bucketKey === "live" ? "এই মুহূর্তে কোনো লাইভ এক্সাম নেই"
+        : "এই কোর্সে এখনো কোনো এক্সাম নেই";
+      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>${emptyMsg}</p></div>`;
       return;
     }
 
@@ -146,6 +246,7 @@ export async function renderExamList(grid, courseKey = null) {
       if (availState === "upcoming") {
         return `
         <div class="exs-card exs-card--locked">
+          <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
           <div class="exs-card-top">
             <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
             <span class="exs-countdown" data-countdown="${publishAt.getTime()}"><i class="fa-solid fa-hourglass-half"></i> <span class="countdown-val">...</span></span>
@@ -171,6 +272,7 @@ export async function renderExamList(grid, courseKey = null) {
       if (availState === "closed") {
         return `
         <div class="exs-card exs-card--locked">
+          <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
           <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
           <h3>${escapeHtml(ex.title)}</h3>
           <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
@@ -186,6 +288,7 @@ export async function renderExamList(grid, courseKey = null) {
       if (attemptsExhausted) {
         return `
         <div class="exs-card exs-card--locked">
+          <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
           <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
           <h3>${escapeHtml(ex.title)}</h3>
           <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
@@ -195,11 +298,13 @@ export async function renderExamList(grid, courseKey = null) {
           </div>
           ${result ? `<span class="exs-tag exs-tag--amber">সর্বশেষ স্কোর: ${formatScore(result.score)}/${result.total}</span>` : ""}
           <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-ban"></i> আপনি ইতিমধ্যে এই এক্সাম দিয়ে ফেলেছেন</span>
+          ${ex.examType === "practice" ? practiceHistoryHtml(result) : ""}
         </div>`;
       }
 
       return `
       <div class="exs-card">
+        <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
         <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
         <h3>${escapeHtml(ex.title)}</h3>
         <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
@@ -210,6 +315,7 @@ export async function renderExamList(grid, courseKey = null) {
         <div class="exs-meta-row">${attemptsMeta}</div>
         ${result ? `<span class="exs-tag exs-tag--amber">আগের স্কোর: ${formatScore(result.score)}/${result.total}</span>` : ""}
         ${closesAt ? `<span class="exs-muted exs-small">${formatDateTime(closesAt)} পর্যন্ত খোলা</span>` : ""}
+        ${ex.examType === "practice" ? practiceHistoryHtml(result) : ""}
         <a href="#/exam?id=${ex.id}" class="btn btn-primary btn-block">${result ? "আবার দিন" : "Start Exam"}</a>
       </div>`;
     }))).filter(Boolean);
