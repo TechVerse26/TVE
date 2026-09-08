@@ -90,7 +90,7 @@ export async function runVerification(container, examId, myToken) {
   }
   if (availState === "closed") {
     setStep(container, "window", "fail");
-    failScreen(container, { title: "এক্সামের সময় শেষ", message: `এই এক্সাম খোলা ছিল ${formatDateTime(closesAt)} পর্যন্ত।`, backLabel: "এই কোর্সের এক্সামে ফিরে যান", backHref: courseBackHref });
+    failScreen(container, { title: "এক্সামের সময় শেষ", message: `এই এক্সাম খোলা ছিল ${formatDateTime(closesAt)} পর্যন্ত।`, backLabel: "Return course exam", backHref: courseBackHref });
     return { ok: false };
   }
   setStep(container, "window", "ok");
@@ -139,15 +139,15 @@ export function renderRulesGate(container, exam, { attemptsSoFar, maxAttempts, t
         </div>
         <ul class="exs-rules-list">
           <li>একবার এক্সাম শুরু হলে টাইমার থামবে না — শুরু করার আগে প্রস্তুত থাকুন।</li>
-          <li>"Start Exam" চাপার সাথে সাথেই ${exam.duration || 10} মিনিটের টাইমার শুরু হয়ে যাবে।</li>
+          <li>"Start" চাপার সাথে সাথেই ${exam.duration || 10} মিনিটের টাইমার শুরু হয়ে যাবে।</li>
           <li>প্রশ্ন যেকোনো ক্রমে দেখা যাবে, তবে উত্তর সিলেক্ট করার সাথে সাথেই সেটা লক হয়ে যাবে — পরে বদলানো যাবে না।</li>
           <li>এক্সাম চলাকালীন পেজ রিফ্রেশ বা বন্ধ করবেন না — অগ্রগতি শুধু এই সেশনের জন্যই সংরক্ষিত থাকে।</li>
           <li>সময় শেষ হয়ে গেলে যা উত্তর দেওয়া হয়েছে তা স্বয়ংক্রিয়ভাবে জমা হয়ে যাবে।</li>
           ${attemptLine}
         </ul>
         <div class="exs-rules-actions">
-          <a href="#/exam?course=${encodeURIComponent(exam.courseId || "general")}" class="btn btn-outline btn-block">ফিরে যান</a>
-          <button type="button" class="btn btn-primary btn-block" id="exs-start-confirm">Start Exam <i class="fa-solid fa-arrow-right"></i></button>
+          <a href="#/exam?course=${encodeURIComponent(exam.courseId || "general")}" class="btn btn-outline btn-block">Go back</a>
+          <button type="button" class="btn btn-primary btn-block" id="exs-start-confirm">Start<i class="fa-solid fa-arrow-right"></i></button>
         </div>
       </div>`;
 
