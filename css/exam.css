@@ -23,7 +23,57 @@
 .exs-course-open-tag { color: var(--accent-green); font-weight: 600; }
 .exs-course-arrow { color: var(--text-muted); flex-shrink: 0; }
 
+/* ---------- Course hub — Upcoming / Live / Practice buttons ---------- */
+.exs-hub-grid { grid-template-columns: 1fr; max-width: 560px; margin: 0 auto; gap: 14px; }
+.exs-hub-btn {
+  display: flex; align-items: center; gap: 16px; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 18px 20px; transition: border-color .15s, background .15s;
+}
+.exs-hub-btn:hover { border-color: var(--accent-soft); background: var(--bg-elevated-2); }
+.exs-hub-icon {
+  width: 48px; height: 48px; border-radius: var(--radius-sm); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong); color: var(--text-muted);
+}
+.exs-hub-btn--upcoming .exs-hub-icon { color: var(--accent-amber); }
+.exs-hub-btn--live .exs-hub-icon { color: var(--accent-green); }
+.exs-hub-btn--practice .exs-hub-icon { color: var(--accent-soft); }
+.exs-hub-body { flex: 1; min-width: 0; }
+.exs-hub-body h3 { font-size: 1.05rem; margin-bottom: 3px; }
+.exs-hub-body p { color: var(--text-muted); font-size: 0.83rem; }
+.exs-hub-count {
+  min-width: 30px; text-align: center; padding: 4px 9px; border-radius: 999px; font-weight: 700; font-size: 0.85rem;
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong); color: var(--text-primary); flex-shrink: 0;
+}
+.exs-hub-arrow { color: var(--text-muted); flex-shrink: 0; }
+@media (max-width: 560px) {
+  .exs-hub-btn { padding: 14px 16px; gap: 12px; }
+  .exs-hub-icon { width: 40px; height: 40px; font-size: 1.1rem; }
+}
+
 /* ---------- Exam cards ---------- */
+.exs-type-row { display: flex; justify-content: flex-end; margin-bottom: -4px; }
+.exs-type-badge {
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px; line-height: 1.5;
+}
+.exs-type-badge--live { background: rgba(34,168,98,0.14); color: var(--accent-green); border: 1px solid rgba(34,168,98,0.35); }
+.exs-type-badge--practice { background: rgba(139,124,255,0.14); color: var(--accent-soft); border: 1px solid rgba(139,124,255,0.35); }
+
+/* ---------- Practice score-history sparkline ---------- */
+.exs-spark { background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 10px; }
+.exs-spark-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; margin-bottom: 10px; }
+.exs-spark-label { color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.exs-spark-best { color: var(--accent-green); font-weight: 700; }
+.exs-spark-bars { display: flex; align-items: flex-end; gap: 5px; height: 42px; }
+.exs-spark-bar {
+  flex: 1; height: calc(var(--pct) * 1%); min-height: 4px; border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, var(--accent-soft), rgba(139,124,255,0.3));
+  transition: transform .15s ease;
+}
+.exs-spark-bar:hover { transform: scaleY(1.06); }
+.exs-spark-bar.is-latest { background: linear-gradient(180deg, var(--accent-green), rgba(34,168,98,0.35)); }
+
 .exs-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; gap: 10px; }
 .exs-card h3 { font-size: 1.08rem; }
 .exs-card--locked { opacity: 0.85; }

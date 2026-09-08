@@ -470,10 +470,148 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 
 /* ---------- Results page ---------- */
 .results-grid { display: flex; flex-direction: column; gap: 10px; }
-.result-row-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 18px; }
+.result-row-card {
+  display: flex; flex-direction: column; gap: 10px; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 14px 18px; cursor: pointer; transition: border-color .14s, transform .1s;
+  text-align: left; width: 100%; font-family: inherit; color: inherit;
+}
+.result-row-card:hover { border-color: var(--accent-soft); }
+.result-row-card:active { transform: scale(0.995); }
+.result-row-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .result-row-main h3 { font-size: 1rem; margin-bottom: 3px; }
 .result-row-score { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .result-row-score b { font-family: var(--font-display); font-size: 1.05rem; }
+.result-row-hint {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-top: 1px dashed var(--border); padding-top: 9px; font-size: 0.8rem; color: var(--accent-soft); font-weight: 700;
+}
+.result-row-hint i.fa-chevron-right { color: var(--text-muted); font-size: 0.72rem; transition: transform .14s; }
+.result-row-card:hover .result-row-hint i.fa-chevron-right { transform: translateX(3px); }
+
+/* ---------- Stat chips (reused in overview cards + history modal) ---------- */
+.rc-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.rc-stat { flex: 1; min-width: 92px; background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; text-align: center; }
+.rc-stat span { display: block; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 3px; }
+.rc-stat b { font-family: var(--font-display); font-size: 1.05rem; }
+.rc-stat.trend-up b { color: var(--accent-green); }
+.rc-stat.trend-down b { color: var(--accent-coral); }
+
+/* ==========================================================================
+   Overview progress graphs (top of My Results) — pure CSS, no SVG/canvas/lib.
+   Bar height comes from the --pct custom property via calc(); the y-axis
+   gridlines are a single repeating-linear-gradient background (no extra
+   DOM); tooltips are a pure-CSS ::after using content: attr(data-tip),
+   positioned with calc(var(--pct) * 1% + Npx) so they float just above
+   whatever height that particular bar happens to be.
+   ========================================================================== */
+.results-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+@media (max-width: 760px) { .results-overview { grid-template-columns: 1fr; } }
+
+.ov-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px 18px 16px; }
+.ov-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ov-card-icon {
+  width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; flex-shrink: 0;
+}
+.ov-card--live .ov-card-icon { background: rgba(34,168,98,0.14); color: var(--accent-green); }
+.ov-card--practice .ov-card-icon { background: rgba(139,124,255,0.14); color: var(--accent-soft); }
+.ov-card-head h2 { font-size: 1rem; margin-bottom: 1px; }
+.ov-card-head p { font-size: 0.76rem; color: var(--text-muted); }
+
+.ov-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 30px 10px; color: var(--text-muted); text-align: center; font-size: 0.85rem; }
+.ov-empty i { font-size: 1.5rem; color: var(--border-strong); }
+
+/* ---------- Rank card ---------- */
+.ov-card--rank .ov-card-icon { background: rgba(232,163,61,0.16); color: var(--accent-amber); }
+.rank-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.rank-own, .rank-top, .rank-diff {
+  flex: 1; min-width: 130px; background: var(--bg-elevated-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 5px;
+}
+.rank-own span, .rank-top span, .rank-diff span { font-size: 0.74rem; color: var(--text-muted); }
+.rank-own b, .rank-top b, .rank-diff b { font-family: var(--font-display); font-size: 1.3rem; }
+.rank-top b em { font-style: normal; color: var(--accent-amber); }
+.rank-diff.trend-up b { color: var(--accent-green); }
+.rank-diff.trend-down b { color: var(--accent-coral); }
+
+.ov-chart-scroll { overflow-x: auto; padding-bottom: 2px; }
+.ov-chart-grid { display: flex; gap: 10px; min-width: 100%; }
+.ov-yaxis {
+  flex-shrink: 0; display: flex; flex-direction: column-reverse; justify-content: space-between;
+  height: 150px; font-size: 9.5px; color: var(--text-muted); padding-bottom: 18px;
+}
+.ov-bars {
+  flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(16px, 1fr); gap: 5px;
+  height: 150px; align-items: end; padding-bottom: 18px; position: relative;
+  background-image: repeating-linear-gradient(to top, var(--border) 0, var(--border) 1px, transparent 1px, transparent 25%);
+  border-bottom: 1px solid var(--border-strong);
+}
+.ov-bar { position: relative; height: 100%; display: flex; align-items: flex-end; }
+.ov-bar-fill {
+  width: 100%; height: calc(var(--pct) * 1%); min-height: 3px; border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, var(--accent-soft), rgba(139,124,255,0.32));
+  transition: height 0.62s cubic-bezier(.22,1,.36,1), transform .14s ease, filter .14s ease;
+}
+.ov-bar-fill.is-fail { background: linear-gradient(180deg, var(--accent-coral), rgba(225,95,82,0.32)); }
+.ov-bar-fill.is-latest { background: linear-gradient(180deg, var(--accent-green), rgba(34,168,98,0.34)); }
+.ov-bar:hover .ov-bar-fill { transform: scaleY(1.035); filter: brightness(1.12); }
+.ov-bar[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(var(--pct) * 1% + 10px);
+  transform: translateX(-50%); background: var(--bg-elevated-2); border: 1px solid var(--border-strong);
+  color: var(--text-primary); font-size: 11px; line-height: 1.5; white-space: normal; width: max-content;
+  max-width: 190px; text-align: center; padding: 5px 9px; border-radius: 7px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4); z-index: 8; pointer-events: none;
+}
+.ov-xlabel { text-align: center; font-size: 9px; color: var(--text-muted); position: absolute; bottom: -16px; left: 0; right: 0; }
+.ov-note { margin-top: 8px; font-size: 0.72rem; color: var(--text-muted); text-align: right; }
+
+/* ---------- History modal (tap an exam card to open) ---------- */
+.result-modal-overlay {
+  position: fixed; inset: 0; background: rgba(6,6,10,0.66); z-index: 200;
+  display: flex; align-items: flex-end; justify-content: center; padding: 0;
+  opacity: 0; pointer-events: none; transition: opacity .16s ease;
+}
+.result-modal-overlay.is-open { opacity: 1; pointer-events: auto; }
+@media (min-width: 640px) { .result-modal-overlay { align-items: center; padding: 20px; } }
+
+.result-modal {
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); width: 100%; max-width: 620px;
+  max-height: 88vh; overflow-y: auto; border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: 20px 20px 26px; transform: translateY(24px); transition: transform .18s ease;
+}
+.result-modal-overlay.is-open .result-modal { transform: translateY(0); }
+@media (min-width: 640px) { .result-modal { border-radius: var(--radius-md); max-height: 84vh; } }
+
+.result-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.result-modal-head h3 { font-size: 1.08rem; margin-bottom: 6px; }
+.result-modal-close {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--bg-elevated-2); color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s, color .12s;
+}
+.result-modal-close:hover { background: var(--accent-coral); color: #fff; }
+
+.result-modal-chart { margin: 16px 0 6px; }
+.result-modal-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.rm-row-wrap { display: flex; flex-direction: column; gap: 6px; }
+.rm-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: var(--radius-sm);
+  background: var(--bg-elevated-2); border: 1px solid var(--border); font-size: 0.84rem; width: 100%;
+  text-align: left; font-family: inherit; color: inherit; cursor: pointer; transition: border-color .14s;
+}
+.rm-row:not(:disabled):hover { border-color: var(--accent-soft); }
+.rm-row:disabled { cursor: default; }
+.rm-row.is-latest { border-color: var(--accent-green); }
+.rm-row-n { width: 26px; height: 26px; border-radius: 50%; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+.rm-row.is-latest .rm-row-n { background: rgba(34,168,98,0.16); color: var(--accent-green); }
+.rm-row-when { flex: 1; color: var(--text-muted); font-size: 0.78rem; }
+.rm-row-score { font-family: var(--font-display); font-weight: 700; }
+.rm-row-delta { font-size: 0.74rem; font-weight: 700; min-width: 44px; text-align: right; }
+.rm-row-delta.up { color: var(--accent-green); } .rm-row-delta.down { color: var(--accent-coral); } .rm-row-delta.flat { color: var(--text-muted); }
+.rm-row-arrow { color: var(--text-muted); font-size: 0.76rem; transition: transform .15s; flex-shrink: 0; }
+.rm-row.is-open .rm-row-arrow { transform: rotate(180deg); }
+.rm-row-lock { color: var(--border-strong); font-size: 0.76rem; flex-shrink: 0; }
+.rm-review-panel { display: flex; flex-direction: column; gap: 10px; padding: 2px 2px 6px 4px; }
+.rm-review-panel[hidden] { display: none; }
 
 @media print {
   #topnav-root, .site-footer, .exs-no-print, #q-prev, #q-next { display: none !important; }
