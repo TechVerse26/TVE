@@ -170,10 +170,10 @@ export async function renderExamCourseHub(grid, courseKey) {
       const info = await checkExamVisibility(courseKey, state.userProfile);
       title = info.title || exams[0]?.courseName || "কোর্সের এক্সাম";
     }
-    setExamSectionHeader({ title, sub: exams.length ? `এই কোর্সে মোট ${exams.length} টি এক্সাম রয়েছে` : "এই কোর্সে এখনো কোনো এক্সাম যোগ করা হয়নি", showBack: true, backHref: "#/exam" });
+    setExamSectionHeader({ title, sub: exams.length ? ` ${exams.length} Exams Available` : "No Exams Available Yet", showBack: true, backHref: "#/exam" });
 
     if (!exams.length) {
-      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>এই কোর্সে এখনো কোনো এক্সাম নেই</p></div>`;
+      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No Exams Available for This Course Yet</p></div>`;
       return;
     }
 
@@ -193,7 +193,7 @@ export async function renderExamCourseHub(grid, courseKey) {
       </a>`).join("");
   } catch {
     if (state.navToken !== myToken) return;
-    grid.innerHTML = `<div class="exs-empty"><p>এক্সাম লোড করা যায়নি</p></div>`;
+    grid.innerHTML = `<div class="exs-empty"><p>Unable to Load Exams</p></div>`;
   }
 }
 
@@ -203,7 +203,7 @@ export async function renderExamCourseHub(grid, courseKey) {
    shows nothing rather than leaking the exam list. ---------- */
 export async function renderExamList(grid, courseKey = null, bucketKey = null) {
   grid.classList.remove("exam-grid--courses");
-  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> লোড হচ্ছে...</div>`;
+  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> loading...</div>`;
   const myToken = state.navToken;
   const backHref = courseKey ? `#/exam?course=${encodeURIComponent(courseKey)}` : "#/exam";
   const hubTab = HUB_TABS.find((t) => t.key === bucketKey);
@@ -212,8 +212,8 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
       const info = await checkExamVisibility(courseKey, state.userProfile);
       if (state.navToken !== myToken) return;
       if (!info.visible) {
-        setExamSectionHeader({ title: "কোর্স পাওয়া যায়নি", sub: "", showBack: true, backHref: "#/exam" });
-        grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-lock"></i><p>এই কোর্সে আপনি এনরোল করা নেই</p></div>`;
+        setExamSectionHeader({ title: "No Course Found", sub: "", showBack: true, backHref: "#/exam" });
+        grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-lock"></i><p>You’re Not Enrolled in This Course.Enroll in this course to access its exams and learning materials.</p></div>`;
         return;
       }
     }
@@ -224,16 +224,16 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
     if (bucketKey) exams = exams.filter((ex) => getExamBucket(ex) === bucketKey);
 
     if (courseKey) {
-      let title = hubTab ? hubTab.label : "কোর্সের এক্সাম";
-      if (courseKey === "general" && !hubTab) title = "সাধারণ এক্সাম (সবার জন্য)";
-      setExamSectionHeader({ title, sub: exams.length ? `${exams.length} টি এক্সাম` : "এখানে এখনো কোনো এক্সাম নেই", showBack: true, backHref });
+      let title = hubTab ? hubTab.label : "Course Exams";
+      if (courseKey === "general" && !hubTab) title = "Genarel Exams";
+      setExamSectionHeader({ title, sub: exams.length ? `${exams.length} Exams Available for This Course` : "No Exams Available for This Course Yet", showBack: true, backHref });
     }
 
     if (!exams.length) {
-      const emptyMsg = bucketKey === "practice" ? "এখনো কোনো প্র্যাকটিস এক্সাম যোগ করা হয়নি"
-        : bucketKey === "upcoming" ? "কোনো আসন্ন এক্সাম নেই"
-        : bucketKey === "live" ? "এই মুহূর্তে কোনো লাইভ এক্সাম নেই"
-        : "এই কোর্সে এখনো কোনো এক্সাম নেই";
+      const emptyMsg = bucketKey === "practice" ? "No Practice Exams Available Yet "
+        : bucketKey === "upcoming" ? "No Exams"
+        : bucketKey === "live" ? "No Upcoming Exams at the Moment"
+        : "No Exams Available for This Course Yet";
       grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>${emptyMsg}</p></div>`;
       return;
     }
@@ -254,10 +254,10 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
           <h3>${escapeHtml(ex.title)}</h3>
           <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
           <div class="exs-meta-row">
-            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} মিনিট</span>
+            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
             <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} টি প্রশ্ন</span>
           </div>
-          <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-lock"></i> চালু হবে: ${formatDateTime(publishAt)}</span>
+          <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-lock"></i> Starts Soon ${formatDateTime(publishAt)}</span>
         </div>`;
       }
 
@@ -266,8 +266,8 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
       const attemptsUsed = maxAttempts > 0 ? Number(result?.attemptNumber || 0) : 0;
       const attemptsExhausted = maxAttempts > 0 && attemptsUsed >= maxAttempts;
       const attemptsMeta = maxAttempts > 0
-        ? `<span><i class="fa-solid fa-rotate"></i> অ্যাটেম্পট: ${attemptsUsed}/${maxAttempts}</span>`
-        : `<span><i class="fa-solid fa-infinity"></i> সীমাহীন অ্যাটেম্পট</span>`;
+        ? `<span><i class="fa-solid fa-rotate"></i> Attempts ${attemptsUsed}/${maxAttempts}</span>`
+        : `<span><i class="fa-solid fa-infinity"></i> Unlimited Attempts</span>`;
 
       if (availState === "closed") {
         return `
@@ -277,11 +277,11 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
           <h3>${escapeHtml(ex.title)}</h3>
           <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
           <div class="exs-meta-row">
-            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} মিনিট</span>
-            <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} টি প্রশ্ন</span>
+            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
+            <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} Questions</span>
           </div>
-          ${result ? `<span class="exs-tag exs-tag--amber">আগের স্কোর: ${formatScore(result.score)}/${result.total}</span>` : ""}
-          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-stopwatch"></i> সময় শেষ (${formatDateTime(closesAt)} পর্যন্ত খোলা ছিল)</span>
+          ${result ? `<span class="exs-tag exs-tag--amber">Last Score ${formatScore(result.score)}/${result.total}</span>` : ""}
+          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-stopwatch"></i> Exam Closed (${formatDateTime(closesAt)} Ended)</span>
         </div>`;
       }
 
@@ -293,11 +293,11 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
           <h3>${escapeHtml(ex.title)}</h3>
           <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
           <div class="exs-meta-row">
-            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} মিনিট</span>
+            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
             <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} টি প্রশ্ন</span>
           </div>
-          ${result ? `<span class="exs-tag exs-tag--amber">সর্বশেষ স্কোর: ${formatScore(result.score)}/${result.total}</span>` : ""}
-          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-ban"></i> আপনি ইতিমধ্যে এই এক্সাম দিয়ে ফেলেছেন</span>
+          ${result ? `<span class="exs-tag exs-tag--amber">Last Score${formatScore(result.score)}/${result.total}</span>` : ""}
+          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-ban"></i> You’ve Already Attempted This Exam</span>
           ${ex.examType === "practice" ? practiceHistoryHtml(result) : ""}
         </div>`;
       }
@@ -309,23 +309,23 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
         <h3>${escapeHtml(ex.title)}</h3>
         <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
         <div class="exs-meta-row">
-          <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} মিনিট</span>
-          <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} টি প্রশ্ন</span>
+          <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
+          <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} Questions</span>
         </div>
         <div class="exs-meta-row">${attemptsMeta}</div>
-        ${result ? `<span class="exs-tag exs-tag--amber">আগের স্কোর: ${formatScore(result.score)}/${result.total}</span>` : ""}
-        ${closesAt ? `<span class="exs-muted exs-small">${formatDateTime(closesAt)} পর্যন্ত খোলা</span>` : ""}
+        ${result ? `<span class="exs-tag exs-tag--amber">Last Score ${formatScore(result.score)}/${result.total}</span>` : ""}
+        ${closesAt ? `<span class="exs-muted exs-small">${formatDateTime(closesAt)} Ended</span>` : ""}
         ${ex.examType === "practice" ? practiceHistoryHtml(result) : ""}
-        <a href="#/exam?id=${ex.id}" class="btn btn-primary btn-block">${result ? "আবার দিন" : "Start Exam"}</a>
+        <a href="#/exam?id=${ex.id}" class="btn btn-primary btn-block">${result ? "Retake Exam" : "Start Exam"}</a>
       </div>`;
     }))).filter(Boolean);
 
     if (state.navToken !== myToken) return;
-    grid.innerHTML = cards.length ? cards.join("") : `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>এখন কোনো এক্সাম নেই</p></div>`;
+    grid.innerHTML = cards.length ? cards.join("") : `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No Exams Available</p></div>`;
     startCountdowns(grid);
   } catch {
     if (state.navToken !== myToken) return;
-    grid.innerHTML = `<div class="exs-empty"><p>এক্সাম লোড করা যায়নি</p></div>`;
+    grid.innerHTML = `<div class="exs-empty"><p>Unable to Load Exams</p></div>`;
   }
 }
 
@@ -340,7 +340,7 @@ function renderOptionsHtml(q) {
           ${state.answers[q.id] === i && isLocked ? '<i class="fa-solid fa-lock exs-option-lock"></i>' : ""}
         </div>`).join("")}
     </div>
-    ${isLocked ? `<div class="exs-locked-hint"><i class="fa-solid fa-circle-info"></i> আপনার উত্তর দেখানো হচ্ছে</div>` : ""}`;
+    ${isLocked ? `<div class="exs-locked-hint"><i class="fa-solid fa-circle-info"></i> Displaying Your Answer </div>` : ""}`;
 }
 
 function bindOptionClicks(container, onAfterLock) {
@@ -374,7 +374,7 @@ export function renderQuestion(refs) {
 export function renderAllQuestions(refs) {
   refs.questionArea.innerHTML = state.questions.map((q, i) => `
     <div class="exs-question-card exs-mb">
-      <div class="exs-q-index">প্রশ্ন ${i + 1} / ${state.questions.length}</div>
+      <div class="exs-q-index">Question ${i + 1} / ${state.questions.length}</div>
       <h2>${escapeHtml(q.text)}</h2>
       ${renderOptionsHtml(q)}
     </div>`).join("");
@@ -386,7 +386,7 @@ export function renderResult(resultView, { score, total, percent, examTitle, bre
   resultView.innerHTML = `
     <div class="exs-result-hero" id="exs-print-area">
       <div class="exs-print-head">
-        <div class="exs-print-title">Tech Verse Exam — ফলাফল</div>
+        <div class="exs-print-title">Tech Verse Exam — Result</div>
         <div class="exs-print-sub">${escapeHtml(state.currentUser?.displayName || state.currentUser?.email || "")} · ${new Date().toLocaleString()}</div>
       </div>
       <div class="exs-result-ring" style="--pct:${percent}"><b>${percent}%</b></div>
