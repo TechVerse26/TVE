@@ -19,7 +19,7 @@ export async function initSignupPage(params, container) {
           <div class="field"><label>Password</label><input type="password" id="su-password" required minlength="6" autocomplete="new-password"></div>
           <button type="submit" class="btn btn-primary btn-block" id="su-submit">Create an account</button>
         </form>
-        <button type="button" class="btn btn-outline btn-block mt-8" id="su-google"><i class="fa-brands fa-google"></i> </button>
+        <button type="button" class="btn btn-outline btn-block mt-8" id="su-google"><i class="fa-brands fa-google"></i>Continue With Google </button>
         <p class="auth-switch">Already have an account? <a href="#/login">Log in</a></p>
       </div>
     </div>`;
