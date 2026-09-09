@@ -37,14 +37,59 @@ export async function fetchResult(uid, examId) {
   }
 }
 
+/* ---------- 48-hour lifetime for a saved wrong-answer review ----------
+   A submitted attempt's `review` field (see reviewSnapshot in exam.js) only
+   ever holds the questions the student got wrong. It's meant to be seen
+   right after the exam and revisited for a couple of days at most — not
+   kept around forever. isReviewExpired() is the single source of truth for
+   "is this attempt's review still within its window", shared by the prune
+   pass below and by page-results.js when deciding whether to offer the
+   "reopen this attempt's review" button at all. ---------- */
+export const REVIEW_TTL_MS = 48 * 60 * 60 * 1000;
+export function isReviewExpired(submittedAt) {
+  const ms = submittedAt?.toMillis
+    ? submittedAt.toMillis()
+    : (submittedAt?.seconds ? submittedAt.seconds * 1000 : null);
+  if (!ms) return false; // unknown timestamp — never force-expire, just leave it be
+  return Date.now() - ms > REVIEW_TTL_MS;
+}
+
 /* ---------- Every result belonging to the current user (My Results page) ----------
    Query filtered by uid == request.auth.uid, matching the existing Firestore
-   rule exactly — a signed-in user can list only their own result documents. */
+   rule exactly — a signed-in user can list only their own result documents.
+
+   Also does one small piece of self-cleanup on the way out: any attempt
+   whose review has passed its 48-hour window gets that review wiped for
+   good, right here, the next time the student happens to open this page —
+   no cron job or Cloud Function needed. This is what actually makes the
+   review "সরে যায়" (leave) the session after 48 hours rather than just
+   being hidden by the UI: the question/answer text is genuinely dropped
+   from the stored document, which keeps these docs small long-term too. */
 export async function fetchMyResults(uid) {
   const snap = await getDocs(query(collection(db, "results"), where("uid", "==", uid)));
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  const results = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  const writes = [];
+  for (const r of results) {
+    if (!Array.isArray(r.attempts)) continue;
+    let changed = false;
+    const prunedAttempts = r.attempts.map((a) => {
+      if (a.review && isReviewExpired(a.submittedAt)) {
+        changed = true;
+        return { ...a, review: null };
+      }
+      return a;
+    });
+    if (changed) {
+      r.attempts = prunedAttempts; // reflect the prune immediately, don't wait for the write
+      writes.push(setDoc(doc(db, "results", r.id), { attempts: prunedAttempts }, { merge: true }));
+    }
+  }
+  if (writes.length) {
+    try { await Promise.all(writes); } catch { /* best-effort — UI already has the pruned view */ }
+  }
+
+  return results.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
 }
 
 const attemptsCache = {};

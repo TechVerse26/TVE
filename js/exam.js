@@ -161,16 +161,30 @@ async function submitExam() {
   // pools can be randomized per attempt (buildQuestionPool), so the only
   // reliable record of "what did attempt #N actually look like" is captured
   // right now, at submit time. Stored per-attempt (exam-data.js saveResult)
-  // so "আমার ফলাফল" can show a full question-by-question review for ANY
+  // so "আমার ফলাফল" can show a question-by-question review for ANY
   // past attempt later, not just the most recent one.
-  const reviewSnapshot = state.questions.map((q) => ({
-    id: q.id,
-    text: q.text,
-    options: q.options,
-    correctIndex: q.correctIndex,
-    explanation: q.explanation || "",
-    selected: state.answers[q.id] !== undefined ? state.answers[q.id] : null,
-  }));
+  //
+  // Only WRONG (incl. unanswered) questions are kept here — a correctly
+  // answered question never needs reviewing, and for a big exam this is
+  // what actually keeps things fast: a smaller snapshot means a smaller
+  // Firestore write, a smaller doc to fetch on every visit to "আমার
+  // ফলাফল", and a review screen that renders only a handful of cards
+  // instead of the whole question bank. It also naturally expires — see
+  // REVIEW_TTL_MS / isReviewExpired() in exam-data.js — so this review
+  // detail is only ever kept around for 48 hours after submission.
+  const reviewSnapshot = state.questions
+    .filter((q) => {
+      const selected = state.answers[q.id] !== undefined ? state.answers[q.id] : null;
+      return selected !== q.correctIndex;
+    })
+    .map((q) => ({
+      id: q.id,
+      text: q.text,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation || "",
+      selected: state.answers[q.id] !== undefined ? state.answers[q.id] : null,
+    }));
 
   await saveResult({
     uid: state.currentUser.uid,

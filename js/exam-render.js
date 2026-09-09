@@ -381,6 +381,42 @@ export function renderAllQuestions(refs) {
   bindOptionClicks(refs.questionArea, () => renderAllQuestions(refs));
 }
 
+/* ---------- Post-submit review — only the questions the student actually
+   got wrong (or left unanswered). Showing the full question bank here used
+   to be the main reason this screen felt slow on a big exam: hundreds of
+   `.exs-review-item` cards landing in the DOM at once. Correct answers
+   don't need reviewing, so they're simply never rendered — the list stays
+   small no matter how large the exam was. This mirrors what actually gets
+   saved (see reviewSnapshot in exam.js) and what it's kept for: 48 hours,
+   after which "আমার ফলাফল" stops offering it (see isReviewExpired in
+   exam-data.js). ---------- */
+function renderReviewListHtml(questions, answers) {
+  const wrongOnes = questions
+    .map((q, i) => ({ q, i, userAns: answers[q.id] }))
+    .filter(({ q, userAns }) => userAns !== q.correctIndex);
+
+  if (!wrongOnes.length) {
+    return `
+      <div class="exs-review-list">
+        <div class="exs-empty"><i class="fa-solid fa-champagne-glasses"></i><p>অভিনন্দন! আপনি সব প্রশ্নের সঠিক উত্তর দিয়েছেন — রিভিউ করার মতো কিছু নেই।</p></div>
+      </div>`;
+  }
+
+  return `
+    <p class="exs-muted exs-small exs-review-note"><i class="fa-solid fa-circle-info"></i> নিচে শুধু আপনার ভুল করা প্রশ্নগুলো দেখানো হচ্ছে, এবং এগুলো এই পরীক্ষার ফলাফলে <b>৪৮ ঘণ্টা</b> পর্যন্ত দেখা যাবে।</p>
+    <div class="exs-review-list">
+      ${wrongOnes.map(({ q, i, userAns }) => `
+        <div class="exs-review-item">
+          <div class="exs-review-q">${i + 1}. ${escapeHtml(q.text)}</div>
+          <div class="exs-review-answer is-wrong">
+            <i class="fa-solid fa-xmark"></i> আপনার উত্তর: ${userAns !== undefined && userAns !== null ? escapeHtml(q.options[userAns]) : "উত্তর দেওয়া হয়নি"}
+          </div>
+          <div class="exs-review-answer is-correct"><i class="fa-solid fa-check"></i> সঠিক উত্তর: ${escapeHtml(q.options[q.correctIndex])}</div>
+          ${q.explanation && q.explanation.trim() ? `<div class="exs-review-explain"><i class="fa-solid fa-lightbulb"></i><span><b>ব্যাখ্যা:</b> ${escapeHtml(q.explanation)}</span></div>` : ""}
+        </div>`).join("")}
+    </div>`;
+}
+
 export function renderResult(resultView, { score, total, percent, examTitle, breakdown }) {
   const { correctCount = 0, wrongCount = 0, unansweredCount = 0, negativeMarking = 0, timeTakenSeconds = 0 } = breakdown;
   resultView.innerHTML = `
@@ -405,21 +441,7 @@ export function renderResult(resultView, { score, total, percent, examTitle, bre
         <button type="button" class="exs-action-box exs-action-box--teal" id="exs-print-result"><i class="fa-solid fa-print"></i><span>PDF / প্রিন্ট</span></button>
       </div>
     </div>
-    <div class="exs-review-list">
-      ${state.questions.map((q, i) => {
-        const userAns = state.answers[q.id];
-        const correct = userAns === q.correctIndex;
-        return `
-        <div class="exs-review-item">
-          <div class="exs-review-q">${i + 1}. ${escapeHtml(q.text)}</div>
-          <div class="exs-review-answer ${correct ? "is-correct" : "is-wrong"}">
-            ${correct ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>'} আপনার উত্তর: ${userAns !== undefined ? escapeHtml(q.options[userAns]) : "উত্তর দেওয়া হয়নি"}
-          </div>
-          ${!correct ? `<div class="exs-review-answer is-correct"><i class="fa-solid fa-check"></i> সঠিক উত্তর: ${escapeHtml(q.options[q.correctIndex])}</div>` : ""}
-          ${q.explanation && q.explanation.trim() ? `<div class="exs-review-explain"><i class="fa-solid fa-lightbulb"></i><span><b>ব্যাখ্যা:</b> ${escapeHtml(q.explanation)}</span></div>` : ""}
-        </div>`;
-      }).join("")}
-    </div>`;
+    ${renderReviewListHtml(state.questions, state.answers)}`;
 
   resultView.querySelector("#exs-print-result")?.addEventListener("click", () => window.print());
 }

@@ -25,7 +25,7 @@
 // content on a timer, so it stays cheap and dependency-free.
 // ==========================================================================
 import { requireAuth, escapeHtml, formatScore, formatDateTime } from "./utils.js";
-import { fetchMyResults, fetchPercentileStats } from "./exam-data.js";
+import { fetchMyResults, fetchPercentileStats, isReviewExpired } from "./exam-data.js";
 import { renderNav } from "./nav.js";
 
 const OVERVIEW_MAX_BARS = 40;
@@ -330,7 +330,27 @@ function historyModalBodyHtml(r) {
       const icon = d > 0 ? "fa-arrow-up" : d < 0 ? "fa-arrow-down" : "fa-minus";
       deltaHtml = `<span class="rm-row-delta ${cls}"><i class="fa-solid ${icon}"></i> ${d === 0 ? "" : Math.abs(d) + "%"}</span>`;
     }
-    const hasReview = Array.isArray(a.review) && a.review.length > 0;
+    // Defensive filter: only ever offer the questions the student got
+    // wrong, even for an older doc saved before reviewSnapshot switched to
+    // storing wrong-only (a pre-existing full snapshot could still have
+    // correct ones mixed in). Combined with isReviewExpired(), this is
+    // also the second (client-side) half of the 48-hour cutoff — the first
+    // half already ran in fetchMyResults, which wipes a.review to null
+    // once it's past its window, so this mostly guards the rare case where
+    // that write hasn't landed yet.
+    const wrongOnly = Array.isArray(a.review) ? a.review.filter((q) => q.selected !== q.correctIndex) : [];
+    const expired = isReviewExpired(a.submittedAt);
+    const hasReview = wrongOnly.length > 0 && !expired;
+
+    let lockIcon = "fa-lock", lockTitle = "এই অ্যাটেম্পটের বিস্তারিত রিভিউ সংরক্ষিত নেই";
+    if (a.review != null && wrongOnly.length === 0) {
+      lockIcon = "fa-circle-check";
+      lockTitle = "অভিনন্দন! এই অ্যাটেম্পটে সব উত্তর সঠিক ছিল";
+    } else if (a.review != null && expired) {
+      lockIcon = "fa-clock-rotate-left";
+      lockTitle = "ভুল উত্তরের রিভিউ শুধু জমা দেওয়ার ৪৮ ঘণ্টা পর্যন্ত দেখা যায় — এই অ্যাটেম্পটের মেয়াদ শেষ হয়ে গেছে";
+    }
+
     const panelId = `rm-review-${rid}-${a.attemptInExam}`;
     return `
       <div class="rm-row-wrap">
@@ -339,9 +359,9 @@ function historyModalBodyHtml(r) {
           <span class="rm-row-when">${formatDateTime(a.submittedAt)}</span>
           <span class="rm-row-score">${formatScore(a.score)}/${a.total} · ${Math.round(clampPct(a.percent))}%</span>
           ${deltaHtml}
-          ${hasReview ? `<i class="fa-solid fa-chevron-down rm-row-arrow"></i>` : `<i class="fa-solid fa-lock rm-row-lock" title="এই অ্যাটেম্পটের বিস্তারিত রিভিউ সংরক্ষিত নেই"></i>`}
+          ${hasReview ? `<i class="fa-solid fa-chevron-down rm-row-arrow"></i>` : `<i class="fa-solid ${lockIcon} rm-row-lock" title="${lockTitle}"></i>`}
         </button>
-        ${hasReview ? `<div class="rm-review-panel" id="${panelId}" hidden>${a.review.map(reviewQuestionHtml).join("")}</div>` : ""}
+        ${hasReview ? `<div class="rm-review-panel" id="${panelId}" hidden>${wrongOnly.map(reviewQuestionHtml).join("")}</div>` : ""}
       </div>`;
   }).join("");
 
