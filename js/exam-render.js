@@ -39,8 +39,8 @@ function practiceHistoryHtml(result) {
   return `
     <div class="exs-spark">
       <div class="exs-spark-head">
-        <span class="exs-spark-label"><i class="fa-solid fa-chart-line"></i> ${attempts.length} বার দিয়েছেন</span>
-        <span class="exs-spark-best">সেরা: ${Math.round(best)}%</span>
+        <span class="exs-spark-label"><i class="fa-solid fa-chart-line"></i>Total Refusals ${attempts.length} </span>
+        <span class="exs-spark-best">your activity ${Math.round(best)}%</span>
       </div>
       <div class="exs-spark-bars">${bars}</div>
     </div>`;
@@ -74,15 +74,15 @@ function groupExamsByCourse(exams) {
    Unenrolled courses' exam groups are skipped entirely — not shown as
    locked, just absent. ---------- */
 export async function renderExamCourseList(grid) {
-  setExamSectionHeader({ title: "নিজেকে যাচাই করুন", sub: "আপনার কোর্স বেছে নিন, তারপর সেই কোর্সের সব এক্সাম দেখুন", showBack: false });
+  setExamSectionHeader({ title: "Take the Test & Evaluate Yourself", sub: "Choose Your Course & Explore All Exams", showBack: false });
   grid.classList.add("exam-grid--courses");
-  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> লোড হচ্ছে...</div>`;
+  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span>Possessing...</div>`;
   const myToken = state.navToken;
   try {
     const exams = await fetchAllExams();
     if (state.navToken !== myToken) return;
     if (!exams.length) {
-      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>এখনো কোনো এক্সাম যোগ করা হয়নি</p></div>`;
+      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No Exams Available Yet</p></div>`;
       return;
     }
     const groups = groupExamsByCourse(exams);
@@ -99,7 +99,7 @@ export async function renderExamCourseList(grid) {
           else if (availState === "upcoming") upcomingCount++;
         });
 
-        const title = g.courseId ? (info.title || g.courseName) : "সাধারণ এক্সাম (সবার জন্য)";
+        const title = g.courseId ? (info.title || g.courseName) : "Genarel Exam";
         const cover = g.courseId ? info.coverImage || "" : "";
         const latestCreated = Math.max(0, ...g.exams.map((ex) => ex.createdAt?.seconds || 0));
 
@@ -111,9 +111,9 @@ export async function renderExamCourseList(grid) {
           <div class="exs-course-body">
             <h3>${escapeHtml(title)}</h3>
             <div class="exs-meta-row">
-              <span><i class="fa-solid fa-file-pen"></i> ${total} টি এক্সাম</span>
-              ${openCount > 0 ? `<span class="exs-course-open-tag"><i class="fa-solid fa-circle-check"></i> ${openCount} টি চালু আছে</span>`
-                : upcomingCount > 0 ? `<span class="exs-muted exs-small"><i class="fa-solid fa-hourglass-half"></i> ${upcomingCount} টি আসছে</span>` : ""}
+              <span><i class="fa-solid fa-file-pen"></i> ${total} Exams</span>
+              ${openCount > 0 ? `<span class="exs-course-open-tag"><i class="fa-solid fa-circle-check"></i> ${openCount} Exams Available</span>`
+                : upcomingCount > 0 ? `<span class="exs-muted exs-small"><i class="fa-solid fa-hourglass-half"></i> ${upcomingCount} Upcoming Exams</span>` : ""}
             </div>
           </div>
           <i class="fa-solid fa-chevron-right exs-course-arrow"></i>
@@ -124,14 +124,14 @@ export async function renderExamCourseList(grid) {
     if (state.navToken !== myToken) return;
     const cards = results.filter(Boolean);
     if (!cards.length) {
-      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>এখনো কোনো এক্সাম নেই — আপনার এনরোল করা কোর্সের এক্সাম এখানে দেখাবে</p></div>`;
+      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No Exams Yet — Exams from your enrolled courses will appear here.</p></div>`;
       return;
     }
     cards.sort((a, b) => b.sortKey - a.sortKey);
     grid.innerHTML = cards.map((c) => c.html).join("");
   } catch {
     if (state.navToken !== myToken) return;
-    grid.innerHTML = `<div class="exs-empty"><p>এক্সাম লোড করা যায়নি</p></div>`;
+    grid.innerHTML = `<div class="exs-empty"><p>No Exams loading</p></div>`;
   }
 }
 
@@ -140,22 +140,22 @@ export async function renderExamCourseList(grid) {
    Practice) instead of dumping every exam — upcoming and live exams no
    longer get mixed together in one list. ---------- */
 const HUB_TABS = [
-  { key: "upcoming", label: "Upcoming", sub: "আসন্ন লাইভ এক্সামের সিডিউল", icon: "fa-hourglass-half" },
-  { key: "live", label: "Live", sub: "চলমান / সমাপ্ত লাইভ এক্সাম", icon: "fa-satellite-dish" },
-  { key: "practice", label: "Practice", sub: "যেকোনো সময় অনুশীলন করুন", icon: "fa-dumbbell" },
+  { key: "upcoming", label: "Upcoming", sub: "Upcoming Live Exams", icon: "fa-hourglass-half" },
+  { key: "live", label: "Live", sub: "Active Live Exams", icon: "fa-satellite-dish" },
+  { key: "practice", label: "Practice", sub: "Practice Exams", icon: "fa-dumbbell" },
 ];
 
 export async function renderExamCourseHub(grid, courseKey) {
   grid.classList.remove("exam-grid--courses");
-  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> লোড হচ্ছে...</div>`;
+  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> Loading...</div>`;
   const myToken = state.navToken;
   try {
     if (courseKey !== "general") {
       const info = await checkExamVisibility(courseKey, state.userProfile);
       if (state.navToken !== myToken) return;
       if (!info.visible) {
-        setExamSectionHeader({ title: "কোর্স পাওয়া যায়নি", sub: "", showBack: true, backHref: "#/exam" });
-        grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-lock"></i><p>এই কোর্সে আপনি এনরোল করা নেই</p></div>`;
+        setExamSectionHeader({ title: "No Course Enrolled yet", sub: "", showBack: true, backHref: "#/exam" });
+        grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-lock"></i><p>You’re Not Enrolled in This Course Yet</p></div>`;
         return;
       }
     }
@@ -164,8 +164,8 @@ export async function renderExamCourseHub(grid, courseKey) {
     if (state.navToken !== myToken) return;
     const exams = allExams.filter((ex) => (ex.courseId || "general") === courseKey);
 
-    let title = "কোর্সের এক্সাম";
-    if (courseKey === "general") title = "সাধারণ এক্সাম (সবার জন্য)";
+    let title = "Course Exams";
+    if (courseKey === "general") title = "Genarel Exam";
     else {
       const info = await checkExamVisibility(courseKey, state.userProfile);
       title = info.title || exams[0]?.courseName || "কোর্সের এক্সাম";
