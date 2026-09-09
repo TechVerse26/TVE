@@ -26,7 +26,7 @@ function showGeneric() {
 let examCleanup = null;
 async function examRoute(params) {
   showExam();
-  document.title = "এক্সাম — Tech Verse Exam";
+  document.title = "Exam — Tech Verse Exam";
   if (typeof examCleanup === "function") { examCleanup(); examCleanup = null; }
   examCleanup = await initExamPage(params);
 }
@@ -47,13 +47,13 @@ const router = new Router(
   {
     home: homeRoute,
     exam: examRoute,
-    results: genericRoute(initResultsPage, "আমার ফলাফল — Tech Verse Exam"),
-    profile: genericRoute(initProfilePage, "প্রোফাইল — Tech Verse Exam"),
-    login: genericRoute(initLoginPage, "লগইন — Tech Verse Exam"),
-    signup: genericRoute(initSignupPage, "সাইন-আপ — Tech Verse Exam"),
+    results: genericRoute(initResultsPage, "My results — Tech Verse Exam"),
+    profile: genericRoute(initProfilePage, "Profile — Tech Verse Exam"),
+    login: genericRoute(initLoginPage, "Log in — Tech Verse Exam"),
+    signup: genericRoute(initSignupPage, "Sign up — Tech Verse Exam"),
     404: genericRoute(async (_p, mount) => {
-      mount.innerHTML = `<div class="container page-pad"><div class="exs-empty"><h2>পেজ পাওয়া যায়নি</h2><a href="#/home" class="btn btn-primary mt-16">হোমে ফিরে যান</a></div></div>`;
-    }, "পেজ পাওয়া যায়নি — Tech Verse Exam"),
+      mount.innerHTML = `<div class="container page-pad"><div class="exs-empty"><h2>Page not found</h2><a href="#/home" class="btn btn-primary mt-16">Return to Home</a></div></div>`;
+    }, "Page not found — Tech Verse Exam"),
   },
   null
 );
