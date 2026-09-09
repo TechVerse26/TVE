@@ -31,16 +31,16 @@ async function ensureUserDoc(user, extra = {}) {
 
 function mapAuthError(code) {
   const map = {
-    "auth/email-already-in-use": "এই ইমেইল দিয়ে আগে থেকেই একটা অ্যাকাউন্ট আছে",
-    "auth/invalid-email": "সঠিক ইমেইল লিখুন",
-    "auth/weak-password": "পাসওয়ার্ড খুবই দুর্বল",
-    "auth/user-not-found": "এই ইমেইলে কোনো অ্যাকাউন্ট পাওয়া যায়নি",
-    "auth/wrong-password": "পাসওয়ার্ড ভুল",
-    "auth/invalid-credential": "ইমেইল বা পাসওয়ার্ড ভুল",
-    "auth/too-many-requests": "অনেকবার চেষ্টা হয়েছে, একটু পর আবার চেষ্টা করুন",
-    "auth/requires-recent-login": "নিরাপত্তার জন্য আবার লগইন করে তারপর চেষ্টা করুন",
+    "auth/email-already-in-use": "There is already an account associated with this email",
+    "auth/invalid-email": "Enter a valid email address",
+    "auth/weak-password": "The password is very weak",
+    "auth/user-not-found": "No account was found for this email",
+    "auth/wrong-password": "Incorrect password",
+    "auth/invalid-credential": "Incorrect email or password",
+    "auth/too-many-requests": "Too many attempts have been made,please try again in a little while",
+    "auth/requires-recent-login": "For security reasons, please log in again and then try",
   };
-  return map[code] || "কিছু একটা সমস্যা হয়েছে, আবার চেষ্টা করুন";
+  return map[code] || "Something went wrong,please try again";
 }
 
 function afterLogin() {
@@ -106,7 +106,7 @@ export async function changePassword(user, currentPassword, newPassword) {
     return true;
   } catch (err) {
     toast(err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"
-      ? "বর্তমান পাসওয়ার্ড ভুল"
+      ? "Current password is incorrect"
       : mapAuthError(err.code), "error");
     return false;
   }
