@@ -216,7 +216,7 @@ export async function initProfilePage(params, container) {
         await navigator.clipboard.writeText(val);
         toast("Roll Number has been copied", "success");
       } catch {
-        toast("Roll Number don't copied", "error");
+        toast("Roll number could not be copied", "error");
       }
     });
   }
@@ -240,7 +240,7 @@ export async function initProfilePage(params, container) {
         toast(`Roll synced ${newRoll}`, "success");
       } catch (err) {
         console.error("Roll sync error:", err);
-        toast("don't sync roll number.please try again later!", "error");
+        toast("Could not sync roll number. Please try again later!", "error");
         rollSyncBtn.disabled = false;
         rollSyncBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync';
       }
@@ -256,7 +256,7 @@ export async function initProfilePage(params, container) {
     const newName = container.querySelector("#pf-name").value.trim();
     const phone = container.querySelector("#pf-phone").value.trim();
     const newInstitution = container.querySelector("#pf-institution").value.trim();
-    if (!newName) { toast("Writing your name", "error"); return; }
+    if (!newName) { toast("Name is required", "error"); return; }
     setBtnLoading(btn, "save processing...", btn.innerHTML);
     try {
       await updateUserProfile(user, { displayName: newName, phone, institution: newInstitution });
@@ -270,7 +270,7 @@ export async function initProfilePage(params, container) {
       const nameEl = container.querySelector(".tve-banner-name");
       if (nameEl) nameEl.childNodes[0].textContent = newName;
     } catch {
-      toast("Profile Don't updated", "error");
+      toast("Profile could not be updated", "error");
     }
     resetBtn(btn);
   });
@@ -284,7 +284,7 @@ export async function initProfilePage(params, container) {
       const current = container.querySelector("#pw-current").value;
       const next = container.querySelector("#pw-new").value;
       const confirm = container.querySelector("#pw-confirm").value;
-      if (next.length < 6) { toast("New Password (at least 6 digit)", "error"); return; }
+      if (next.length < 6) { toast("New password must be at least 6 characters", "error"); return; }
       if (next !== confirm) { toast("Confirm password", "error"); return; }
       setBtnLoading(btn, "password updating...", btn.innerHTML);
       const ok = await changePassword(user, current, next);
