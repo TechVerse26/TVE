@@ -78,22 +78,22 @@ export async function initProfilePage(params, container) {
         <div class="tve-banner-top">
           <span class="tve-avatar">${escapeHtml(initials(name || user.email))}</span>
           <div class="tve-banner-info">
-            <h2 class="tve-banner-name">${escapeHtml(name || "নাম দেওয়া নেই")}${profile.isAdmin ? ' <span class="tve-pill tve-pill-teal">অ্যাডমিন</span>' : ""}</h2>
+            <h2 class="tve-banner-name">${escapeHtml(name || "No Name")}${profile.isAdmin ? ' <span class="tve-pill tve-pill-teal">Admin</span>' : ""}</h2>
             <div class="tve-banner-meta">
               <span class="tve-banner-row"><i class="fa-solid fa-envelope"></i> <span class="tve-ellipsis">${escapeHtml(user.email || "")}</span>${isVerified ? '<i class="fa-solid fa-circle-check tve-verified-tick" title="Verified"></i>' : ""}</span>
               <span class="tve-banner-row tve-roll-row" id="pf-roll-row">
                 <i class="fa-solid fa-id-card"></i>
-                <span data-field="roll">${escapeHtml(roll || "রোল সিঙ্ক করা নেই")}</span>
+                <span data-field="roll">${escapeHtml(roll || "Sync")}</span>
                 ${roll
-                  ? '<span class="tve-sync-badge tve-sync-ok" id="pf-roll-status"><i class="fa-solid fa-check"></i> সিঙ্ক করা হয়েছে</span><button type="button" class="tve-copy-btn" id="pf-roll-copy" title="কপি করুন"><i class="fa-regular fa-copy"></i></button>'
-                  : '<button type="button" class="tve-sync-btn" id="pf-roll-sync"><i class="fa-solid fa-arrows-rotate"></i> সিঙ্ক করুন</button>'}
+                  ? '<span class="tve-sync-badge tve-sync-ok" id="pf-roll-status"><i class="fa-solid fa-check"></i> Synced</span><button type="button" class="tve-copy-btn" id="pf-roll-copy" title="Copy"><i class="fa-regular fa-copy"></i></button>'
+                  : '<button type="button" class="tve-sync-btn" id="pf-roll-sync"><i class="fa-solid fa-arrows-rotate"></i> Sync</button>'}
               </span>
-              <span class="tve-banner-row"><i class="fa-solid fa-phone"></i> <span data-field="phone">${escapeHtml(profile.phone || "ফোন নম্বর যোগ করা হয়নি")}</span></span>
+              <span class="tve-banner-row"><i class="fa-solid fa-phone"></i> <span data-field="phone">${escapeHtml(profile.phone || "Phone number not added")}</span></span>
             </div>
           </div>
         </div>
         <div class="tve-banner-bottom">
-          <p class="tve-banner-school"><i class="fa-solid fa-graduation-cap"></i> <span data-field="institution">${escapeHtml(institution || "প্রতিষ্ঠানের নাম যোগ করা হয়নি")}</span></p>
+          <p class="tve-banner-school"><i class="fa-solid fa-graduation-cap"></i> <span data-field="institution">${escapeHtml(institution || "No Organisation Added")}</span></p>
           <button type="button" class="tve-edit-btn" id="pf-edit-jump"><i class="fa-solid fa-pen"></i> Edit</button>
         </div>
       </div>
@@ -106,15 +106,15 @@ export async function initProfilePage(params, container) {
         </div>
         <div class="tve-stat-chip tve-stat-blue">
           <span class="tve-stat-icon"><i class="fa-solid fa-satellite-dish"></i></span>
-          <span class="tve-stat-text"><span class="tve-stat-num" data-stat="live">0</span><span class="tve-stat-label">Live Exam অংশগ্রহণ</span></span>
+          <span class="tve-stat-text"><span class="tve-stat-num" data-stat="live">0</span><span class="tve-stat-label">Attempt Live Exam</span></span>
         </div>
         <div class="tve-stat-chip tve-stat-amber">
           <span class="tve-stat-icon"><i class="fa-solid fa-chart-line"></i></span>
-          <span class="tve-stat-text"><span class="tve-stat-num" data-stat="avg">0%</span><span class="tve-stat-label">গড় স্কোর</span></span>
+          <span class="tve-stat-text"><span class="tve-stat-num" data-stat="avg">0%</span><span class="tve-stat-label">Average score</span></span>
         </div>
         <div class="tve-stat-chip tve-stat-purple">
           <span class="tve-stat-icon"><i class="fa-solid fa-trophy"></i></span>
-          <span class="tve-stat-text"><span class="tve-stat-num" data-stat="best">0%</span><span class="tve-stat-label">সেরা স্কোর</span></span>
+          <span class="tve-stat-text"><span class="tve-stat-num" data-stat="best">0%</span><span class="tve-stat-label">Best score</span></span>
         </div>
       </div>
 
@@ -123,15 +123,15 @@ export async function initProfilePage(params, container) {
         <div class="tve-card">
           <div class="tve-card-head">
             <span class="tve-card-icon tve-card-icon-blue"><i class="fa-solid fa-id-card"></i></span>
-            <h3>ব্যক্তিগত তথ্য</h3>
+            <h3>Personal information</h3>
           </div>
           <form id="profile-form">
-            ${fieldMarkup({ id: "pf-name", label: "নাম", icon: "fa-user", value: name, required: true })}
-            ${fieldMarkup({ id: "pf-email", label: "ইমেইল", icon: "fa-envelope", type: "email", value: user.email || "", disabled: true })}
-            ${fieldMarkup({ id: "pf-phone", label: "ফোন নম্বর", icon: "fa-phone", type: "tel", value: profile.phone || "", placeholder: "যেমন 01XXXXXXXXX" })}
-            ${fieldMarkup({ id: "pf-roll", label: "রোল নম্বর (স্বয়ংক্রিয়, পরিবর্তনযোগ্য নয়)", icon: "fa-id-badge", value: roll, placeholder: "উপরে থেকে সিঙ্ক করুন", disabled: true })}
-            ${fieldMarkup({ id: "pf-institution", label: "প্রতিষ্ঠানের নাম", icon: "fa-graduation-cap", value: institution, placeholder: "যেমন Scholars Model School and College" })}
-            <button type="submit" class="tve-form-btn" id="pf-save"><i class="fa-solid fa-check"></i> পরিবর্তন সংরক্ষণ করুন</button>
+            ${fieldMarkup({ id: "pf-name", label: "Name", icon: "fa-user", value: name, required: true })}
+            ${fieldMarkup({ id: "pf-email", label: "Email", icon: "fa-envelope", type: "email", value: user.email || "", disabled: true })}
+            ${fieldMarkup({ id: "pf-phone", label: "Phone Number", icon: "fa-phone", type: "tel", value: profile.phone || "", placeholder: "01XXXXXXXXX" })}
+            ${fieldMarkup({ id: "pf-roll", label: "Roll Number", icon: "fa-id-badge", value: roll, placeholder: "Please Sync Now", disabled: true })}
+            ${fieldMarkup({ id: "pf-institution", label: "Organisation", icon: "fa-graduation-cap", value: institution, placeholder: "Tech Verse Exam Platform" })}
+            <button type="submit" class="tve-form-btn" id="pf-save"><i class="fa-solid fa-check"></i> Save</button>
           </form>
         </div>
 
@@ -139,21 +139,26 @@ export async function initProfilePage(params, container) {
         <div class="tve-card">
           <div class="tve-card-head">
             <span class="tve-card-icon tve-card-icon-amber"><i class="fa-solid fa-lock"></i></span>
-            <h3>পাসওয়ার্ড পরিবর্তন</h3>
+            <h3>Change Password</h3>
           </div>
           <form id="password-form">
-            ${fieldMarkup({ id: "pw-current", label: "বর্তমান পাসওয়ার্ড", icon: "fa-lock", type: "password", required: true, extra: 'autocomplete="current-password"' })}
-            ${fieldMarkup({ id: "pw-new", label: "নতুন পাসওয়ার্ড", icon: "fa-key", type: "password", required: true, extra: 'minlength="6" autocomplete="new-password"' })}
-            ${fieldMarkup({ id: "pw-confirm", label: "নতুন পাসওয়ার্ড আবার লিখুন", icon: "fa-key", type: "password", required: true, extra: 'minlength="6" autocomplete="new-password"' })}
-            <button type="submit" class="tve-form-btn" id="pw-save"><i class="fa-solid fa-key"></i> পাসওয়ার্ড পরিবর্তন করুন</button>
+            ${fieldMarkup({ id: "pw-current", label: "Current Password", icon: "fa-lock", type: "password", required: true, extra: 'autocomplete="current-password"' })}
+            ${fieldMarkup({ id: "pw-new", label: "New Password", icon: "fa-key", type: "password", required: true, extra: 'minlength="6" autocomplete="new-password"' })}
+            ${fieldMarkup({ id: "pw-confirm", label: "Confirm Password", icon: "fa-key", type: "password", required: true, extra: 'minlength="6" autocomplete="new-password"' })}
+            <button type="submit" class="tve-form-btn" id="pw-save"><i class="fa-solid fa-key"></i>Save</button>
           </form>
         </div>` : `
         <div class="tve-card">
           <div class="tve-card-head">
             <span class="tve-card-icon tve-card-icon-blue"><i class="fa-brands fa-google"></i></span>
-            <h3>লগইন পদ্ধতি</h3>
+            <h3>You are using a Google Account</h3>
           </div>
-          <p class="tve-muted">আপনি Google অ্যাকাউন্ট দিয়ে লগইন করেছেন — এখানে আলাদা কোনো পাসওয়ার্ড নেই।</p>
+          <p class="tve-muted">
+  You signed in with Google. To change your password, use
+  <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer">
+    Google account settings
+  </a>
+</p>
         </div>`}
       </div>
 
@@ -162,7 +167,7 @@ export async function initProfilePage(params, container) {
           <span class="tve-signout-icon"><i class="fa-solid fa-right-from-bracket"></i></span>
           <div>
             <p class="tve-signout-title">Sign Out</p>
-            <p class="tve-signout-sub">এই ডিভাইস থেকে অ্যাকাউন্ট থেকে বের হয়ে যান</p>
+            <p class="tve-signout-sub">Please sign out of your account. To log in again, enter your email and password, then select Sign In. Thank you!</p>
           </div>
         </div>
         <button type="button" class="tve-signout-btn" id="pf-logout">
@@ -192,11 +197,11 @@ export async function initProfilePage(params, container) {
     rollRow.innerHTML = rollValue
       ? `<i class="fa-solid fa-id-card"></i>
          <span data-field="roll"${animate ? ' class="tve-roll-pop"' : ""}>${escapeHtml(rollValue)}</span>
-         <span class="tve-sync-badge tve-sync-ok" id="pf-roll-status"><i class="fa-solid fa-check"></i> সিঙ্ক করা হয়েছে</span>
-         <button type="button" class="tve-copy-btn" id="pf-roll-copy" title="কপি করুন"><i class="fa-regular fa-copy"></i></button>`
+         <span class="tve-sync-badge tve-sync-ok" id="pf-roll-status"><i class="fa-solid fa-check"></i> Synced</span>
+         <button type="button" class="tve-copy-btn" id="pf-roll-copy" title="copy"><i class="fa-regular fa-copy"></i></button>`
       : `<i class="fa-solid fa-id-card"></i>
-         <span data-field="roll">রোল সিঙ্ক করা নেই</span>
-         <button type="button" class="tve-sync-btn" id="pf-roll-sync"><i class="fa-solid fa-arrows-rotate"></i> সিঙ্ক করুন</button>`;
+         <span data-field="roll">please sync your roll</span>
+         <button type="button" class="tve-sync-btn" id="pf-roll-sync"><i class="fa-solid fa-arrows-rotate"></i> Sync</button>`;
     bindRollCopy();
     bindRollSync();
   }
@@ -209,9 +214,9 @@ export async function initProfilePage(params, container) {
       if (!val) return;
       try {
         await navigator.clipboard.writeText(val);
-        toast("রোল নম্বর কপি হয়েছে", "success");
+        toast("Roll Number has been copied", "success");
       } catch {
-        toast("কপি করা যায়নি", "error");
+        toast("Roll Number don't copied", "error");
       }
     });
   }
@@ -221,7 +226,7 @@ export async function initProfilePage(params, container) {
     if (!rollSyncBtn) return;
     rollSyncBtn.addEventListener("click", async () => {
       rollSyncBtn.disabled = true;
-      rollSyncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> সিঙ্ক হচ্ছে...';
+      rollSyncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>Sync processing...';
       try {
         const newRoll = await claimNextRoll();
         const currentPhone = container.querySelector("#pf-phone")?.value?.trim() || profile.phone || "";
@@ -232,12 +237,12 @@ export async function initProfilePage(params, container) {
         const rollInput = container.querySelector("#pf-roll");
         if (rollInput) rollInput.value = newRoll;
         await renderNav("profile");
-        toast(`রোল সিঙ্ক করা হয়েছে: ${newRoll}`, "success");
+        toast(`Roll synced ${newRoll}`, "success");
       } catch (err) {
         console.error("Roll sync error:", err);
-        toast("রোল সিঙ্ক করা যায়নি, আবার চেষ্টা করুন", "error");
+        toast("don't sync roll number.please try again later!", "error");
         rollSyncBtn.disabled = false;
-        rollSyncBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> সিঙ্ক করুন';
+        rollSyncBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync';
       }
     });
   }
@@ -251,21 +256,21 @@ export async function initProfilePage(params, container) {
     const newName = container.querySelector("#pf-name").value.trim();
     const phone = container.querySelector("#pf-phone").value.trim();
     const newInstitution = container.querySelector("#pf-institution").value.trim();
-    if (!newName) { toast("নাম লিখুন", "error"); return; }
-    setBtnLoading(btn, "সংরক্ষণ হচ্ছে...", btn.innerHTML);
+    if (!newName) { toast("Writing your name", "error"); return; }
+    setBtnLoading(btn, "save processing...", btn.innerHTML);
     try {
       await updateUserProfile(user, { displayName: newName, phone, institution: newInstitution });
-      toast("প্রোফাইল আপডেট হয়েছে", "success");
+      toast("Profile has been updated", "success");
       renderNav("profile");
       // Reflect changes in the banner immediately without a full re-render
       const phoneField = container.querySelector('[data-field="phone"]');
       const instField = container.querySelector('[data-field="institution"]');
-      if (phoneField) phoneField.textContent = phone || "ফোন নম্বর যোগ করা হয়নি";
-      if (instField) instField.textContent = newInstitution || "প্রতিষ্ঠানের নাম যোগ করা হয়নি";
+      if (phoneField) phoneField.textContent = phone || "Phone number not added";
+      if (instField) instField.textContent = newInstitution || "No Organisation Added";
       const nameEl = container.querySelector(".tve-banner-name");
       if (nameEl) nameEl.childNodes[0].textContent = newName;
     } catch {
-      toast("প্রোফাইল আপডেট করা যায়নি, আবার চেষ্টা করুন", "error");
+      toast("Profile Don't updated", "error");
     }
     resetBtn(btn);
   });
@@ -279,11 +284,11 @@ export async function initProfilePage(params, container) {
       const current = container.querySelector("#pw-current").value;
       const next = container.querySelector("#pw-new").value;
       const confirm = container.querySelector("#pw-confirm").value;
-      if (next.length < 6) { toast("নতুন পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে", "error"); return; }
-      if (next !== confirm) { toast("নতুন পাসওয়ার্ড দুইবার একই দিন", "error"); return; }
-      setBtnLoading(btn, "পরিবর্তন হচ্ছে...", btn.innerHTML);
+      if (next.length < 6) { toast("New Password (at least 6 digit)", "error"); return; }
+      if (next !== confirm) { toast("Confirm password", "error"); return; }
+      setBtnLoading(btn, "password updating...", btn.innerHTML);
       const ok = await changePassword(user, current, next);
-      if (ok) { toast("পাসওয়ার্ড পরিবর্তন হয়েছে", "success"); pwForm.reset(); }
+      if (ok) { toast("Your Password has been updated", "success"); pwForm.reset(); }
       resetBtn(btn);
     });
   }
