@@ -158,6 +158,8 @@
 .tve-card-icon-amber { background: linear-gradient(155deg, #f0b04f, #d68b1f); }
 .tve-card-icon-coral { background: linear-gradient(155deg, #ea7b6e, #d34c3c); }
 .tve-muted { color: #6b7186; font-size: 0.85rem; }
+.tve-muted a { color: #3860cc; text-decoration: underline; text-underline-offset: 2px; font-weight: 600; }
+.tve-muted a:hover { color: #2a4aa8; text-decoration-thickness: 2px; }
 
 .tve-field { margin-bottom: 12px; }
 .tve-field label { display: block; font-size: 0.78rem; font-weight: 700; color: #4a5170; margin-bottom: 5px; }
