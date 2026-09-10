@@ -107,7 +107,7 @@ async function beginAttempt(exam, myToken) {
   const questionBank = await fetchQuestions(state.examId);
   if (myToken !== state.navToken) return;
   if (!questionBank.length) {
-    verifyView.innerHTML = `<div class="exs-empty"><p>এই এক্সামে কোনো প্রশ্ন নেই</p></div>`;
+    verifyView.innerHTML = `<div class="exs-empty"><p>No Questions Available in This Exam ml</p></div>`;
     return;
   }
 
@@ -143,7 +143,7 @@ async function beginAttempt(exam, myToken) {
       timerEl.innerHTML = `<i class="fa-solid fa-stopwatch"></i> ${formatClock(secondsLeft)}`;
       timerEl.classList.toggle("low", secondsLeft <= 60);
     },
-    () => { toast("সময় শেষ! আপনার উত্তর জমা দেওয়া হচ্ছে...", "error"); submitExam(); }
+    () => { toast("Time Over!We are are Submitted.thank you!", "error"); submitExam(); }
   );
 
   if (state.examLayout === "all") renderAllQuestions(refs);
