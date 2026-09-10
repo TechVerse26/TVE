@@ -15,7 +15,7 @@ export async function initLoginPage(params, container) {
         <form id="login-form" class="auth-form">
           <div class="field"><label>Email</label><input type="email" id="li-email" required autocomplete="email"></div>
           <div class="field"><label>Password</label><input type="password" id="li-password" required autocomplete="current-password"></div>
-          <button type="submit" class="btn btn-primary btn-block" id="li-submit">Log in</button>
+          <button type="submit" class="btn btn-primary btn-block" id="li-submit">Login</button>
         </form>
         <button type="button" class="btn btn-outline btn-block mt-8" id="li-google"><i class="fa-brands fa-google"></i>Continue With Google</button>
         <p class="auth-switch">Don't have an account? <a href="#/signup">Sign up</a></p>
