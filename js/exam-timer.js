@@ -37,7 +37,7 @@ export function startCountdowns(container) {
       const diff = Math.max(0, target - now);
       const valEl = chip.querySelector(".countdown-val");
       if (!valEl) return;
-      if (diff === 0) { valEl.textContent = "Starting…"; return; }
+      if (diff === 0) { valEl.textContent = "শুরু হচ্ছে…"; return; }
       const totalSecs = Math.floor(diff / 1000);
       const d = Math.floor(totalSecs / 86400);
       const h = Math.floor((totalSecs % 86400) / 3600);

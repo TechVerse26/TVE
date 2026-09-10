@@ -28,16 +28,16 @@ export async function renderNav(activePage = "") {
 
         <!-- Desktop links -->
         <div class="nav-links" id="nav-links">
-          <a href="#/home" class="nav-link ${activePage === "exam" ? "active" : ""}">Exam</a>
-          ${user ? `<a href="#/results" class="nav-link ${activePage === "results" ? "active" : ""}">My Activity</a>` : ""}
-          ${profile?.isAdmin ? `<a href="admin.html" class="nav-link">Admin</a>` : ""}
+          <a href="#/home" class="nav-link ${activePage === "exam" ? "active" : ""}">এক্সাম</a>
+          ${user ? `<a href="#/results" class="nav-link ${activePage === "results" ? "active" : ""}">আমার ফলাফল</a>` : ""}
+          ${profile?.isAdmin ? `<a href="admin.html" class="nav-link">অ্যাডমিন প্যানেল</a>` : ""}
           ${user
             ? `<a href="#/profile" class="nav-user-chip ${activePage === "profile" ? "active" : ""}">
                 <span class="nav-avatar">${escapeHtml(initials(displayName || email))}</span>
-                <span class="nav-user-name">${escapeHtml(displayName || "Profile")}</span>
+                <span class="nav-user-name">${escapeHtml(displayName || "প্রোফাইল")}</span>
                 <span class="nav-user-chip-arrow"><i class="fa-solid fa-chevron-right"></i></span>
                </a>`
-            : `<a href="#/login" class="btn btn-primary btn-sm">Login</a>`}
+            : `<a href="#/login" class="btn btn-primary btn-sm">লগইন</a>`}
         </div>
 
         <!-- Hamburger (mobile only) -->
@@ -61,7 +61,7 @@ export async function renderNav(activePage = "") {
           <div class="nav-drawer-user">
             <span class="nav-drawer-avatar">${escapeHtml(initials(displayName || email))}</span>
             <div class="nav-drawer-user-info">
-              <p class="nav-drawer-user-name">${escapeHtml(displayName || "Profile")}</p>
+              <p class="nav-drawer-user-name">${escapeHtml(displayName || "প্রোফাইল")}</p>
               <p class="nav-drawer-user-email">${escapeHtml(email)}</p>
             </div>
           </div>
@@ -79,30 +79,30 @@ export async function renderNav(activePage = "") {
       <nav class="nav-drawer-nav">
         <a href="#/home" class="nav-drawer-item ${activePage === "exam" ? "active" : ""}">
           <span class="nav-drawer-item-icon"><i class="fa-solid fa-file-pen"></i></span>
-          <span>Exam</span>
+          <span>এক্সাম</span>
         </a>
         ${user ? `
         <a href="#/results" class="nav-drawer-item ${activePage === "results" ? "active" : ""}">
           <span class="nav-drawer-item-icon"><i class="fa-solid fa-chart-simple"></i></span>
-          <span>My Result</span>
+          <span>আমার ফলাফল</span>
         </a>` : ""}
         ${profile?.isAdmin ? `
         <a href="admin.html" class="nav-drawer-item">
           <span class="nav-drawer-item-icon"><i class="fa-solid fa-shield-halved"></i></span>
-          <span>Admin</span>
+          <span>অ্যাডমিন প্যানেল</span>
         </a>` : ""}
         ${user ? `
         <a href="#/profile" class="nav-drawer-profile-card ${activePage === "profile" ? "active" : ""}">
           <span class="nav-drawer-profile-card-avatar">${escapeHtml(initials(displayName || email))}</span>
           <span class="nav-drawer-profile-card-body">
-            <span class="nav-drawer-profile-card-name">${escapeHtml(displayName || "Profile")}</span>
-            <span class="nav-drawer-profile-card-sub">Profile Edit</span>
+            <span class="nav-drawer-profile-card-name">${escapeHtml(displayName || "প্রোফাইল")}</span>
+            <span class="nav-drawer-profile-card-sub">প্রোফাইল দেখুন ও এডিট করুন</span>
           </span>
           <span class="nav-drawer-profile-card-arrow"><i class="fa-solid fa-chevron-right"></i></span>
         </a>` : `
         <a href="#/login" class="nav-drawer-item nav-drawer-login">
           <span class="nav-drawer-item-icon"><i class="fa-solid fa-right-to-bracket"></i></span>
-          <span>Login</span>
+          <span>লগইন করুন</span>
         </a>`}
       </nav>
 

@@ -426,19 +426,19 @@ export function renderResult(resultView, { score, total, percent, examTitle, bre
         <div class="exs-print-sub">${escapeHtml(state.currentUser?.displayName || state.currentUser?.email || "")} · ${new Date().toLocaleString()}</div>
       </div>
       <div class="exs-result-ring" style="--pct:${percent}"><b>${percent}%</b></div>
-      <h2>${percent >= 60 ? "চমৎকার! " : "আরেকটু চর্চা করলেই ভালো ফল হবে":"তোমার রেজাল্ট দেখে একটু মন খারাপ হলো":"তুমি পারবে কখনো হাল ছেড়ে দিয়ো না":"তোমার আরো বেশি পরিশ্রম করতে হবে"}</h2>
-      <p class="exs-muted exs-mt-8">Your Score<b>${formatScore(score)} / ${total}</b></p>
+      <h2>${percent >= 60 ? "চমৎকার! 🎉" : "আরেকটু চর্চা করলেই ভালো ফল হবে 💪"}</h2>
+      <p class="exs-muted exs-mt-8">আপনার স্কোর: <b>${formatScore(score)} / ${total}</b></p>
       <div class="exs-result-badges">
-        <span class="exs-tag exs-tag--teal"><i class="fa-solid fa-check"></i> Correct ${correctCount}</span>
-        <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-xmark"></i> Wrong ${wrongCount}</span>
-        <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-circle-minus"></i>Skip ${unansweredCount}</span>
-        <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-stopwatch"></i>Time ${formatDuration(timeTakenSeconds)}</span>
+        <span class="exs-tag exs-tag--teal"><i class="fa-solid fa-check"></i> সঠিক: ${correctCount}</span>
+        <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-xmark"></i> ভুল: ${wrongCount}</span>
+        <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-circle-minus"></i> উত্তর দেওয়া হয়নি: ${unansweredCount}</span>
+        <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-stopwatch"></i> সময় লেগেছে: ${formatDuration(timeTakenSeconds)}</span>
       </div>
-      ${negativeMarking > 0 ? `<p class="exs-muted exs-small exs-mt-8"><i class="fa-solid fa-circle-info"></i> Negative marking was in effect ${formatScore(negativeMarking)} Marks Deducted</p>` : ""}
+      ${negativeMarking > 0 ? `<p class="exs-muted exs-small exs-mt-8"><i class="fa-solid fa-circle-info"></i> এই এক্সামে নেগেটিভ মার্কিং সক্রিয় ছিল — প্রতিটি ভুল উত্তরে ${formatScore(negativeMarking)} নম্বর কাটা হয়েছে</p>` : ""}
       <div class="exs-result-actions exs-no-print">
-        <a href="#/exam?course=${encodeURIComponent(state.exam?.courseId || "general")}" class="exs-action-box"><i class="fa-solid fa-list"></i><span>Course Exams</span></a>
-        <a href="#/exam?id=${state.examId}" class="exs-action-box exs-action-box--primary"><i class="fa-solid fa-rotate-right"></i><span>Retake</span></a>
-        <button type="button" class="exs-action-box exs-action-box--teal" id="exs-print-result"><i class="fa-solid fa-print"></i><span>Print</span></button>
+        <a href="#/exam?course=${encodeURIComponent(state.exam?.courseId || "general")}" class="exs-action-box"><i class="fa-solid fa-list"></i><span>কোর্সের এক্সাম</span></a>
+        <a href="#/exam?id=${state.examId}" class="exs-action-box exs-action-box--primary"><i class="fa-solid fa-rotate-right"></i><span>আবার দিন</span></a>
+        <button type="button" class="exs-action-box exs-action-box--teal" id="exs-print-result"><i class="fa-solid fa-print"></i><span>PDF / প্রিন্ট</span></button>
       </div>
     </div>
     ${renderReviewListHtml(state.questions, state.answers)}`;
