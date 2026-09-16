@@ -179,3 +179,23 @@
   .exam-grid { grid-template-columns: 1fr; }
   .exs-rules-stats { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- "Ask AI" doubt chat, attached to a wrong-answer review item ---------- */
+.exs-review-item { position: relative; }
+.ai-doubt-btn {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  background: transparent; border: 1px dashed var(--border-strong); color: var(--accent-soft);
+  border-radius: 999px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600;
+  transition: border-color .15s, background .15s;
+}
+.ai-doubt-btn:hover, .ai-doubt-btn.is-open { border-color: var(--accent-soft); border-style: solid; background: rgba(139,124,255,0.08); }
+.ai-doubt-panel { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.ai-doubt-msgs { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; margin-bottom: 10px; }
+.ai-doubt-msg { padding: 8px 12px; border-radius: 12px; font-size: 0.88rem; line-height: 1.5; max-width: 92%; white-space: pre-wrap; }
+.ai-doubt-msg.is-user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
+.ai-doubt-msg.is-ai { align-self: flex-start; background: var(--bg-elevated-2); border-bottom-left-radius: 3px; }
+.ai-doubt-form { display: flex; gap: 8px; }
+.ai-doubt-input { flex: 1; background: var(--bg-elevated-2); border: 1px solid var(--border-strong); border-radius: 999px; padding: 9px 16px; color: var(--text-primary); font-size: 0.88rem; }
+.ai-doubt-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ai-doubt-send { width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-doubt-send:hover { background: #5B4BD6; }

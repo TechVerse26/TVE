@@ -618,3 +618,13 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   body { background: #fff; color: #000; }
   .exs-review-list, .exs-result-hero { color: #000; }
 }
+
+/* ---------- AI-generated personal performance comment (results page) ---------- */
+.ai-comment-box {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, rgba(108,92,231,0.14), rgba(31,158,140,0.10));
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  padding: 14px 18px; margin: 14px 0; font-size: 0.94rem; line-height: 1.55;
+}
+.ai-comment-box i { color: var(--accent-soft); flex-shrink: 0; }
+.ai-comment-box.is-loading { color: var(--text-muted); }

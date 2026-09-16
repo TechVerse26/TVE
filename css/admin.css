@@ -219,3 +219,12 @@
 .roll-gen-btn:hover:not(:disabled) { border-color: var(--accent-soft); color: var(--accent-soft); }
 .roll-gen-btn:disabled { opacity: 0.6; cursor: default; }
 .roll-gen-btn i { font-size: 0.72rem; }
+
+/* ---------- AI question generator (Exams → Bulk Import panel) ---------- */
+.ai-gen-box { background: var(--bg-elevated-2); border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 14px; }
+.ai-gen-head { font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; color: var(--accent-soft); }
+.ai-gen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px 12px; margin-bottom: 10px; }
+
+/* ---------- AI performance summary (Results tab) ---------- */
+.ai-summary-output { background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; margin: 14px 0; line-height: 1.7; font-size: 0.93rem; white-space: pre-wrap; }
+.ai-summary-actions { display: flex; gap: 10px; flex-wrap: wrap; }
