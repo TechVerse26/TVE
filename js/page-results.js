@@ -27,6 +27,8 @@
 import { requireAuth, escapeHtml, formatScore, formatDateTime } from "./utils.js";
 import { fetchMyResults, fetchPercentileStats, isReviewExpired } from "./exam-data.js";
 import { renderNav } from "./nav.js";
+import { generateText } from "./ai.js";
+import { attachDoubtButtons } from "./ai-doubt.js";
 
 const OVERVIEW_MAX_BARS = 40;
 const COUNT_UP_MS = 650;
@@ -297,7 +299,7 @@ function reviewQuestionHtml(q, i) {
   const answered = q.selected !== null && q.selected !== undefined;
   const correct = answered && q.selected === q.correctIndex;
   return `
-    <div class="exs-review-item">
+    <div class="exs-review-item" data-ai-q="${encodeURIComponent(JSON.stringify({ text: q.text, options: q.options, correctIndex: q.correctIndex, selected: q.selected ?? null, explanation: q.explanation || "" }))}">
       <div class="exs-review-q">${i + 1}. ${escapeHtml(q.text)}</div>
       <div class="exs-review-answer ${correct ? "is-correct" : "is-wrong"}">
         ${correct ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>'} আপনার উত্তর: ${answered ? escapeHtml(q.options[q.selected]) : "উত্তর দেওয়া হয়নি"}
@@ -371,6 +373,36 @@ function historyModalBodyHtml(r) {
     <div class="result-modal-list">${rows}</div>`;
 }
 
+async function loadAiComment(box, liveResults, stats) {
+  if (!box) return;
+  if (!liveResults.length) { box.remove(); return; }
+  const ownAvg = Math.round(liveResults.reduce((s, r) => s + bestPercentPerExam(r), 0) / liveResults.length);
+  const pool = Array.isArray(stats?.percents) ? stats.percents : [];
+  const attemptsTotal = liveResults.reduce((s, r) => s + normalizeAttempts(r).length, 0);
+  const flat = flattenByType(liveResults, "live");
+  const latest = flat[flat.length - 1]?.percent;
+  const prevAttempt = flat[flat.length - 2]?.percent;
+  let trendLine = "no previous attempt to compare with yet";
+  if (latest != null && prevAttempt != null) {
+    const diff = Math.round(latest - prevAttempt);
+    trendLine = diff > 0 ? `improved by ${diff}% on the most recent attempt` : diff < 0 ? `dropped by ${Math.abs(diff)}% on the most recent attempt` : "scored the same as the previous attempt";
+  }
+  let classLine = "";
+  if (pool.length >= 2) {
+    const classAvg = Math.round(pool.reduce((s, p) => s + p, 0) / pool.length);
+    classLine = ` Class average is ${classAvg}%.`;
+  }
+  const prompt = `Write ONE short, warm, encouraging sentence in Bangla (max 30 words) for a student, based on this exam performance data. Be specific and natural, not generic. No markdown, no emojis.
+Data: average score ${ownAvg}%, ${attemptsTotal} live exam attempts so far, ${trendLine}.${classLine}`;
+  try {
+    const text = await generateText(prompt, { system: "You are a warm, encouraging tutor writing a one-line note to a student in Bangla.", temperature: 0.8, maxOutputTokens: 200 });
+    box.classList.remove("is-loading");
+    box.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> <span>${escapeHtml(text)}</span>`;
+  } catch {
+    box.remove();
+  }
+}
+
 export async function initResultsPage(params, container) {
   await renderNav("results");
   const user = await requireAuth();
@@ -402,6 +434,7 @@ export async function initResultsPage(params, container) {
     if (!r) return;
     modalTitle.textContent = r.examTitle || "এক্সাম";
     modalBody.innerHTML = historyModalBodyHtml(r);
+    attachDoubtButtons(modalBody);
     modalOverlay.classList.add("is-open");
     document.body.style.overflow = "hidden";
     animateBars(modalBody);
@@ -443,6 +476,7 @@ export async function initResultsPage(params, container) {
       <div class="results-overview">
         ${rankCardHtml(liveResults, percentileStats)}
       </div>
+      <div id="ai-comment-box" class="ai-comment-box is-loading"><span class="exs-spinner"></span> আপনার পারফরম্যান্স নিয়ে AI-এর মন্তব্য তৈরি হচ্ছে...</div>
       <div class="results-overview">
         ${overviewCardHtml("live", results)}
         ${overviewCardHtml("practice", results)}
@@ -451,6 +485,7 @@ export async function initResultsPage(params, container) {
 
     animateBars(listEl);
     animateStats(listEl);
+    loadAiComment(listEl.querySelector("#ai-comment-box"), liveResults, percentileStats);
 
     listEl.querySelectorAll("[data-open-history]").forEach((btn) => {
       btn.addEventListener("click", () => openHistory(btn.dataset.openHistory));

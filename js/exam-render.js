@@ -7,6 +7,7 @@ import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBu
 import { fetchAllExams, fetchResult, checkExamVisibility } from "./exam-data.js";
 import { startCountdowns } from "./exam-timer.js";
 import { state } from "./exam-engine.js";
+import { attachDoubtButtons } from "./ai-doubt.js";
 
 function lessonTagHtml(ex) {
   return ex.lessonNames?.length
@@ -406,7 +407,7 @@ function renderReviewListHtml(questions, answers) {
     <p class="exs-muted exs-small exs-review-note"><i class="fa-solid fa-circle-info"></i> নিচে শুধু আপনার ভুল করা প্রশ্নগুলো দেখানো হচ্ছে, এবং এগুলো এই পরীক্ষার ফলাফলে <b>৪৮ ঘণ্টা</b> পর্যন্ত দেখা যাবে।</p>
     <div class="exs-review-list">
       ${wrongOnes.map(({ q, i, userAns }) => `
-        <div class="exs-review-item">
+        <div class="exs-review-item" data-ai-q="${encodeURIComponent(JSON.stringify({ text: q.text, options: q.options, correctIndex: q.correctIndex, selected: userAns ?? null, explanation: q.explanation || "" }))}">
           <div class="exs-review-q">${i + 1}. ${escapeHtml(q.text)}</div>
           <div class="exs-review-answer is-wrong">
             <i class="fa-solid fa-xmark"></i> আপনার উত্তর: ${userAns !== undefined && userAns !== null ? escapeHtml(q.options[userAns]) : "উত্তর দেওয়া হয়নি"}
@@ -444,4 +445,5 @@ export function renderResult(resultView, { score, total, percent, examTitle, bre
     ${renderReviewListHtml(state.questions, state.answers)}`;
 
   resultView.querySelector("#exs-print-result")?.addEventListener("click", () => window.print());
+  attachDoubtButtons(resultView);
 }
