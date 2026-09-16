@@ -543,7 +543,7 @@ Wrong option 3
 Explanation: one short sentence explaining the correct answer
 
 Leave exactly one blank line between questions. Mark ONLY the correct option with a leading *. Do not number questions. No headings, no markdown.`;
-      const result = await generateText(prompt, {
+      const result = await generateText("exam-questions", prompt, {
         system: "You are a careful exam-question writer for a course platform. You always follow the requested output format exactly.",
         temperature: 0.8, maxOutputTokens: 8192,
       });

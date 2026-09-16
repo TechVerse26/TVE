@@ -101,7 +101,7 @@ async function generateSummary() {
   const original = btn.innerHTML;
   btn.innerHTML = `<span class="spinner"></span> Generating...`;
   try {
-    const text = await generateText(prompt, { system: "You are a helpful data analyst writing for a busy course admin.", temperature: 0.5, maxOutputTokens: 512 });
+    const text = await generateText("results-summary", prompt, { system: "You are a helpful data analyst writing for a busy course admin.", temperature: 0.5, maxOutputTokens: 512 });
     lastSummaryText = text;
     out.textContent = text;
     out.hidden = false;
