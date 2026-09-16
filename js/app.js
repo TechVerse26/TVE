@@ -1,7 +1,5 @@
 // ==========================================================================
 // app.js — SPA entry point for Tech Verse Exam
-// URL scheme: #/home (= exam course picker)   #/exam?course=xxx   #/exam?id=xxx
-//             #/results   #/login   #/signup
 // ==========================================================================
 import { Router } from "./router.js";
 import { initExamPage } from "./exam.js";
