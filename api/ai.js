@@ -56,9 +56,22 @@
 //      not subject to security rules.
 // ==========================================================================
 
-const { initializeApp, getApps, cert } = require("firebase-admin/app");
-const { getAuth } = require("firebase-admin/auth");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+// Loaded inside a try/catch (not as bare top-level requires) on purpose:
+// if this fails — wrong Node.js version, or the dependency not installing
+// — a bare top-level `require()` would crash the whole module before
+// module.exports is even defined, and Vercel would show a generic,
+// message-less "Function crashed" page. Catching it here instead lets
+// ensureFirebaseApp() below turn it into our own clear Bengali JSON
+// error, which the client already knows how to display.
+let initializeApp, getApps, cert, getAuth, getFirestore, FieldValue;
+let moduleLoadError = null;
+try {
+  ({ initializeApp, getApps, cert } = require("firebase-admin/app"));
+  ({ getAuth } = require("firebase-admin/auth"));
+  ({ getFirestore, FieldValue } = require("firebase-admin/firestore"));
+} catch (e) {
+  moduleLoadError = e;
+}
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -80,6 +93,16 @@ const VALID_KINDS = new Set([
 // Firebase Admin — initialize once per warm serverless instance
 // ---------------------------------------------------------------------
 function ensureFirebaseApp() {
+  if (moduleLoadError) {
+    const isNodeVersion = moduleLoadError.code === "ERR_REQUIRE_ESM";
+    const err = new Error(
+      isNodeVersion
+        ? "Server misconfigured: firebase-admin লোড হয়নি — এটা Node.js 22.12+ চায় (package.json-এ 24.x পিন করা আছে)। Vercel Dashboard → Settings → Build and Deployment → Node.js Version-এ গিয়ে 24.x নিশ্চিত করে আবার Redeploy করো।"
+        : `Server misconfigured: firebase-admin লোড হয়নি (${moduleLoadError.code || moduleLoadError.message}). Vercel-এ একবার Redeploy করে দেখো — dependency install ঠিকমতো হয়নি সম্ভবত।`
+    );
+    err.status = 500;
+    throw err;
+  }
   if (getApps().length) return;
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) {
@@ -110,8 +133,19 @@ async function verifyCaller(req) {
   try {
     const decoded = await getAuth().verifyIdToken(match[1]);
     return decoded.uid;
-  } catch {
-    const err = new Error("সেশনের মেয়াদ শেষ হয়ে গেছে — আবার লগইন করো");
+  } catch (e) {
+    // A FIREBASE_SERVICE_ACCOUNT pasted from the wrong Firebase project
+    // (this app expects one from the same project as js/firebase-config.js)
+    // fails verifyIdToken too, but with an "aud"/project-mismatch message —
+    // worth telling apart from a genuinely expired token, since no amount
+    // of logging in again will fix a project mismatch.
+    const msg = String((e && e.message) || "");
+    const looksLikeProjectMismatch = /aud|audience|project/i.test(msg) && !/expired/i.test(msg);
+    const err = new Error(
+      looksLikeProjectMismatch
+        ? "সেশন যাচাই ব্যর্থ — FIREBASE_SERVICE_ACCOUNT সম্ভবত ভুল Firebase প্রজেক্ট থেকে জেনারেট করা (js/firebase-config.js-এর projectId-র সাথে মিলছে না)। সঠিক প্রজেক্ট (tv-course) থেকে service account key আবার জেনারেট করে Vercel-এ বসাও।"
+        : "সেশনের মেয়াদ শেষ হয়ে গেছে — আবার লগইন করো"
+    );
     err.status = 401;
     throw err;
   }
