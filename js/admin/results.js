@@ -1,8 +1,9 @@
 // ==========================================================================
 // admin/results.js — every attempt across every exam: filter, search, export
 // ==========================================================================
-import { escapeHtml, formatScore, formatDateTime, downloadCsv } from "../utils.js";
+import { escapeHtml, formatScore, formatDateTime, downloadCsv, toast } from "../utils.js";
 import { fetchAllExams, fetchAllResultsAdmin, fetchAllUsersAdmin } from "../exam-data.js";
+import { generateText } from "../ai.js";
 
 let allResults = [];
 let allExams = [];
@@ -62,6 +63,119 @@ export async function loadResultsTable() {
   }
 }
 
+/* ---------- AI performance summary ---------- */
+let lastSummaryText = "";
+
+function buildSummaryPrompt(filtered) {
+  if (!filtered.length) return null;
+  const scores = filtered.map((r) => r.percent);
+  const avg = Math.round(scores.reduce((s, p) => s + p, 0) / scores.length);
+  const best = Math.max(...scores);
+  const worst = Math.min(...scores);
+  const passRate = Math.round((scores.filter((p) => p >= 60).length / scores.length) * 100);
+  const byExam = {};
+  filtered.forEach((r) => { (byExam[r.examTitle || "Untitled"] ||= []).push(r.percent); });
+  const examLines = Object.entries(byExam).map(([title, pcts]) => {
+    const a = Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length);
+    return `- ${title}: ${pcts.length} attempts, average ${a}%`;
+  }).join("\n");
+  return `You are analyzing exam results for a course platform admin. Write a short, plain-language performance summary (4-6 sentences) in English: overall class performance, pass rate, which exam(s) students found hardest/easiest, and one practical suggestion for the instructor. Be specific with the numbers. No markdown, plain paragraph.
+
+Data:
+- Total attempts: ${filtered.length}
+- Average score: ${avg}%
+- Best: ${best}% · Lowest: ${worst}%
+- Pass rate (>=60%): ${passRate}%
+Per-exam breakdown:
+${examLines}`;
+}
+
+async function generateSummary() {
+  const filtered = applyFilters();
+  const btn = document.getElementById("ai-summary-gen-btn");
+  const out = document.getElementById("ai-summary-output");
+  const actions = document.getElementById("ai-summary-actions");
+  const prompt = buildSummaryPrompt(filtered);
+  if (!prompt) { toast("No results to summarize yet", "error"); return; }
+  btn.disabled = true;
+  const original = btn.innerHTML;
+  btn.innerHTML = `<span class="spinner"></span> Generating...`;
+  try {
+    const text = await generateText(prompt, { system: "You are a helpful data analyst writing for a busy course admin.", temperature: 0.5, maxOutputTokens: 512 });
+    lastSummaryText = text;
+    out.textContent = text;
+    out.hidden = false;
+    actions.hidden = false;
+    toast("Summary ready", "success");
+  } catch (err) {
+    toast(err.message || "Could not generate summary", "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+function buildSummaryPrintArea() {
+  document.getElementById("ai-summary-print-area")?.remove();
+  const generatedAt = new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" });
+  const area = document.createElement("div");
+  area.id = "ai-summary-print-area";
+  area.className = "lb-print-only";
+  area.innerHTML = `
+    <div class="pr-watermark"><img src="assets/logo.png" alt=""></div>
+    <div class="pr-header">
+      <img src="assets/logo.png" alt="Tech Verse" class="pr-logo">
+      <div><h1>Tech Verse Exam — Performance Summary</h1><p>Generated: ${escapeHtml(generatedAt)}</p></div>
+    </div>
+    <p style="line-height:1.7; font-size:0.92rem; white-space:pre-wrap;">${escapeHtml(lastSummaryText)}</p>
+    <p class="pr-footer">Tech Verse Exam — AI-generated summary, reviewed by admin</p>`;
+  document.body.appendChild(area);
+}
+function exportSummaryPdf() {
+  if (!lastSummaryText) return;
+  buildSummaryPrintArea();
+  document.body.classList.add("lb-printing");
+  const cleanup = () => {
+    document.body.classList.remove("lb-printing");
+    document.getElementById("ai-summary-print-area")?.remove();
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+  requestAnimationFrame(() => window.print());
+}
+
+let html2canvasPromise = null;
+function loadHtml2Canvas() {
+  if (window.html2canvas) return Promise.resolve();
+  if (!html2canvasPromise) {
+    html2canvasPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("Could not load the image export library"));
+      document.head.appendChild(s);
+    });
+  }
+  return html2canvasPromise;
+}
+async function exportSummaryImage() {
+  if (!lastSummaryText) return;
+  const btn = document.getElementById("ai-summary-image-btn");
+  btn.disabled = true;
+  try {
+    await loadHtml2Canvas();
+    const canvas = await window.html2canvas(document.getElementById("ai-summary-output"), { backgroundColor: "#14151E", scale: 2 });
+    const link = document.createElement("a");
+    link.download = `performance-summary-${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  } catch (err) {
+    toast(err.message || "Could not create image", "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 export function bindResultsControls() {
   document.getElementById("res-exam-filter")?.addEventListener("change", renderTable);
   document.getElementById("res-search")?.addEventListener("input", renderTable);
@@ -75,4 +189,7 @@ export function bindResultsControls() {
     downloadCsv(`exam-results-${Date.now()}.csv`, rows);
   });
   document.getElementById("res-refresh-btn")?.addEventListener("click", loadResultsTable);
+  document.getElementById("ai-summary-gen-btn")?.addEventListener("click", generateSummary);
+  document.getElementById("ai-summary-pdf-btn")?.addEventListener("click", exportSummaryPdf);
+  document.getElementById("ai-summary-image-btn")?.addEventListener("click", exportSummaryImage);
 }

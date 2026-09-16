@@ -11,6 +11,7 @@ import {
 } from "../utils.js";
 import { courses } from "./admin.js";
 import { loadOverview } from "./overview.js";
+import { generateText } from "../ai.js";
 
 /* ==========================================================================
    Exam management
@@ -260,6 +261,22 @@ async function openExamModal(examId) {
             <button type="button" class="btn btn-outline btn-sm" id="em-bulk-toggle-btn"><i class="fa-solid fa-bolt"></i> Bulk Import</button>
           </div>
           <div class="qb-bulk-panel" id="em-bulk-panel" hidden>
+            <div class="ai-gen-box">
+              <div class="ai-gen-head"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate with AI</div>
+              <div class="ai-gen-grid">
+                <div class="field"><label>Topic / Chapter</label><input type="text" id="ai-gen-topic" placeholder="e.g. Newton's Laws of Motion"></div>
+                <div class="field"><label>How many?</label><input type="number" id="ai-gen-count" min="1" max="40" value="10"></div>
+                <div class="field"><label>Difficulty</label>
+                  <select id="ai-gen-difficulty"><option value="mixed">Mixed</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
+                </div>
+                <div class="field"><label>Language</label>
+                  <select id="ai-gen-lang"><option value="bn">Bangla</option><option value="en">English</option></select>
+                </div>
+              </div>
+              <div class="field"><label>Extra instructions (optional)</label><input type="text" id="ai-gen-notes" placeholder="e.g. HSC syllabus level, include numerical problems"></div>
+              <button type="button" class="btn btn-primary btn-block" id="ai-gen-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Questions</button>
+              <span class="form-hint">Result lands in the box below — review it, then click Import.</span>
+            </div>
             <span class="form-hint">Paste each question separated by a blank line. First line is the question, then one option per line. Mark the correct option with a leading <b>*</b>. Optionally add a last line starting with <b>Explanation:</b> —</span>
             <pre class="qb-bulk-example">What is the capital of France?
 *Paris
@@ -497,6 +514,47 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
     bulkPanel.hidden = true;
     overlay.querySelector("#em-bulk-text").value = "";
     toast(`${parsed.length} question(s) added`, "success");
+  });
+
+  overlay.querySelector("#ai-gen-btn").addEventListener("click", async () => {
+    const topic = overlay.querySelector("#ai-gen-topic").value.trim();
+    const count = Math.min(40, Math.max(1, Number(overlay.querySelector("#ai-gen-count").value) || 10));
+    const difficulty = overlay.querySelector("#ai-gen-difficulty").value;
+    const lang = overlay.querySelector("#ai-gen-lang").value;
+    const notes = overlay.querySelector("#ai-gen-notes").value.trim();
+    if (!topic) { toast("Please enter a topic first", "error"); return; }
+
+    const btn = overlay.querySelector("#ai-gen-btn");
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner"></span> Generating...`;
+    try {
+      const langLine = lang === "bn" ? "Bangla (বাংলা)" : "English";
+      const prompt = `Write ${count} multiple-choice exam questions about: "${topic}".
+Difficulty: ${difficulty}. Language: ${langLine}.${notes ? ` Extra instructions: ${notes}.` : ""}
+Each question needs exactly 4 options, one correct.
+Output STRICT plain text in this exact format, nothing else before or after:
+
+Question text here?
+*Correct option
+Wrong option 1
+Wrong option 2
+Wrong option 3
+Explanation: one short sentence explaining the correct answer
+
+Leave exactly one blank line between questions. Mark ONLY the correct option with a leading *. Do not number questions. No headings, no markdown.`;
+      const result = await generateText(prompt, {
+        system: "You are a careful exam-question writer for a course platform. You always follow the requested output format exactly.",
+        temperature: 0.8, maxOutputTokens: 8192,
+      });
+      overlay.querySelector("#em-bulk-text").value = result.trim();
+      toast("AI draft ready below — review it, then click Import", "success");
+    } catch (err) {
+      toast(err.message || "Could not generate questions", "error");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
   });
 
   overlay.querySelector("#exam-modal-form").addEventListener("submit", async (e) => {
