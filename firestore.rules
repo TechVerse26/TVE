@@ -124,6 +124,15 @@ match /counters/{counterId} {
       }
     }
 
+    /* ---------- পরীক্ষার রুটিন (টাইমটেবিল) — courses-এর মতোই পাবলিক রিড
+       (লগআউট অবস্থাতেও দেখা যাবে, যাতে ভিজিটর সাইন-আপের আগেই সময়সূচি দেখতে
+       পারে), শুধু অ্যাডমিন লিখতে পারবে। examId থাকলেও এটা শুধু একটা রেফারেন্স —
+       আসল এক্সাম অ্যাক্সেস এখনও /exams/{examId} এর নিজের rule দিয়েই হয়। ---------- */
+    match /examRoutine/{routineId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     /* ---------- পরীক্ষার ফলাফল ---------- */
     match /results/{resultId} {
       allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
