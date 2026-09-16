@@ -6,5 +6,5 @@
 // Free-tier model names/limits change often — check
 // https://ai.google.dev/gemini-api/docs/pricing if requests start failing.
 // ==========================================================================
-export const GEMINI_API_KEY = "PASTE_YOUR_AI_STUDIO_KEY_HERE";
+export const GEMINI_API_KEY = "AQ.Ab8RN6JHqiBBzqOyqX2bLSV7iK3D2r6xQcVPIxoepNkspVoYkQ";
 export const GEMINI_MODEL = "gemini-2.5-flash";
