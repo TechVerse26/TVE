@@ -398,7 +398,11 @@ Data: average score ${ownAvg}%, ${attemptsTotal} live exam attempts so far, ${tr
     const text = await generateText("result-comment", prompt, { system: "You are a warm, encouraging tutor writing a one-line note to a student in Bangla.", temperature: 0.8, maxOutputTokens: 200 });
     box.classList.remove("is-loading");
     box.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> <span>${escapeHtml(text)}</span>`;
-  } catch {
+  } catch (err) {
+    // Stays silent for the student on purpose (this is a decorative
+    // extra, not core functionality) — but logged, so the real reason
+    // isn't invisible when you're debugging from the browser console.
+    console.error("AI result-comment failed:", err);
     box.remove();
   }
 }
