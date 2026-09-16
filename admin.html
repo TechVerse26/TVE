@@ -90,6 +90,18 @@
             <button type="button" class="btn btn-outline btn-sm" id="res-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
           </div>
         </div>
+        <div class="card mt-16" id="ai-summary-card">
+          <div class="admin-section-head" style="margin-bottom:12px;">
+            <h1 style="font-size:1.05rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Performance Summary</h1>
+            <p class="muted">Summarizes the results currently shown above (respects the exam filter/search)</p>
+          </div>
+          <button type="button" class="btn btn-primary" id="ai-summary-gen-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Summary</button>
+          <div id="ai-summary-output" class="ai-summary-output" hidden></div>
+          <div class="ai-summary-actions" id="ai-summary-actions" hidden>
+            <button type="button" class="btn btn-outline btn-sm" id="ai-summary-image-btn"><i class="fa-solid fa-image"></i> Download as Image</button>
+            <button type="button" class="btn btn-outline btn-sm" id="ai-summary-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Download as PDF</button>
+          </div>
+        </div>
         <div class="card mt-16">
           <div class="table-wrap"><table class="data-table" id="results-table">
             <thead><tr><th>Student</th><th>Exam</th><th>Type</th><th>Score</th><th>Percent</th><th>Attempt</th><th>Submitted</th></tr></thead>
