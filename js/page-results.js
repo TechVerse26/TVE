@@ -395,7 +395,7 @@ async function loadAiComment(box, liveResults, stats) {
   const prompt = `Write ONE short, warm, encouraging sentence in Bangla (max 30 words) for a student, based on this exam performance data. Be specific and natural, not generic. No markdown, no emojis.
 Data: average score ${ownAvg}%, ${attemptsTotal} live exam attempts so far, ${trendLine}.${classLine}`;
   try {
-    const text = await generateText(prompt, { system: "You are a warm, encouraging tutor writing a one-line note to a student in Bangla.", temperature: 0.8, maxOutputTokens: 200 });
+    const text = await generateText("result-comment", prompt, { system: "You are a warm, encouraging tutor writing a one-line note to a student in Bangla.", temperature: 0.8, maxOutputTokens: 200 });
     box.classList.remove("is-loading");
     box.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> <span>${escapeHtml(text)}</span>`;
   } catch {

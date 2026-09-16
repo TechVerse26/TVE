@@ -48,13 +48,14 @@ function buildPanel(q) {
     msgsEl.appendChild(loadingEl);
     msgsEl.scrollTop = msgsEl.scrollHeight;
     try {
-      const reply = await chatTurn(history, { system: systemPrompt(lang), temperature: 0.6, maxOutputTokens: 512 });
+      const reply = await chatTurn("doubt-chat", history, { system: systemPrompt(lang), temperature: 0.6, maxOutputTokens: 512 });
       history.push({ role: "model", text: reply });
       loadingEl.remove();
       msgsEl.insertAdjacentHTML("beforeend", bubbleHtml("ai", reply));
-    } catch {
+    } catch (err) {
       loadingEl.remove();
-      msgsEl.insertAdjacentHTML("beforeend", bubbleHtml("ai", lang === "bn" ? "দুঃখিত, উত্তর আনতে সমস্যা হয়েছে। আবার চেষ্টা করো।" : "Sorry, something went wrong. Try again."));
+      const fallback = lang === "bn" ? "দুঃখিত, উত্তর আনতে সমস্যা হয়েছে। আবার চেষ্টা করো।" : "Sorry, something went wrong. Try again.";
+      msgsEl.insertAdjacentHTML("beforeend", bubbleHtml("ai", err?.message || fallback));
     }
     msgsEl.scrollTop = msgsEl.scrollHeight;
   }

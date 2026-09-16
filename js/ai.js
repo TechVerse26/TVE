@@ -1,49 +1,55 @@
 // ==========================================================================
-// ai.js — thin wrapper around the Gemini API (generateContent), used by:
-//   • admin/exams.js              → AI question generator
-//   • page-results.js             → personalized result comment
-//   • ai-doubt.js                 → "Ask AI" doubt chat
-//   • admin/results.js            → AI performance summary
+// ai.js — thin client for the /api/ai serverless function (see api/ai.js).
 //
-// Calls Gemini directly from the browser (no backend) using a key
-// restricted by HTTP referrer — see ai-config.js. This trades a bit of
-// security for zero server cost; keep the key restricted.
+// The Gemini API key no longer lives in the browser at all. This file only
+// calls our own backend at "/api/ai" (same domain, deployed by Vercel from
+// the /api folder), sending the signed-in user's Firebase ID token so the
+// server can confirm the request is legitimate before spending any quota.
+//
+// Used by (each passes its own `kind` — see api/ai.js for what each does):
+//   • admin/exams.js   → generateText("exam-questions", ...)   AI question generator
+//   • page-results.js  → generateText("result-comment", ...)  personalized result note
+//   • ai-doubt.js       → chatTurn("doubt-chat", ...)           "Ask AI" doubt chat
+//   • admin/results.js → generateText("results-summary", ...) AI performance summary
 // ==========================================================================
-import { GEMINI_API_KEY, GEMINI_MODEL } from "./ai-config.js";
+import { auth } from "./firebase-config.js";
 
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-
-async function callGemini(contents, systemText, { temperature = 0.7, maxOutputTokens = 1024 } = {}) {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY.startsWith("PASTE_")) {
-    throw new Error("Gemini API key is not set in js/ai-config.js");
-  }
-  const body = { contents, generationConfig: { temperature, maxOutputTokens } };
-  if (systemText) body.system_instruction = { parts: [{ text: systemText }] };
-
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Gemini API error ${res.status}: ${errText.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  const candidate = data.candidates?.[0];
-  if (!candidate) throw new Error("Gemini returned no answer (possibly blocked by safety filters)");
-  const text = (candidate.content?.parts || []).map((p) => p.text || "").join("").trim();
-  if (!text) throw new Error("Gemini returned an empty answer");
-  return text;
+async function getIdToken() {
+  const user = auth.currentUser;
+  if (!user) throw new Error("AI ফিচার ব্যবহার করতে আগে লগইন করো");
+  return user.getIdToken();
 }
 
-/** One-shot text generation. */
-export async function generateText(prompt, { system, temperature, maxOutputTokens } = {}) {
-  return callGemini([{ role: "user", parts: [{ text: prompt }] }], system, { temperature, maxOutputTokens });
+async function callAI(kind, contents, systemText, { temperature, maxOutputTokens } = {}) {
+  const token = await getIdToken();
+
+  let res;
+  try {
+    res = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ kind, contents, system: systemText, temperature, maxOutputTokens }),
+    });
+  } catch {
+    throw new Error("সার্ভারে পৌঁছানো যাচ্ছে না — ইন্টারনেট সংযোগ চেক করো");
+  }
+
+  let data = {};
+  try { data = await res.json(); } catch { /* non-JSON error body, fall through */ }
+
+  if (!res.ok) throw new Error(data.error || `AI সার্ভিসে সমস্যা হয়েছে (${res.status})`);
+  if (!data.text) throw new Error("AI থেকে কোনো উত্তর পাওয়া যায়নি");
+  return data.text;
+}
+
+/** One-shot text generation. `kind` tells the server which feature is
+ * calling (drives admin-only checks + rate limits) — see api/ai.js. */
+export async function generateText(kind, prompt, { system, temperature, maxOutputTokens } = {}) {
+  return callAI(kind, [{ role: "user", parts: [{ text: prompt }] }], system, { temperature, maxOutputTokens });
 }
 
 /** Multi-turn chat. `history` is [{role:"user"|"model", text}], oldest first. */
-export async function chatTurn(history, { system, temperature, maxOutputTokens } = {}) {
+export async function chatTurn(kind, history, { system, temperature, maxOutputTokens } = {}) {
   const contents = history.map((h) => ({ role: h.role, parts: [{ text: h.text }] }));
-  return callGemini(contents, system, { temperature, maxOutputTokens });
+  return callAI(kind, contents, system, { temperature, maxOutputTokens });
 }
