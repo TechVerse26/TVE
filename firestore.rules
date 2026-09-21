@@ -133,13 +133,26 @@ match /counters/{counterId} {
       allow write: if isAdmin();
     }
 
-    /* ---------- পরীক্ষার ফলাফল ---------- */
+    /* ---------- পরীক্ষার ফলাফল ----------
+       ডকুমেন্ট আইডি সবসময় "{uid}_{examId}" — create-এ সেটা বাধ্যতামূলক করা হয়েছে, যাতে কেউ
+       অন্য স্টুডেন্টের আইডিতে আগে থেকে একটা ফাঁকা ডকুমেন্ট বানিয়ে তার ফলাফল সেভ আটকে দিতে না পারে। */
     match /results/{resultId} {
       allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid &&
+        resultId == request.auth.uid + '_' + request.resource.data.examId;
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid &&
         request.resource.data.uid == resource.data.uid;
       allow delete: if isAdmin();
+    }
+
+    /* ---------- লিডারবোর্ড — বেনামী পার্সেন্টাইল স্ট্যাটস ----------
+       "আমার ফলাফল" পেজের "আপনার র‍্যাংক" কার্ড (js/page-results.js) এই ডকুমেন্ট (leaderboard/publicStats)
+       পড়ে। শুধু বেনামী পার্সেন্ট-লিস্ট থাকে — কোনো নাম/ইউআইডি/ইমেইল নেই — তাই যেকোনো লগইন করা
+       স্টুডেন্ট পড়তে পারবে; লিখতে পারবে শুধু অ্যাডমিন (অ্যাডমিন প্যানেলের লিডারবোর্ড ট্যাব খুললে
+       এটি আপডেট হয়)। এই rule না থাকলে র‍্যাংক কার্ড সবসময় "ডেটা জমা হলে দেখা যাবে" দেখায়। */
+    match /leaderboard/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     /* ---------- সাইট সেটিংস (হোমপেজ হিরো + ফিচার্ড ভিডিও + পেমেন্ট নাম্বার + পারচেজ পজ সুইচ) ----------
