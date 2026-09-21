@@ -15,7 +15,7 @@
 import { db } from "../firebase-config.js";
 import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { escapeHtml, toast, openModal, closeModal } from "../utils.js";
-import { fetchAllUsersAdmin, fetchAllResultsAdmin } from "../exam-data.js";
+import { fetchAllUsersAdmin, fetchAllResultsAdmin, countAttempts } from "../exam-data.js";
 import { claimNextRoll, isRollTaken } from "../roll.js";
 import { courses } from "./admin.js";
 
@@ -161,7 +161,7 @@ export async function loadStudentsTable() {
     const [users, results] = await Promise.all([fetchAllUsersAdmin(), fetchAllResultsAdmin()]);
     allUsers = users;
     attemptsByUid = {};
-    results.forEach((r) => { attemptsByUid[r.uid] = (attemptsByUid[r.uid] || 0) + 1; });
+    results.forEach((r) => { attemptsByUid[r.uid] = (attemptsByUid[r.uid] || 0) + countAttempts(r); });
     renderTable();
   } catch {
     if (tbody) tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p>লোড করা যায়নি</p></div></td></tr>`;

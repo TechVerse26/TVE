@@ -16,7 +16,7 @@
 // window.print() runs the export.
 // ==========================================================================
 import { escapeHtml, toast, formatScore, formatDateTime } from "../utils.js";
-import { fetchAllResultsAdmin, fetchAllUsersAdmin, publishPercentileStats } from "../exam-data.js";
+import { fetchAllResultsAdmin, fetchAllUsersAdmin, publishPercentileStats, countAttempts } from "../exam-data.js";
 
 let leaderboard = []; // ranked: [{ uid, displayName, email, results[], examsTaken, totalAttempts, avgPercent, bestPercent }]
 
@@ -30,27 +30,36 @@ function buildLeaderboard(users, results) {
   const byUser = {};
   liveResults.forEach((r) => { (byUser[r.uid] ||= []).push(r); });
 
+  // A result doc's top-level `percent` is only its LATEST attempt; the best one
+  // lives in its attempts[] history. Ranking on the best keeps the documented
+  // rule (a retake can only help, never hurt) and matches how the student's own
+  // "আপনার র‍্যাংক" figure is worked out in page-results.js.
+  const bestPercentOf = (r) => {
+    const fromHistory = Array.isArray(r.attempts) ? r.attempts.map((a) => Number(a?.percent) || 0) : [];
+    return Math.max(Number(r.percent) || 0, ...fromHistory);
+  };
+
   const rows = Object.entries(byUser).map(([uid, userResults]) => {
     const u = usersById[uid] || {};
     // Best attempt per exam — retakes only ever help the ranking, never hurt it.
     const bestByExam = {};
     userResults.forEach((r) => {
       const cur = bestByExam[r.examId];
-      if (!cur || (Number(r.percent) || 0) > (Number(cur.percent) || 0)) bestByExam[r.examId] = r;
+      if (!cur || bestPercentOf(r) > bestPercentOf(cur)) bestByExam[r.examId] = r;
     });
     const bestResults = Object.values(bestByExam);
     const examsTaken = bestResults.length;
     const avgPercent = examsTaken
-      ? Math.round(bestResults.reduce((s, r) => s + (Number(r.percent) || 0), 0) / examsTaken)
+      ? Math.round(bestResults.reduce((s, r) => s + bestPercentOf(r), 0) / examsTaken)
       : 0;
-    const bestPercent = Math.max(0, ...userResults.map((r) => Number(r.percent) || 0));
+    const bestPercent = Math.max(0, ...userResults.map(bestPercentOf));
     return {
       uid,
       displayName: u.displayName || "নাম নেই",
       email: u.email || uid,
       results: userResults.slice().sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)),
       examsTaken,
-      totalAttempts: userResults.length,
+      totalAttempts: userResults.reduce((sum, r) => sum + countAttempts(r), 0), // real attempts, shown on the leaderboard
       avgPercent,
       bestPercent,
     };
@@ -58,7 +67,7 @@ function buildLeaderboard(users, results) {
 
   rows.sort((a, b) => b.avgPercent - a.avgPercent
     || b.bestPercent - a.bestPercent
-    || b.totalAttempts - a.totalAttempts
+    || b.examsTaken - a.examsTaken // tie-break: how many exams they've actually attempted (not retakes)
     || a.displayName.localeCompare(b.displayName, "bn"));
   return rows;
 }
@@ -181,9 +190,9 @@ function buildPrintArea() {
   area.id = "lb-print-area";
   area.className = "lb-print-only";
   area.innerHTML = `
-    <div class="pr-watermark"><img src="assets/logo.png" alt=""></div>
+    <div class="pr-watermark"><img src="assets/logo.svg" alt=""></div>
     <div class="pr-header">
-      <img src="assets/logo.png" alt="Tech Verse" class="pr-logo">
+      <img src="assets/logo.svg" alt="TVexam" class="pr-logo">
       <div>
         <h1>Tech Verse Exam — লিডারবোর্ড রিপোর্ট</h1>
         <p>তৈরি হয়েছে: ${escapeHtml(generatedAt)} • মোট শিক্ষার্থী: ${leaderboard.length}</p>

@@ -1,7 +1,7 @@
 // ==========================================================================
 // admin/overview.js — quick stat cards for the admin dashboard
 // ==========================================================================
-import { fetchAllExams, fetchAllResultsAdmin, fetchAllUsersAdmin } from "../exam-data.js";
+import { fetchAllExams, fetchAllResultsAdmin, fetchAllUsersAdmin, countAttempts } from "../exam-data.js";
 
 export async function loadOverview() {
   const grid = document.getElementById("overview-stat-grid");
@@ -9,8 +9,10 @@ export async function loadOverview() {
   grid.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
   try {
     const [exams, results, users] = await Promise.all([fetchAllExams(), fetchAllResultsAdmin(), fetchAllUsersAdmin()]);
-    const totalAttempts = results.length;
-    const avgPercent = totalAttempts ? Math.round(results.reduce((sum, r) => sum + (Number(r.percent) || 0), 0) / totalAttempts) : 0;
+    // One result document = one student + one exam, however many times they retook it —
+    // so real attempts are counted from each doc's attempt count, not from the number of docs.
+    const totalAttempts = results.reduce((sum, r) => sum + countAttempts(r), 0);
+    const avgPercent = results.length ? Math.round(results.reduce((sum, r) => sum + (Number(r.percent) || 0), 0) / results.length) : 0;
     const studentsWhoAttempted = new Set(results.map((r) => r.uid)).size;
 
     grid.innerHTML = `
