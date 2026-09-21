@@ -85,12 +85,12 @@ export async function runVerification(container, examId, myToken) {
   const { state: availState, publishAt, closesAt } = getExamAvailability(exam);
   if (availState === "upcoming") {
     setStep(container, "window", "fail");
-    failScreen(container, { title: "The exam hasn't started yet.", message: `This exam will be started ${formatDateTime(publishAt)}।`, backLabel: "Go back", backHref: courseBackHref });
+    failScreen(container, { title: "The exam hasn't started yet.", message: `This exam starts on ${formatDateTime(publishAt)}.`, backLabel: "Go back", backHref: courseBackHref });
     return { ok: false };
   }
   if (availState === "closed") {
     setStep(container, "window", "fail");
-    failScreen(container, { title: "Exam time is over.", message: `This exam was open ${formatDateTime(closesAt)} until.`, backLabel: "Go back", backHref: courseBackHref });
+    failScreen(container, { title: "Exam time is over.", message: `This exam closed on ${formatDateTime(closesAt)}.`, backLabel: "Go back", backHref: courseBackHref });
     return { ok: false };
   }
   setStep(container, "window", "ok");

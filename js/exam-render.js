@@ -3,10 +3,13 @@
 // No Firestore calls here (exam-data.js), no scoring/shuffle rules here
 // (exam-engine.js) — this file only turns fetched data into HTML.
 // ==========================================================================
-import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBucket, formatDateTime, getExamQuestionCount } from "./utils.js";
+import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBucket, formatDateTime, getExamQuestionCount, confirmAction, toBnDigits } from "./utils.js";
 import { fetchAllExams, fetchResult, checkExamVisibility } from "./exam-data.js";
 import { startCountdowns } from "./exam-timer.js";
 import { state } from "./exam-engine.js";
+import { navigate, reloadRoute } from "./router.js";
+import { normalizeReview, reviewListHtml, reviewTtlHours } from "./exam-review.js";
+import { printReport } from "./exam-report.js";
 
 function lessonTagHtml(ex) {
   return ex.lessonNames?.length
@@ -39,8 +42,8 @@ function practiceHistoryHtml(result) {
   return `
     <div class="exs-spark">
       <div class="exs-spark-head">
-        <span class="exs-spark-label"><i class="fa-solid fa-chart-line"></i>Total Refusals ${attempts.length} </span>
-        <span class="exs-spark-best">your activity ${Math.round(best)}%</span>
+        <span class="exs-spark-label"><i class="fa-solid fa-chart-line"></i>Total Attempts ${attempts.length}</span>
+        <span class="exs-spark-best">Best ${Math.round(best)}%</span>
       </div>
       <div class="exs-spark-bars">${bars}</div>
     </div>`;
@@ -76,7 +79,7 @@ function groupExamsByCourse(exams) {
 export async function renderExamCourseList(grid) {
   setExamSectionHeader({ title: "Take the Test & Evaluate Yourself", sub: "Choose Your Course & Explore All Exams", showBack: false });
   grid.classList.add("exam-grid--courses");
-  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span>Possessing...</div>`;
+  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> Loading...</div>`;
   const myToken = state.navToken;
   try {
     const exams = await fetchAllExams();
@@ -99,7 +102,7 @@ export async function renderExamCourseList(grid) {
           else if (availState === "upcoming") upcomingCount++;
         });
 
-        const title = g.courseId ? (info.title || g.courseName) : "Genarel Exam";
+        const title = g.courseId ? (info.title || g.courseName) : "General Exam";
         const cover = g.courseId ? info.coverImage || "" : "";
         const latestCreated = Math.max(0, ...g.exams.map((ex) => ex.createdAt?.seconds || 0));
 
@@ -131,7 +134,7 @@ export async function renderExamCourseList(grid) {
     grid.innerHTML = cards.map((c) => c.html).join("");
   } catch {
     if (state.navToken !== myToken) return;
-    grid.innerHTML = `<div class="exs-empty"><p>No Exams loading</p></div>`;
+    grid.innerHTML = `<div class="exs-empty"><p>Unable to Load Exams</p></div>`;
   }
 }
 
@@ -165,7 +168,7 @@ export async function renderExamCourseHub(grid, courseKey) {
     const exams = allExams.filter((ex) => (ex.courseId || "general") === courseKey);
 
     let title = "Course Exams";
-    if (courseKey === "general") title = "Genarel Exam";
+    if (courseKey === "general") title = "General Exam";
     else {
       const info = await checkExamVisibility(courseKey, state.userProfile);
       title = info.title || exams[0]?.courseName || "কোর্সের এক্সাম";
@@ -225,14 +228,14 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
 
     if (courseKey) {
       let title = hubTab ? hubTab.label : "Course Exams";
-      if (courseKey === "general" && !hubTab) title = "Genarel Exams";
+      if (courseKey === "general" && !hubTab) title = "General Exams";
       setExamSectionHeader({ title, sub: exams.length ? `${exams.length} Exams Available for This Course` : "No Exams Available for This Course Yet", showBack: true, backHref });
     }
 
     if (!exams.length) {
       const emptyMsg = bucketKey === "practice" ? "No Practice Exams Available Yet "
-        : bucketKey === "upcoming" ? "No Exams"
-        : bucketKey === "live" ? "No Upcoming Exams at the Moment"
+        : bucketKey === "upcoming" ? "No Upcoming Exams at the Moment"
+        : bucketKey === "live" ? "No Live Exams Right Now"
         : "No Exams Available for This Course Yet";
       grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>${emptyMsg}</p></div>`;
       return;
@@ -257,7 +260,7 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
             <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
             <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} টি প্রশ্ন</span>
           </div>
-          <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-lock"></i> Starts Soon ${formatDateTime(publishAt)}</span>
+          <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-lock"></i> Starts ${formatDateTime(publishAt)}</span>
         </div>`;
       }
 
@@ -281,7 +284,7 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
             <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} Questions</span>
           </div>
           ${result ? `<span class="exs-tag exs-tag--amber">Last Score ${formatScore(result.score)}/${result.total}</span>` : ""}
-          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-stopwatch"></i> Exam Closed (${formatDateTime(closesAt)} Ended)</span>
+          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-stopwatch"></i> Exam Closed — ended ${formatDateTime(closesAt)}</span>
         </div>`;
       }
 
@@ -314,7 +317,7 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
         </div>
         <div class="exs-meta-row">${attemptsMeta}</div>
         ${result ? `<span class="exs-tag exs-tag--amber">Last Score ${formatScore(result.score)}/${result.total}</span>` : ""}
-        ${closesAt ? `<span class="exs-muted exs-small">${formatDateTime(closesAt)} Ended</span>` : ""}
+        ${closesAt ? `<span class="exs-muted exs-small">Closes ${formatDateTime(closesAt)}</span>` : ""}
         ${ex.examType === "practice" ? practiceHistoryHtml(result) : ""}
         <a href="#/exam?id=${ex.id}" class="btn btn-primary btn-block">${result ? "Retake Exam" : "Start Exam"}</a>
       </div>`;
@@ -381,50 +384,39 @@ export function renderAllQuestions(refs) {
   bindOptionClicks(refs.questionArea, () => renderAllQuestions(refs));
 }
 
-/* ---------- Post-submit review — only the questions the student actually
-   got wrong (or left unanswered). Showing the full question bank here used
-   to be the main reason this screen felt slow on a big exam: hundreds of
-   `.exs-review-item` cards landing in the DOM at once. Correct answers
-   don't need reviewing, so they're simply never rendered — the list stays
-   small no matter how large the exam was. This mirrors what actually gets
-   saved (see reviewSnapshot in exam.js) and what it's kept for: 48 hours,
-   after which "আমার ফলাফল" stops offering it (see isReviewExpired in
-   exam-data.js). ---------- */
-function renderReviewListHtml(questions, answers) {
-  const wrongOnes = questions
-    .map((q, i) => ({ q, i, userAns: answers[q.id] }))
-    .filter(({ q, userAns }) => userAns !== q.correctIndex);
-
-  if (!wrongOnes.length) {
-    return `
-      <div class="exs-review-list">
-        <div class="exs-empty"><i class="fa-solid fa-champagne-glasses"></i><p>অভিনন্দন! আপনি সব প্রশ্নের সঠিক উত্তর দিয়েছেন — রিভিউ করার মতো কিছু নেই।</p></div>
-      </div>`;
+/* ---------- Save status chip under the score ----------
+   The result is shown the instant the exam is submitted; saving to the
+   database happens in the background (see persistAttempt in exam.js), so the
+   student never stares at a frozen screen — and if saving fails they see it,
+   with a retry button, instead of silently losing the attempt. ---------- */
+export function updateSaveStatus(resultView, attempt) {
+  const el = resultView?.querySelector("#exs-save-status");
+  if (!el) return;
+  const st = attempt.saveState;
+  el.className = `exs-save-status is-${st}`;
+  if (st === "saving") {
+    el.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>ফলাফল সেভ হচ্ছে…</span>`;
+  } else if (st === "saved") {
+    el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>ফলাফল সেভ হয়েছে — My Activity-তে দেখতে পাবেন</span>`;
+  } else if (st === "blocked") {
+    el.innerHTML = `<i class="fa-solid fa-ban"></i><span>এই এক্সামের অ্যাটেম্পট সীমা পূর্ণ, তাই এই ফলাফল সেভ হয়নি</span>`;
+  } else {
+    el.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>ফলাফল সেভ করা যায়নি</span><button type="button" class="exs-save-retry">আবার চেষ্টা করুন</button>`;
   }
-
-  return `
-    <p class="exs-muted exs-small exs-review-note"><i class="fa-solid fa-circle-info"></i> নিচে শুধু আপনার ভুল করা প্রশ্নগুলো দেখানো হচ্ছে, এবং এগুলো এই পরীক্ষার ফলাফলে <b>৪৮ ঘণ্টা</b> পর্যন্ত দেখা যাবে।</p>
-    <div class="exs-review-list">
-      ${wrongOnes.map(({ q, i, userAns }) => `
-        <div class="exs-review-item">
-          <div class="exs-review-q">${i + 1}. ${escapeHtml(q.text)}</div>
-          <div class="exs-review-answer is-wrong">
-            <i class="fa-solid fa-xmark"></i> আপনার উত্তর: ${userAns !== undefined && userAns !== null ? escapeHtml(q.options[userAns]) : "উত্তর দেওয়া হয়নি"}
-          </div>
-          <div class="exs-review-answer is-correct"><i class="fa-solid fa-check"></i> সঠিক উত্তর: ${escapeHtml(q.options[q.correctIndex])}</div>
-          ${q.explanation && q.explanation.trim() ? `<div class="exs-review-explain"><i class="fa-solid fa-lightbulb"></i><span><b>ব্যাখ্যা:</b> ${escapeHtml(q.explanation)}</span></div>` : ""}
-        </div>`).join("")}
-    </div>`;
 }
 
-export function renderResult(resultView, { score, total, percent, examTitle, breakdown }) {
-  const { correctCount = 0, wrongCount = 0, unansweredCount = 0, negativeMarking = 0, timeTakenSeconds = 0 } = breakdown;
+/* ---------- Result screen — drawn from an immutable snapshot of the attempt
+   (built once in exam.js at submit time), never from the live exam `state`.
+   Reading `state` here was fragile: it is wiped whenever another exam route
+   starts, so a result drawn a moment late could come out empty and even
+   congratulate the student for "answering everything correctly". ---------- */
+export function renderResult(resultView, attempt, { onRetrySave } = {}) {
+  const { score, total, percent, examTitle, correctCount = 0, wrongCount = 0, unansweredCount = 0, negativeMarking = 0, timeTakenSeconds = 0 } = attempt;
+  const courseHref = `#/exam?course=${encodeURIComponent(attempt.courseId || "general")}`;
+
   resultView.innerHTML = `
-    <div class="exs-result-hero" id="exs-print-area">
-      <div class="exs-print-head">
-        <div class="exs-print-title">Tech Verse Exam — Result</div>
-        <div class="exs-print-sub">${escapeHtml(state.currentUser?.displayName || state.currentUser?.email || "")} · ${new Date().toLocaleString()}</div>
-      </div>
+    <div class="exs-result-hero">
+      <div class="exs-result-examname">${escapeHtml(examTitle)}</div>
       <div class="exs-result-ring" style="--pct:${percent}"><b>${percent}%</b></div>
       <h2>${percent >= 60 ? "চমৎকার! 🎉" : "আরেকটু চর্চা করলেই ভালো ফল হবে 💪"}</h2>
       <p class="exs-muted exs-mt-8">আপনার স্কোর: <b>${formatScore(score)} / ${total}</b></p>
@@ -435,13 +427,38 @@ export function renderResult(resultView, { score, total, percent, examTitle, bre
         <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-stopwatch"></i> সময় লেগেছে: ${formatDuration(timeTakenSeconds)}</span>
       </div>
       ${negativeMarking > 0 ? `<p class="exs-muted exs-small exs-mt-8"><i class="fa-solid fa-circle-info"></i> এই এক্সামে নেগেটিভ মার্কিং সক্রিয় ছিল — প্রতিটি ভুল উত্তরে ${formatScore(negativeMarking)} নম্বর কাটা হয়েছে</p>` : ""}
+      <div id="exs-save-status" class="exs-save-status" role="status" aria-live="polite"></div>
       <div class="exs-result-actions exs-no-print">
-        <a href="#/exam?course=${encodeURIComponent(state.exam?.courseId || "general")}" class="exs-action-box"><i class="fa-solid fa-list"></i><span>কোর্সের এক্সাম</span></a>
-        <a href="#/exam?id=${state.examId}" class="exs-action-box exs-action-box--primary"><i class="fa-solid fa-rotate-right"></i><span>আবার দিন</span></a>
-        <button type="button" class="exs-action-box exs-action-box--teal" id="exs-print-result"><i class="fa-solid fa-print"></i><span>PDF / প্রিন্ট</span></button>
+        <a href="${courseHref}" class="exs-action-box" id="exs-course-link"><i class="fa-solid fa-list"></i><span>কোর্সের এক্সাম</span></a>
+        <button type="button" class="exs-action-box exs-action-box--primary" id="exs-retake"><i class="fa-solid fa-rotate-right"></i><span>আবার দিন</span></button>
+        <button type="button" class="exs-action-box exs-action-box--teal" id="exs-print-result"><i class="fa-solid fa-file-pdf"></i><span>PDF ডাউনলোড</span></button>
       </div>
+      <p class="exs-result-note exs-no-print"><i class="fa-solid fa-circle-info"></i><span>"PDF ডাউনলোড"-এ চাপলে প্রিন্ট ডায়ালগ খুলবে — সেখানে <b>Save as PDF</b> বেছে নিন। PDF শুধু এই পেজ থেকেই পাওয়া যায়; পেজ ছেড়ে গেলে <b>My Activity</b>-তে শুধু ভুলগুলো দেখা যাবে (${toBnDigits(reviewTtlHours())} ঘণ্টা পর্যন্ত), PDF নয়।</span></p>
     </div>
-    ${renderReviewListHtml(state.questions, state.answers)}`;
+    ${reviewListHtml(normalizeReview(attempt.review))}`;
 
-  resultView.querySelector("#exs-print-result")?.addEventListener("click", () => window.print());
+  updateSaveStatus(resultView, attempt);
+
+  // Leaving with a result that isn't stored yet would lose it — ask first.
+  async function leaveIfSure(go) {
+    if (attempt.saveState !== "saved" && attempt.saveState !== "blocked") {
+      const ok = await confirmAction(
+        "এই ফলাফল এখনো সেভ হয়নি। এখন চলে গেলে এটি হারিয়ে যেতে পারে।",
+        { title: "সেভ হয়নি", confirmLabel: "তবুও যাব", cancelLabel: "থাকি" }
+      );
+      if (!ok) return;
+    }
+    go();
+  }
+
+  resultView.querySelector("#exs-print-result")?.addEventListener("click", () => { printReport(); });
+  resultView.querySelector("#exs-retake")?.addEventListener("click", () => leaveIfSure(() => reloadRoute()));
+  resultView.querySelector("#exs-course-link")?.addEventListener("click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // "open in new tab" etc. — leave it to the browser
+    e.preventDefault();
+    leaveIfSure(() => navigate(courseHref));
+  });
+  resultView.querySelector("#exs-save-status")?.addEventListener("click", (e) => {
+    if (e.target.closest(".exs-save-retry")) onRetrySave?.();
+  });
 }

@@ -24,8 +24,9 @@
 // only "JavaScript" involved is toggling a CSS custom property and text
 // content on a timer, so it stays cheap and dependency-free.
 // ==========================================================================
-import { requireAuth, escapeHtml, formatScore, formatDateTime } from "./utils.js";
-import { fetchMyResults, fetchPercentileStats, isReviewExpired } from "./exam-data.js";
+import { requireAuth, escapeHtml, formatScore, formatDateTime, toBnDigits } from "./utils.js";
+import { fetchMyResults, fetchPercentileStats, isReviewExpired, reviewMsLeft } from "./exam-data.js";
+import { normalizeReview, reviewItemHtml, reviewTtlHours } from "./exam-review.js";
 import { renderNav } from "./nav.js";
 
 const OVERVIEW_MAX_BARS = 40;
@@ -289,28 +290,51 @@ function resultCardHtml(r) {
     </button>`;
 }
 
-/* ---------- One question inside a per-attempt review (reuses the same
-   classes as the post-submit review screen in exam-render.js, so it looks
-   and behaves identically whether you're reviewing today's attempt or one
-   from three months ago). ---------- */
-function reviewQuestionHtml(q, i) {
-  const answered = q.selected !== null && q.selected !== undefined;
-  const correct = answered && q.selected === q.correctIndex;
-  return `
-    <div class="exs-review-item">
-      <div class="exs-review-q">${i + 1}. ${escapeHtml(q.text)}</div>
-      <div class="exs-review-answer ${correct ? "is-correct" : "is-wrong"}">
-        ${correct ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>'} আপনার উত্তর: ${answered ? escapeHtml(q.options[q.selected]) : "উত্তর দেওয়া হয়নি"}
-      </div>
-      ${!correct ? `<div class="exs-review-answer is-correct"><i class="fa-solid fa-check"></i> সঠিক উত্তর: ${escapeHtml(q.options[q.correctIndex])}</div>` : ""}
-      ${q.explanation && q.explanation.trim() ? `<div class="exs-review-explain"><i class="fa-solid fa-lightbulb"></i><span><b>ব্যাখ্যা:</b> ${escapeHtml(q.explanation)}</span></div>` : ""}
-    </div>`;
+/* ---------- Review state of one attempt ----------
+   "open"       – mistakes were saved and are still inside their window
+   "allCorrect" – nothing to review (every answer was right)
+   "expired"    – the review window has passed (see REVIEW_TTL_MS in exam-data.js)
+   "none"       – no detailed review was ever kept (older than the last 10
+                  attempts, or saved before reviews existed)
+   The saved mistakes are drawn by exam-review.js — the very same renderer the
+   result screen uses right after an exam — so numbering, wording and the
+   explanation box are identical in both places. ---------- */
+function reviewStateOf(a) {
+  const mistakes = normalizeReview(a.review);
+  const expired = isReviewExpired(a.submittedAt);
+  if (Array.isArray(a.review)) {
+    if (expired) return { mode: "expired", mistakes: [] };
+    return mistakes.length ? { mode: "open", mistakes } : { mode: "allCorrect", mistakes: [] };
+  }
+  return { mode: expired ? "expired" : "none", mistakes: [] };
+}
+
+function formatTimeLeft(ms) {
+  const mins = Math.max(1, Math.ceil(ms / 60000));
+  if (mins >= 60) return `${toBnDigits(Math.floor(mins / 60))} ঘণ্টা`;
+  return `${toBnDigits(mins)} মিনিট`;
+}
+
+function reviewNoteHtml(a, { mode, mistakes }) {
+  if (mode === "open") {
+    const left = reviewMsLeft(a.submittedAt);
+    return `<i class="fa-solid fa-eye"></i> ${toBnDigits(mistakes.length)}টি ভুল${left != null ? ` · আর ${formatTimeLeft(left)} দেখা যাবে` : ""}`;
+  }
+  if (mode === "allCorrect") return `<i class="fa-solid fa-circle-check"></i> এই অ্যাটেম্পটে সব উত্তর সঠিক ছিল`;
+  if (mode === "expired") return `<i class="fa-solid fa-clock-rotate-left"></i> ভুলের রিভিউ জমা দেওয়ার ${toBnDigits(reviewTtlHours())} ঘণ্টা পর্যন্ত দেখা যায় — মেয়াদ শেষ`;
+  return `<i class="fa-solid fa-lock"></i> এই অ্যাটেম্পটের বিস্তারিত রিভিউ সংরক্ষিত নেই`;
 }
 
 /* ---------- History modal body: stats + chart (if 2+ attempts) + a
-   collapsible row per attempt, each expandable into its own question review. ---------- */
+   collapsible row per attempt, each expandable into its own question review.
+   VIEW-ONLY by design: the PDF report exists only on the result screen right
+   after an exam (exam-report.js) and is never offered — or printable — here. ---------- */
 function historyModalBodyHtml(r) {
-  const attempts = normalizeAttempts(r).map((a, i) => ({ ...a, attemptInExam: i + 1 }));
+  const list = normalizeAttempts(r);
+  // A doc keeps at most the last 30 attempts; number them by their real
+  // position so "#31" isn't shown as "#1" once older entries have rolled off.
+  const offset = Math.max(0, (Number(r.attemptNumber) || 0) - list.length);
+  const attempts = list.map((a, i) => ({ ...a, attemptInExam: offset + i + 1 }));
   const rid = safeId(r.id);
 
   const chart = attempts.length > 1
@@ -330,46 +354,40 @@ function historyModalBodyHtml(r) {
       const icon = d > 0 ? "fa-arrow-up" : d < 0 ? "fa-arrow-down" : "fa-minus";
       deltaHtml = `<span class="rm-row-delta ${cls}"><i class="fa-solid ${icon}"></i> ${d === 0 ? "" : Math.abs(d) + "%"}</span>`;
     }
-    // Defensive filter: only ever offer the questions the student got
-    // wrong, even for an older doc saved before reviewSnapshot switched to
-    // storing wrong-only (a pre-existing full snapshot could still have
-    // correct ones mixed in). Combined with isReviewExpired(), this is
-    // also the second (client-side) half of the 48-hour cutoff — the first
-    // half already ran in fetchMyResults, which wipes a.review to null
-    // once it's past its window, so this mostly guards the rare case where
-    // that write hasn't landed yet.
-    const wrongOnly = Array.isArray(a.review) ? a.review.filter((q) => q.selected !== q.correctIndex) : [];
-    const expired = isReviewExpired(a.submittedAt);
-    const hasReview = wrongOnly.length > 0 && !expired;
 
-    let lockIcon = "fa-lock", lockTitle = "এই অ্যাটেম্পটের বিস্তারিত রিভিউ সংরক্ষিত নেই";
-    if (a.review != null && wrongOnly.length === 0) {
-      lockIcon = "fa-circle-check";
-      lockTitle = "অভিনন্দন! এই অ্যাটেম্পটে সব উত্তর সঠিক ছিল";
-    } else if (a.review != null && expired) {
-      lockIcon = "fa-clock-rotate-left";
-      lockTitle = "ভুল উত্তরের রিভিউ শুধু জমা দেওয়ার ৪৮ ঘণ্টা পর্যন্ত দেখা যায় — এই অ্যাটেম্পটের মেয়াদ শেষ হয়ে গেছে";
-    }
+    // Two layers guard the 48-hour cutoff: fetchMyResults already wipes
+    // a.review once it is past its window, and reviewStateOf() re-checks the
+    // clock here, covering the rare case where that write hasn't landed yet.
+    const review = reviewStateOf(a);
+    const hasReview = review.mode === "open";
+    const lockIcon = review.mode === "allCorrect" ? "fa-circle-check" : review.mode === "expired" ? "fa-clock-rotate-left" : "fa-lock";
 
     const panelId = `rm-review-${rid}-${a.attemptInExam}`;
     return `
       <div class="rm-row-wrap">
-        <button type="button" class="rm-row${isLatest ? " is-latest" : ""}" ${hasReview ? `data-toggle-review="${panelId}"` : "disabled"}>
+        <button type="button" class="rm-row${isLatest ? " is-latest" : ""}" ${hasReview ? `data-toggle-review="${panelId}" aria-expanded="false"` : "disabled"}>
           <span class="rm-row-n">#${a.attemptInExam}</span>
           <span class="rm-row-when">${formatDateTime(a.submittedAt)}</span>
           <span class="rm-row-score">${formatScore(a.score)}/${a.total} · ${Math.round(clampPct(a.percent))}%</span>
           ${deltaHtml}
-          ${hasReview ? `<i class="fa-solid fa-chevron-down rm-row-arrow"></i>` : `<i class="fa-solid ${lockIcon} rm-row-lock" title="${lockTitle}"></i>`}
+          ${hasReview ? `<i class="fa-solid fa-chevron-down rm-row-arrow"></i>` : `<i class="fa-solid ${lockIcon} rm-row-lock"></i>`}
         </button>
-        ${hasReview ? `<div class="rm-review-panel" id="${panelId}" hidden>${wrongOnly.map(reviewQuestionHtml).join("")}</div>` : ""}
+        <div class="rm-row-note${hasReview ? " is-open-note" : ""}">${reviewNoteHtml(a, review)}</div>
+        ${hasReview ? `<div class="rm-review-panel" id="${panelId}" hidden>${review.mistakes.map(reviewItemHtml).join("")}</div>` : ""}
       </div>`;
   }).join("");
 
   return `
     ${statsHtml(attempts)}
     ${chart}
+    <p class="rm-viewonly"><i class="fa-solid fa-eye"></i> এখানে শুধু আগের ভুলগুলো দেখা যায়। PDF শুধু পরীক্ষা শেষে রেজাল্ট পেজ থেকেই ডাউনলোড করা যায়।</p>
     <div class="result-modal-list">${rows}</div>`;
 }
+
+// One Escape-key handler for the whole app lifetime. Registering a new one on
+// every visit to this page (as before) piled up listeners that each held on
+// to a long-gone modal.
+let escapeHandler = null;
 
 export async function initResultsPage(params, container) {
   await renderNav("results");
@@ -414,6 +432,7 @@ export async function initResultsPage(params, container) {
         const willOpen = panel.hidden;
         panel.hidden = !willOpen;
         btn.classList.toggle("is-open", willOpen);
+        btn.setAttribute("aria-expanded", String(willOpen));
       });
     });
   }
@@ -423,7 +442,9 @@ export async function initResultsPage(params, container) {
   }
   container.querySelector("#result-modal-close").addEventListener("click", closeHistory);
   modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeHistory(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeHistory(); });
+  if (escapeHandler) document.removeEventListener("keydown", escapeHandler);
+  escapeHandler = (e) => { if (e.key === "Escape") closeHistory(); };
+  document.addEventListener("keydown", escapeHandler);
 
   try {
     const [results, percentileStats] = await Promise.all([

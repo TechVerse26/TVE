@@ -15,6 +15,7 @@ export const state = {
   secondsLeft: 0,
   examLayout: "one",
   attemptsSoFar: 0,
+  submitted: false, // flips to true (synchronously) the moment the final submit starts — blocks double submits
 };
 
 export function resetSessionState(examId) {
@@ -27,6 +28,7 @@ export function resetSessionState(examId) {
   state.secondsLeft = 0;
   state.examLayout = "one";
   state.attemptsSoFar = 0;
+  state.submitted = false;
 }
 
 function shuffleArray(arr) {

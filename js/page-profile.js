@@ -180,7 +180,7 @@ export async function initProfilePage(params, container) {
   fetchMyResults(user.uid)
     .then((results) => {
       const liveNum = container.querySelector('[data-stat="live"]');
-      if (liveNum) liveNum.textContent = results.length;
+      if (liveNum) liveNum.textContent = results.filter((r) => r.examType !== "practice").length; // live exams only — practice attempts have their own place
       if (!results.length) return;
       const total = results.length;
       const avg = Math.round(results.reduce((s, r) => s + (Number(r.percent) || 0), 0) / total);

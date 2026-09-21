@@ -15,7 +15,9 @@ export function toast(message, type = "info") {
   }
   const el = document.createElement("div");
   el.className = `toast ${type}`;
-  el.innerHTML = message;
+  // textContent, not innerHTML: some messages embed user-controlled text (a student's display name in
+  // the admin "roll set" toast, for one) — rendering that as HTML was a stored-XSS hole into the admin session.
+  el.textContent = message;
   root.appendChild(el);
   setTimeout(() => {
     el.style.transition = "opacity .3s, transform .3s";
@@ -122,6 +124,8 @@ export function confirmAction(message, { title = "নিশ্চিত কর�
     function finish(v) { if (settled) return; settled = true; closeModal(); resolve(v); }
     overlay.querySelector("#cf-cancel").addEventListener("click", () => finish(false));
     overlay.querySelector("#cf-ok").addEventListener("click", () => finish(true));
+    // openModal() already closes the dialog on a backdrop click; also settle the promise as "cancel".
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) finish(false); });
   });
 }
 
@@ -132,6 +136,12 @@ export function escapeHtml(str = "") {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/* Bengali numerals (০-৯) for sentences written in Bengali, e.g. "৪৮ ঘণ্টা" */
+const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+export function toBnDigits(value) {
+  return String(value).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
 }
 
 export function formatTime(totalSeconds) {

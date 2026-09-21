@@ -23,7 +23,7 @@ export async function renderNav(activePage = "") {
     <nav class="topnav">
       <div class="container topnav-inner">
         <a href="#/home" class="brand">
-          <img src="assets/logo.png" alt="TVexam" class="brand-logo">
+          <img src="assets/logo.svg" alt="TVexam" class="brand-logo" width="151" height="34">
         </a>
 
         <!-- Desktop links -->
@@ -67,7 +67,7 @@ export async function renderNav(activePage = "") {
           </div>
         ` : `
           <div class="nav-drawer-brand">
-            <img src="assets/logo.png" alt="TVexam" class="brand-logo">
+            <img src="assets/logo.svg" alt="TVexam" class="brand-logo" width="151" height="34">
           </div>
         `}
         <button class="nav-drawer-close" id="nav-drawer-close" aria-label="Close menu">

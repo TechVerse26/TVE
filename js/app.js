@@ -7,6 +7,7 @@ import { initResultsPage } from "./page-results.js";
 import { initProfilePage } from "./page-profile.js";
 import { initLoginPage } from "./page-login.js";
 import { initSignupPage } from "./page-signup.js";
+import { unmountReport } from "./exam-report.js";
 
 const pageExam = document.getElementById("page-exam");
 const pageGeneric = document.getElementById("page-generic");
@@ -53,7 +54,18 @@ const router = new Router(
       mount.innerHTML = `<div class="container page-pad"><div class="exs-empty"><h2>Page not found</h2><a href="#/home" class="btn btn-primary mt-16">Return to Home</a></div></div>`;
     }, "Page not found — Tech Verse Exam"),
   },
-  null
+  null,
+  {
+    // Runs on every route change.
+    onNavigate() {
+      // The PDF report only lives while the post-exam result screen is showing.
+      unmountReport();
+      // A modal or drawer that was open when the user pressed Back (or followed
+      // a link) never gets to run its own close handler — without this the page
+      // would stay scroll-locked ("overflow: hidden") on every screen after it.
+      document.body.style.overflow = "";
+    },
+  }
 );
 
 router.start();
