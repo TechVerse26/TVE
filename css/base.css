@@ -78,7 +78,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 
 /* --- Brand logo --- */
 .brand { display: flex; align-items: center; }
-.brand-logo { height: 34px; width: auto; display: block; }
+.brand-logo { height: 34px; width: auto; display: block; flex-shrink: 0; }
 
 /* --- Desktop nav links --- */
 .nav-links { display: flex; align-items: center; gap: 4px; }
@@ -612,9 +612,18 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .rm-row-lock { color: var(--border-strong); font-size: 0.76rem; flex-shrink: 0; }
 .rm-review-panel { display: flex; flex-direction: column; gap: 10px; padding: 2px 2px 6px 4px; }
 .rm-review-panel[hidden] { display: none; }
+.rm-row-note { display: flex; align-items: center; gap: 7px; padding: 0 4px; font-size: 0.76rem; line-height: 1.45; color: var(--text-muted); }
+.rm-row-note i { flex-shrink: 0; font-size: 0.72rem; }
+.rm-row-note.is-open-note { color: var(--accent-soft); }
+.rm-viewonly { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 9px 12px; border-radius: var(--radius-sm); background: var(--bg-elevated-2); border: 1px dashed var(--border-strong); color: var(--text-muted); font-size: 0.8rem; line-height: 1.5; }
+.rm-viewonly i { margin-top: 3px; color: var(--accent-soft); flex-shrink: 0; }
 
 @media print {
   #topnav-root, .site-footer, .exs-no-print, #q-prev, #q-next { display: none !important; }
   body { background: #fff; color: #000; }
   .exs-review-list, .exs-result-hero { color: #000; }
+  /* "My Activity" is VIEW-ONLY: the mistakes shown there must not be printable /
+     saveable as a PDF. The PDF report exists only on the result screen right
+     after an exam (see exam-report.js). */
+  .result-modal-overlay, .rm-review-panel { display: none !important; }
 }

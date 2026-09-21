@@ -21,6 +21,7 @@
 .admin-drawer-close { font-size: 1.05rem; color: var(--text-muted); }
 .admin-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .admin-brand i { color: var(--accent-soft); flex-shrink: 0; }
+.admin-brand-logo { height: 30px; width: auto; display: block; flex-shrink: 0; }
 .admin-brand-tag { color: var(--text-muted); font-family: var(--font-body); font-weight: 600; font-size: 0.76rem; border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 9px; margin-inline-start: 2px; }
 .admin-topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .admin-topbar-link { display: flex; align-items: center; gap: 7px; font-size: 0.86rem; font-weight: 600; color: var(--text-muted); padding: 8px 10px; border-radius: var(--radius-sm); }
@@ -188,7 +189,7 @@
 .pr-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-28deg); opacity: 0.06; pointer-events: none; z-index: 0; }
 .pr-watermark img { width: 420px; }
 .pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #6C5CE7; padding-bottom: 14px; margin-bottom: 20px; position: relative; z-index: 1; }
-.pr-logo { width: 52px; height: 52px; object-fit: contain; }
+.pr-logo { height: 42px; width: auto; flex-shrink: 0; }
 .pr-header h1 { font-size: 1.25rem; color: #1C1D26; margin-bottom: 3px; }
 .pr-header p { font-size: 0.82rem; color: #666A80; }
 .pr-table { width: 100%; border-collapse: collapse; position: relative; z-index: 1; }

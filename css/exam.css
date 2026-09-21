@@ -143,9 +143,7 @@
 
 /* ---------- Result ---------- */
 .exs-result-hero { text-align: center; padding: 34px 20px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); }
-.exs-print-head { display: none; margin-bottom: 20px; }
-.exs-print-title { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; }
-.exs-print-sub { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+.exs-result-examname { color: var(--text-muted); font-size: 0.88rem; font-weight: 600; margin-bottom: 16px; word-break: break-word; }
 .exs-result-ring {
   width: 150px; height: 150px; border-radius: 50%; margin: 0 auto 20px; position: relative;
   display: flex; align-items: center; justify-content: center;
@@ -160,6 +158,21 @@
 .exs-action-box:hover { border-color: var(--accent-soft); }
 .exs-action-box--primary { background: var(--accent); color: #fff; border-color: transparent; }
 .exs-action-box--teal { background: var(--accent-teal); color: #fff; border-color: transparent; }
+button.exs-action-box { font-family: inherit; color: inherit; cursor: pointer; }
+button.exs-action-box--primary, button.exs-action-box--teal { color: #fff; }
+
+/* Save status chip — the result is shown at once, the save runs in the background */
+.exs-save-status { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; padding: 7px 14px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; line-height: 1.4; }
+.exs-save-status:empty { display: none; }
+.exs-save-status.is-saving { background: rgba(232,163,61,0.14); color: var(--accent-amber); }
+.exs-save-status.is-saved { background: rgba(34,168,98,0.14); color: var(--accent-green); }
+.exs-save-status.is-failed, .exs-save-status.is-blocked { background: rgba(225,95,82,0.14); color: var(--accent-coral); }
+.exs-save-retry { font-family: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer; padding: 4px 12px; border-radius: 999px; border: 1px solid currentColor; background: transparent; color: inherit; }
+.exs-save-retry:hover { background: rgba(225,95,82,0.2); }
+.exs-result-note { display: flex; align-items: flex-start; justify-content: center; gap: 8px; max-width: 520px; margin: 16px auto 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.55; text-align: left; }
+.exs-result-note i { margin-top: 3px; color: var(--accent-soft); flex-shrink: 0; }
+.exs-review-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 22px; line-height: 1.55; }
+.exs-review-note i { margin-top: 3px; flex-shrink: 0; }
 
 .exs-review-list { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
 .exs-review-item { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; }
@@ -170,9 +183,67 @@
 .exs-review-explain { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-elevated-2); font-size: 0.87rem; line-height: 1.5; }
 .exs-review-explain i { margin-top: 3px; color: var(--accent-amber); flex-shrink: 0; }
 
+/* ==========================================================================
+   Student result PDF report (built in exam-report.js)
+   Hidden on screen. While the result screen is showing, <body> carries
+   .exs-has-report and this block is the ONLY thing the print view shows — a
+   light, self-contained report, so none of the dark theme leaks into the PDF.
+   ========================================================================== */
+.exs-report { display: none; }
+
+@page {
+  size: A4;
+  margin: 14mm 12mm 17mm;
+  @bottom-right { content: counter(page) " / " counter(pages); font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif; font-size: 9pt; color: #9497AB; }
+}
+
 @media print {
-  .exs-print-head { display: block; }
-  .exs-result-hero, .exs-review-item { border-color: #ccc; background: #fff; }
+  body.exs-has-report > *:not(.exs-report) { display: none !important; }
+  body.exs-has-report { background: #fff !important; color: #1C1D26 !important; padding: 0 !important; min-height: 0 !important; overflow: visible !important; }
+
+  .exs-report {
+    display: block !important;
+    position: relative;
+    font-family: 'Hind Siliguri', 'Noto Sans Bengali', 'Segoe UI', sans-serif;
+    font-size: 10.5pt; line-height: 1.55; color: #1C1D26; background: #fff;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .exs-report *, .exs-report *::before, .exs-report *::after { box-sizing: border-box; }
+
+  .exs-report-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-28deg); opacity: 0.05; z-index: 0; pointer-events: none; }
+  .exs-report-watermark img { width: 440px; height: auto; display: block; }
+  .exs-report > *:not(.exs-report-watermark) { position: relative; z-index: 1; }
+
+  .exs-report-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 3px solid #6C5CE7; }
+  .exs-report-logo { height: 40px; width: auto; display: block; flex-shrink: 0; }
+  .exs-report-title { text-align: right; min-width: 0; }
+  .exs-report-title h1 { font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif; font-size: 17pt; line-height: 1.25; margin: 0; color: #1C1D26; }
+  .exs-report-title p { margin: 2px 0 0; font-size: 10.5pt; color: #666A80; word-break: break-word; }
+
+  .exs-report-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 26px; margin-bottom: 14px; }
+  .exs-report-meta-row { display: flex; gap: 10px; align-items: baseline; padding-bottom: 4px; border-bottom: 1px dashed #D8D9E4; font-size: 10pt; min-width: 0; }
+  .exs-report-meta-row span { color: #666A80; flex-shrink: 0; min-width: 76px; }
+  .exs-report-meta-row b { font-weight: 600; word-break: break-word; }
+
+  .exs-report-summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; margin-bottom: 10px; }
+  .exs-report-tile { border: 1px solid #D8D9E4; border-radius: 6px; padding: 8px 4px 7px; text-align: center; background: #F7F6FE; }
+  .exs-report-tile span { display: block; font-size: 8.5pt; line-height: 1.3; color: #666A80; }
+  .exs-report-tile b { display: block; font-size: 13.5pt; line-height: 1.35; margin-top: 2px; }
+  .exs-report-tile.is-good b { color: #157F5A; }
+  .exs-report-tile.is-bad b { color: #C0392B; }
+  .exs-report-tile.is-warn b { color: #B7791F; }
+  .exs-report-note { margin: 0 0 6px; font-size: 9pt; color: #666A80; }
+
+  .exs-report-h2 { font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif; font-size: 12.5pt; margin: 16px 0 9px; padding: 1px 0 1px 10px; border-left: 4px solid #6C5CE7; color: #1C1D26; break-after: avoid; page-break-after: avoid; }
+  .exs-report-q { border: 1px solid #D8D9E4; border-radius: 6px; padding: 9px 12px; margin-bottom: 8px; background: #fff; break-inside: avoid; page-break-inside: avoid; }
+  .exs-report-q-text { font-weight: 700; margin-bottom: 5px; word-break: break-word; }
+  .exs-report-ans { font-size: 10pt; padding: 1px 0 1px 10px; border-left: 3px solid transparent; word-break: break-word; }
+  .exs-report-ans span { font-weight: 600; }
+  .exs-report-ans.is-wrong { color: #B93A2B; border-left-color: #E15F52; }
+  .exs-report-ans.is-right { color: #157F5A; border-left-color: #22A862; margin-top: 2px; }
+  .exs-report-explain { margin-top: 7px; padding: 6px 10px; border-left: 3px solid #E8A33D; border-radius: 3px; background: #FFF7E3; color: #4A3B12; font-size: 9.5pt; line-height: 1.5; word-break: break-word; }
+  .exs-report-clear { padding: 14px; border: 1px solid #BFE5D2; border-radius: 6px; background: #EAF8F1; color: #157F5A; font-weight: 600; text-align: center; }
+  .exs-report-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #D8D9E4; font-size: 8.5pt; color: #9497AB; text-align: center; }
 }
 
 @media (max-width: 640px) {
