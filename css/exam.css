@@ -113,6 +113,41 @@
 .exs-rules-actions { display: flex; gap: 10px; }
 .exs-rules-actions .btn { flex: 1; }
 
+/* ---------- Exam loading (the instant "Start" is pressed) ----------
+   fetchQuestions() is one Firestore read with no real progress to report, so
+   this is an honest simulation: 12 flat accent ticks chase around a ring,
+   the % eases up to 92 and only snaps to 100 once beginAttempt() has the
+   real data, and the caption line rotates through short status text. Flat
+   colors only — no blur/glow/gradient, same as the rest of this section. */
+.exs-loading-body { padding-top: 2px; }
+.exs-loading-ring { position: relative; width: 116px; height: 116px; margin: 6px auto 22px; }
+.exs-loading-tick {
+  position: absolute; top: 6px; left: 50%; width: 4px; height: 17px; margin-left: -2px;
+  border-radius: 3px; background: var(--accent-soft); opacity: 0.16;
+  transform-origin: 2px 52px; transform: rotate(calc(var(--i) * 30deg));
+  animation: exs-tick-chase 1.15s ease-in-out infinite; animation-delay: calc(var(--i) * -0.096s);
+}
+@keyframes exs-tick-chase { 0%, 55%, 100% { opacity: 0.16; } 12% { opacity: 1; } }
+.exs-loading-pct {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.55rem; color: var(--text-primary);
+}
+.exs-loading-bar-track { height: 8px; border-radius: 999px; background: var(--bg-elevated-2); border: 1px solid var(--border); overflow: hidden; }
+.exs-loading-bar-fill { height: 100%; width: 0%; background: var(--accent); border-radius: inherit; transition: width .25s ease-out, background-color .3s ease; }
+.exs-loading-bar-fill.is-done { background: var(--accent-green); }
+.exs-loading-caption { text-align: center; color: var(--text-muted); font-size: 0.88rem; margin-top: 14px; min-height: 1.3em; transition: opacity .2s ease, transform .2s ease; }
+.exs-loading-caption.exs-caption-out { opacity: 0; transform: translateY(-4px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .exs-loading-tick { animation: none; opacity: 0.55; }
+  .exs-loading-caption, .exs-loading-bar-fill { transition: none; }
+}
+@media (max-width: 380px) {
+  .exs-loading-ring { width: 100px; height: 100px; }
+  .exs-loading-tick { height: 15px; transform-origin: 2px 44px; }
+  .exs-loading-pct { font-size: 1.32rem; }
+}
+
 /* ---------- Taking the exam ---------- */
 .exam-take-wrap { max-width: 700px; margin: 0 auto; padding: 26px 0 80px; }
 .exam-sticky-bar { position: sticky; top: var(--nav-h); z-index: 30; background: var(--bg); padding: 12px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
