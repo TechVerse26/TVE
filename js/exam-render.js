@@ -332,6 +332,80 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
   }
 }
 
+/* ---------- Exam loading screen ----------
+   Shown the instant "Start" resolves the rules gate, replacing that card
+   while fetchQuestions() is in flight. A single Firestore getDocs() call
+   gives no real progress signal, so the percentage is an honest, decelerating
+   simulation — it eases up to 92% and only ever reaches 100% once
+   beginAttempt() calls finish(true) with the real questions in hand — paired
+   with a rotating one-line status so a slow connection still reads as
+   "working", never "stuck". finish(false) (network error, abandoned nav)
+   just stops the timers without claiming a success it didn't have. ---------- */
+const EXS_LOADING_MESSAGES = [
+  "প্রশ্ন যাচাই করা হচ্ছে…",
+  "প্রশ্নব্যাংক থেকে লোড হচ্ছে…",
+  "সেশন প্রস্তুত করা হচ্ছে…",
+  "টাইমার সেট করা হচ্ছে…",
+];
+
+export function renderExamLoading(container, exam) {
+  const ticks = Array.from({ length: 12 }, (_, i) => `<span class="exs-loading-tick" style="--i:${i}"></span>`).join("");
+  container.innerHTML = `
+    <div class="exs-verify-card exs-loading-card">
+      <div class="exs-verify-head">
+        <i class="fa-solid fa-gauge-high"></i>
+        <div><h2>${escapeHtml(exam.title)}</h2><p>এক্সাম প্রস্তুত করা হচ্ছে — একটু অপেক্ষা করুন</p></div>
+      </div>
+      <div class="exs-loading-body">
+        <div class="exs-loading-ring">${ticks}<span class="exs-loading-pct" id="exs-loading-pct">০%</span></div>
+        <div class="exs-loading-bar-track"><div class="exs-loading-bar-fill" id="exs-loading-bar"></div></div>
+        <p class="exs-loading-caption" id="exs-loading-caption" role="status" aria-live="polite">${EXS_LOADING_MESSAGES[0]}</p>
+      </div>
+    </div>`;
+
+  const pctEl = container.querySelector("#exs-loading-pct");
+  const barEl = container.querySelector("#exs-loading-bar");
+  const capEl = container.querySelector("#exs-loading-caption");
+  let pct = 0;
+  const paint = (p) => {
+    pct = p;
+    pctEl.textContent = `${toBnDigits(Math.round(p))}%`;
+    barEl.style.width = `${p}%`;
+  };
+
+  // Diminishing-increment ease: always half-closes the remaining gap to the
+  // 92% ceiling, so it starts fast (visibly "moving" right away) and settles
+  // into a slow crawl instead of ever looking finished before it is.
+  const progressId = setInterval(() => {
+    paint(Math.min(92, pct + Math.max((92 - pct) * 0.06, 0.2)));
+  }, 90);
+
+  let msgIndex = 0;
+  const captionId = setInterval(() => {
+    capEl.classList.add("exs-caption-out");
+    setTimeout(() => {
+      msgIndex = (msgIndex + 1) % EXS_LOADING_MESSAGES.length;
+      capEl.textContent = EXS_LOADING_MESSAGES[msgIndex];
+      capEl.classList.remove("exs-caption-out");
+    }, 200);
+  }, 1400);
+
+  let settled = false;
+  function finish(ok) {
+    if (settled) return;
+    settled = true;
+    clearInterval(progressId);
+    clearInterval(captionId);
+    if (ok && container.contains(pctEl)) {
+      paint(100);
+      barEl.classList.add("is-done");
+      capEl.classList.remove("exs-caption-out");
+      capEl.textContent = "প্রস্তুত! এক্সাম শুরু হচ্ছে…";
+    }
+  }
+  return { finish };
+}
+
 function renderOptionsHtml(q) {
   const isLocked = state.lockedQuestions.has(q.id);
   return `

@@ -9,7 +9,7 @@ import { navigate } from "./router.js";
 import { state, resetSessionState, buildQuestionPool, scoreExam } from "./exam-engine.js";
 import { fetchQuestions, saveResult } from "./exam-data.js";
 import { runVerification, renderRulesGate } from "./exam-guard.js";
-import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult, updateSaveStatus } from "./exam-render.js";
+import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult, updateSaveStatus, renderExamLoading } from "./exam-render.js";
 import { startExamTimer, stopExamTimer, formatClock } from "./exam-timer.js";
 import { renderNav } from "./nav.js";
 import { mountReport, unmountReport } from "./exam-report.js";
@@ -128,7 +128,21 @@ async function runExamEntry(examId, myToken) {
 }
 
 async function beginAttempt(exam, myToken) {
-  const questionBank = await fetchQuestions(state.examId);
+  // fetchQuestions() below is a single Firestore read with no progress of its
+  // own to report — renderExamLoading() gives the student an immediate, honest
+  // "it's working" cue instead of a frozen rules card. wait(600) is just a
+  // floor so the animation can never flash by half-finished on a fast
+  // connection; on a slow one it costs nothing (Promise.all takes the longer
+  // of the two).
+  const loading = renderExamLoading(verifyView, exam);
+  let questionBank;
+  try {
+    [questionBank] = await Promise.all([fetchQuestions(state.examId), wait(600)]);
+    loading.finish(true);
+  } catch (err) {
+    loading.finish(false);
+    throw err;
+  }
   if (myToken !== state.navToken) return;
   if (!questionBank.length) {
     verifyView.innerHTML = `<div class="exs-empty"><p>এই এক্সামে কোনো প্রশ্ন নেই</p></div>`;
