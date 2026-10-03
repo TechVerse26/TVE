@@ -60,6 +60,8 @@
         <div class="admin-section-head">
           <h1>Exam Management</h1>
           <p class="muted">manage exams.</p>
+          <button type="button" class="btn btn-outline btn-sm" id="exams-refresh-btn" title="Re-read the exams from the database"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+          <button type="button" class="btn btn-outline btn-sm" id="optimize-exams-btn" title="One-time: bundle old questions, build student summaries and the exam index (cuts Firestore reads/writes)"><i class="fa-solid fa-bolt"></i> Optimize</button>
           <button class="btn btn-primary" id="add-exam-btn-top">+ New Exam</button>
         </div>
         <div class="card">
