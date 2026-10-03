@@ -13,7 +13,7 @@
 // is never a free-text field the student can edit or overwrite.
 // ==========================================================================
 import { requireAuth, getUserProfile, escapeHtml, toast, formatDate } from "./utils.js";
-import { fetchMyResults } from "./exam-data.js";
+import { fetchProfileStats } from "./exam-data.js";
 import { updateUserProfile, changePassword, logout } from "./auth.js";
 import { renderNav } from "./nav.js";
 import { claimNextRoll } from "./roll.js";
@@ -177,14 +177,13 @@ export async function initProfilePage(params, container) {
     </div>`;
 
   /* ---------- Stats (best-effort — never blocks the rest of the page) ---------- */
-  fetchMyResults(user.uid)
-    .then((results) => {
+  // One small summary document (userStats/{uid}) instead of downloading every result
+  // document just to count and average them. Falls back to the old scan automatically.
+  fetchProfileStats(user.uid)
+    .then(({ total, liveCount, avg, best }) => {
       const liveNum = container.querySelector('[data-stat="live"]');
-      if (liveNum) liveNum.textContent = results.filter((r) => r.examType !== "practice").length; // live exams only — practice attempts have their own place
-      if (!results.length) return;
-      const total = results.length;
-      const avg = Math.round(results.reduce((s, r) => s + (Number(r.percent) || 0), 0) / total);
-      const best = Math.max(...results.map((r) => Number(r.percent) || 0));
+      if (liveNum) liveNum.textContent = liveCount; // live exams only — practice attempts have their own place
+      if (!total) return;
       container.querySelector('[data-stat="avg"]').textContent = `${avg}%`;
       container.querySelector('[data-stat="best"]').textContent = `${best}%`;
     })

@@ -128,7 +128,8 @@ async function runExamEntry(examId, myToken) {
 }
 
 async function beginAttempt(exam, myToken) {
-  // fetchQuestions() below is a single Firestore read with no progress of its
+  // fetchQuestions() below is a single Firestore read (the whole question bank is one
+  // bundle document, and it is cached for a retake) with no progress of its
   // own to report — renderExamLoading() gives the student an immediate, honest
   // "it's working" cue instead of a frozen rules card. wait(600) is just a
   // floor so the animation can never flash by half-finished on a fast
@@ -137,7 +138,7 @@ async function beginAttempt(exam, myToken) {
   const loading = renderExamLoading(verifyView, exam);
   let questionBank;
   try {
-    [questionBank] = await Promise.all([fetchQuestions(state.examId), wait(600)]);
+    [questionBank] = await Promise.all([fetchQuestions(state.examId, exam), wait(600)]);
     loading.finish(true);
   } catch (err) {
     loading.finish(false);

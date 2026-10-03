@@ -4,6 +4,7 @@
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import * as cache from "./cache.js";
 
 /* ---------- Toast ---------- */
 export function toast(message, type = "info") {
@@ -28,9 +29,25 @@ export function toast(message, type = "info") {
 }
 
 /* ---------- User profile (users/{uid}) ---------- */
-export async function getUserProfile(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+/* Cached for 5 minutes (per uid): the nav bar, every exam screen and the exam start all
+   asked for this same document separately — one Firestore read each, on every navigation.
+   Now they share one read. `getUserProfile(uid, { force: true })` skips the cache, and
+   anything that WRITES the users/{uid} doc calls invalidateUserProfile(uid). */
+const PROFILE_TTL_MS = 5 * 60 * 1000;
+export async function getUserProfile(uid, opts) {
+  const profile = await cache.remember(
+    `profile:${uid}`,
+    (v) => (v ? PROFILE_TTL_MS : 15 * 1000), // a missing profile is only remembered briefly
+    async () => {
+      const snap = await getDoc(doc(db, "users", uid));
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    },
+    { force: cache.wantsFresh(opts) },
+  );
+  return profile ? { ...profile } : profile; // a copy, so a caller editing it can't corrupt the cache
+}
+export function invalidateUserProfile(uid) {
+  cache.del(`profile:${uid}`);
 }
 
 /* ---------- Auth state / guards ---------- */
@@ -69,7 +86,7 @@ export async function requireAuth() {
 export async function requireAdmin() {
   const user = await requireAuth();
   if (!user) return null;
-  const profile = await getUserProfile(user.uid);
+  const profile = await getUserProfile(user.uid, { force: true }); // the admin gate never trusts a cached copy
   if (!profile || !profile.isAdmin) {
     toast("এই পেজ দেখার অনুমতি আপনার নেই", "error");
     window.location.href = "index.html#/home";
@@ -79,6 +96,7 @@ export async function requireAdmin() {
 }
 
 export async function logout() {
+  cache.clearAll(); // nothing from this account may be served to the next one
   await signOut(auth);
   window.location.href = "index.html#/login";
 }

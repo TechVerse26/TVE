@@ -9,7 +9,8 @@ import {
   EmailAuthProvider, reauthenticateWithCredential, updatePassword,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { toast, consumePostLoginRedirect } from "./utils.js";
+import { toast, consumePostLoginRedirect, invalidateUserProfile } from "./utils.js";
+import * as cache from "./cache.js";
 import { navigate } from "./router.js";
 
 async function ensureUserDoc(user, extra = {}) {
@@ -26,6 +27,7 @@ async function ensureUserDoc(user, extra = {}) {
       createdAt: serverTimestamp(),
       ...extra,
     });
+    invalidateUserProfile(user.uid);
   }
 }
 
@@ -79,6 +81,7 @@ export async function loginWithGoogle() {
 }
 
 export async function logout() {
+  cache.clearAll(); // nothing from this account may be served to the next one
   await signOut(auth);
   navigate("#/login");
 }
@@ -96,6 +99,7 @@ export async function updateUserProfile(user, { displayName, phone, roll, instit
   const payload = { displayName, phone, institution };
   if (roll !== undefined) payload.roll = roll;
   await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+  invalidateUserProfile(user.uid); // the next screen must see the new name / roll, not a cached copy
 }
 
 export async function changePassword(user, currentPassword, newPassword) {
