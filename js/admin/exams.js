@@ -3,12 +3,18 @@
 // ==========================================================================
 import { db } from "../firebase-config.js";
 import {
-  collection, getDocs, query, orderBy, updateDoc, doc, addDoc, deleteDoc, serverTimestamp, Timestamp,
+  collection, getDocs, query, orderBy, Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   toast, escapeHtml, formatDateTime, openModal, closeModal, confirmAction,
   getExamAvailability, getCoursePricing, formatScore,
 } from "../utils.js";
+import {
+  QUESTION_FORMAT, fetchAllExamsAdmin, primeAdminExams, isAdminExamsCached, fetchQuestionsAdmin,
+  saveExamDoc, deleteExamCompletely, migrateExamQuestions, syncExamIndex, writeExamIndex,
+  fetchAllResultsAdmin, backfillUserStats,
+} from "../exam-data.js";
+import * as cache from "../cache.js";
 import { courses } from "./admin.js";
 import { loadOverview } from "./overview.js";
 
@@ -16,13 +22,31 @@ import { loadOverview } from "./overview.js";
    Exam management
    ========================================================================== */
 export let currentExams = [];
-export async function loadExamsTable() {
+
+/* Reads: the exams collection is fetched at most once per 5 minutes and only when this tab is
+   opened (or ⟳ pressed). Saving / duplicating / deleting an exam updates `currentExams` in memory
+   and rewrites the students' one-document index, so none of them re-scans the collection. */
+export async function loadExamsTable(opts) {
+  const wasCached = isAdminExamsCached();
+  currentExams = await fetchAllExamsAdmin(opts);
+  renderExamsTable();
+  // What we just read IS the truth — make sure the students' index matches it
+  // (1 read; a write only if something differs). Skipped when we merely re-showed cached data.
+  if (!wasCached || cache.wantsFresh(opts)) {
+    syncExamIndex(currentExams, courses).catch(() => { /* retried on the next fresh load */ });
+  }
+}
+
+/** Keep the shared copy, the table, the students' index and the overview in step after ANY exam change (no re-scan). */
+function afterExamsChanged() {
+  primeAdminExams(currentExams);
+  renderExamsTable();
+  writeExamIndex(currentExams, courses).catch(() => { /* self-heals via syncExamIndex on the next fresh load */ });
+  loadOverview();
+}
+
+function renderExamsTable() {
   const tbody = document.querySelector("#exams-table tbody");
-  // Fetched without orderBy() on purpose — see the matching note in exam.js loadExamList().
-  const snap = await getDocs(collection(db, "exams"));
-  currentExams = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   if (!currentExams.length) {
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon"><i class="fa-solid fa-file-pen"></i></div><p>No exams created yet</p></div></td></tr>`;
   } else {
@@ -61,22 +85,16 @@ async function duplicateExamAsPractice(examId) {
   if (!ex) return;
   if (!(await confirmAction(`"${ex.title}" এর একটি Practice কপি তৈরি করবেন? (একই প্রশ্নব্যাংক সহ, নতুন এক্সাম হিসেবে)`))) return;
   try {
-    const qSnap = await getDocs(query(collection(db, "exams", ex.id, "questions"), orderBy("order")));
-    const questions = qSnap.docs.map((d) => d.data());
-    const { id, createdAt, examType, publishAt, closesAt, availableHours, ...rest } = ex;
-    const newRef = await addDoc(collection(db, "exams"), {
-      ...rest,
-      title: `${ex.title} (Practice)`,
-      examType: "practice",
-      publishAt: null,
-      closesAt: null,
-      availableHours: 0,
-      createdAt: serverTimestamp(),
+    const questions = await fetchQuestionsAdmin(ex.id, ex); // 1 read for a bundle exam
+    const { id, createdAt, examType, publishAt, closesAt, availableHours, qFormat, qChunks, ...rest } = ex;
+    const data = { ...rest, title: `${ex.title} (Practice)`, examType: "practice", publishAt: null, closesAt: null, availableHours: 0 };
+    const saved = await saveExamDoc({ data, questions }); // exam + whole question bank = one atomic write
+    currentExams.unshift({
+      id: saved.id, ...data, createdAt: Timestamp.now(),
+      ...(saved.format === QUESTION_FORMAT ? { qFormat: QUESTION_FORMAT, qChunks: saved.chunks } : {}),
     });
-    await Promise.all(questions.map((q, i) => addDoc(collection(db, "exams", newRef.id, "questions"), { ...q, order: i })));
     toast("Practice exam তৈরি হয়েছে", "success");
-    loadExamsTable();
-    loadOverview();
+    afterExamsChanged();
   } catch {
     toast("Could not duplicate", "error");
   }
@@ -140,8 +158,9 @@ async function openExamModal(examId) {
   const ex = examId ? currentExams.find((x) => x.id === examId) : null;
   let questionDrafts = [];
   if (ex) {
-    const qSnap = await getDocs(query(collection(db, "exams", ex.id, "questions"), orderBy("order")));
-    questionDrafts = qSnap.docs.map((d) => ({ text: d.data().text, options: d.data().options, correctIndex: d.data().correctIndex, explanation: d.data().explanation || "" }));
+    // One bundle document for an up-to-date exam (1 read); the old per-question docs only for exams not optimised yet.
+    const loaded = await fetchQuestionsAdmin(ex.id, ex);
+    questionDrafts = loaded.map((q) => ({ text: q.text, options: q.options, correctIndex: q.correctIndex, explanation: q.explanation || "" }));
   }
 
   const overlay = openModal(`
@@ -302,8 +321,11 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
   async function loadLessonPicker(courseId, checkedIds) {
     lessonPicker.innerHTML = `<div class="empty-state" style="padding:14px;">Loading lessons...</div>`;
     if (!examLessonsCache[courseId]) {
-      const snap = await getDocs(query(collection(db, "courses", courseId, "lessons"), orderBy("order")));
-      examLessonsCache[courseId] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // Shared across modals for 10 minutes — re-opening the editor no longer re-reads a course's lessons.
+      examLessonsCache[courseId] = await cache.remember(`lessons:${courseId}`, 10 * 60 * 1000, async () => {
+        const snap = await getDocs(query(collection(db, "courses", courseId, "lessons"), orderBy("order")));
+        return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      });
     }
     const courseLessons = examLessonsCache[courseId];
     if (!courseLessons.length) {
@@ -567,22 +589,25 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         payload.closesAt = availableHours > 0 ? Timestamp.fromDate(new Date(publishDate.getTime() + availableHours * 3600000)) : null;
       }
 
-      let examRef;
+      // Exam doc + the WHOLE question bank in one atomic write (was: update + read/delete/add every question).
+      const saved = await saveExamDoc({
+        examId: ex ? ex.id : null,
+        data: payload,
+        questions: questionDrafts,
+        prevChunks: ex?.qChunks || 1,
+      });
+      const bundleMeta = saved.format === QUESTION_FORMAT ? { qFormat: QUESTION_FORMAT, qChunks: saved.chunks } : {};
       if (ex) {
-        examRef = doc(db, "exams", ex.id);
-        await updateDoc(examRef, payload);
-        const oldQ = await getDocs(collection(db, "exams", ex.id, "questions"));
-        await Promise.all(oldQ.docs.map((d) => deleteDoc(d.ref)));
+        const i = currentExams.findIndex((x) => x.id === ex.id);
+        const { qFormat, qChunks, ...previous } = i >= 0 ? currentExams[i] : ex;
+        const next = { ...previous, ...payload, ...bundleMeta };
+        if (i >= 0) currentExams[i] = next; else currentExams.unshift(next);
       } else {
-        examRef = await addDoc(collection(db, "exams"), { ...payload, createdAt: serverTimestamp() });
+        currentExams.unshift({ id: saved.id, ...payload, ...bundleMeta, createdAt: Timestamp.now() });
       }
-      await Promise.all(
-        questionDrafts.map((q, i) => addDoc(collection(db, "exams", examRef.id, "questions"), { text: q.text, options: q.options, correctIndex: q.correctIndex, explanation: (q.explanation || "").trim(), order: i }))
-      );
       toast(ex ? "Exam updated" : "Exam created", "success");
       closeModal();
-      loadExamsTable();
-      loadOverview();
+      afterExamsChanged();
     } catch {
       toast("Could not save", "error");
       btn.disabled = false;
@@ -595,14 +620,93 @@ async function deleteExam(examId) {
   const ex = currentExams.find((x) => x.id === examId);
   if (!(await confirmAction(`Do you want to delete the exam "${ex?.title || ""}"?`))) return;
   try {
-    const qSnap = await getDocs(collection(db, "exams", examId, "questions"));
-    await Promise.all(qSnap.docs.map((d) => deleteDoc(d.ref)));
-    await deleteDoc(doc(db, "exams", examId));
+    await deleteExamCompletely(examId, ex); // exam + its question bundle: one atomic batch
+    currentExams = currentExams.filter((x) => x.id !== examId);
     toast("Exam deleted", "success");
-    loadExamsTable();
-    loadOverview();
+    afterExamsChanged();
   } catch {
     toast("Could not delete", "error");
   }
 }
 
+/* ==========================================================================
+   ⚡ Optimize — run ONCE after upgrading (safe to run again any time)
+   1. Converts every old exam (one Firestore document per question) into a single question
+      bundle. Costs one read per old question, one time; afterwards a student loads the whole
+      exam with 1 read instead of 50, and editing it is 1 write instead of ~150 operations.
+   2. Gives every student a one-document results summary (userStats) — the exam list and the
+      profile page read that instead of one document per exam / per result.
+   3. Rebuilds the students' one-document exam index.
+   ========================================================================== */
+document.getElementById("exams-refresh-btn")?.addEventListener("click", loadExamsTable);
+document.getElementById("optimize-exams-btn")?.addEventListener("click", optimizeAll);
+
+let optimizing = false;
+async function optimizeAll() {
+  if (optimizing) return;
+  const ok = await confirmAction(
+    "এটি একবার চালালেই হবে: (১) পুরোনো এক্সামের প্রশ্নগুলো এক ডকুমেন্টে জড়ো করা, (২) প্রতিটি শিক্ষার্থীর রেজাল্ট সারাংশ তৈরি, (৩) এক্সাম ইনডেক্স তৈরি। এতে একবারের জন্য কিছু read/write খরচ হবে, তবে এরপর প্রতিদিনের খরচ অনেক কমে যাবে। চালাবেন?",
+    { title: "⚡ Optimize", confirmLabel: "হ্যাঁ, চালান" },
+  );
+  if (!ok) return;
+
+  optimizing = true;
+  const btn = document.getElementById("optimize-exams-btn");
+  const original = btn ? btn.innerHTML : "";
+  if (btn) btn.disabled = true;
+  const step = (text) => { if (btn) btn.innerHTML = `<span class="spinner"></span> ${escapeHtml(text)}`; };
+
+  try {
+    // 1) exams — read the real collection so we convert exactly what is in the database
+    step("Exams…");
+    const exams = await fetchAllExamsAdmin({ force: true });
+    let converted = 0;
+    let failed = 0;
+    let rulesMissing = false;
+    for (let i = 0; i < exams.length; i++) {
+      if (Number(exams[i].qFormat) === QUESTION_FORMAT) continue;
+      step(`Exam ${i + 1}/${exams.length}`);
+      try {
+        const r = await migrateExamQuestions(exams[i]);
+        if (r.migrated) { converted++; exams[i] = { ...exams[i], qFormat: QUESTION_FORMAT, qChunks: r.chunks }; }
+        else if (r.reason === "rules") { rulesMissing = true; break; }
+      } catch {
+        failed++;
+      }
+    }
+    currentExams = exams;
+    primeAdminExams(exams);
+    renderExamsTable();
+    if (rulesMissing) {
+      toast("firestore.rules এখনো Publish করা হয়নি। আগে rules Publish করে তারপর আবার Optimize চালান।", "error");
+      return;
+    }
+
+    // 2) every student's results summary (also makes the overview's "students who attempted" exact)
+    let summarised = false;
+    try {
+      step("Students…");
+      const results = await fetchAllResultsAdmin({ force: true });
+      await backfillUserStats(results, (done, total) => step(`Students ${done}/${total}`));
+      summarised = true;
+    } catch (err) {
+      console.warn("Could not write the student summaries:", err);
+    }
+
+    // 3) the students' exam index (one write)
+    step("Index…");
+    const indexed = await writeExamIndex(exams, courses, { statsBackfilled: summarised });
+
+    const parts = [`${converted} টি এক্সাম কনভার্ট হয়েছে`];
+    if (failed) parts.push(`${failed} টি ব্যর্থ`);
+    if (!summarised) parts.push("রেজাল্ট সারাংশ তৈরি হয়নি");
+    if (!indexed) parts.push("ইনডেক্স লেখা যায়নি");
+    toast(`Optimize শেষ — ${parts.join(", ")}`, failed || !summarised || !indexed ? "error" : "success");
+    loadOverview();
+  } catch {
+    toast("Optimize সম্পন্ন করা যায়নি, আবার চেষ্টা করুন", "error");
+  } finally {
+    optimizing = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+  }
+}

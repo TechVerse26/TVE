@@ -43,11 +43,12 @@ function renderTable() {
   }).join("");
 }
 
-export async function loadResultsTable() {
+/* Opened lazily, data shared with the other tabs (see exam-data.js); the ⟳ button passes its click Event = re-read. */
+export async function loadResultsTable(opts) {
   const tbody = document.querySelector("#results-table tbody");
   if (tbody) tbody.innerHTML = `<tr><td colspan="7"><div class="loading-screen"><span class="spinner"></span></div></td></tr>`;
   try {
-    const [results, exams, users] = await Promise.all([fetchAllResultsAdmin(), fetchAllExams(), fetchAllUsersAdmin()]);
+    const [results, exams, users] = await Promise.all([fetchAllResultsAdmin(opts), fetchAllExams(opts), fetchAllUsersAdmin(opts)]);
     allResults = results;
     allExams = exams;
     usersById = Object.fromEntries(users.map((u) => [u.id, u]));

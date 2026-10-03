@@ -154,11 +154,11 @@ function bindRollCellActions() {
   });
 }
 
-export async function loadStudentsTable() {
+export async function loadStudentsTable(opts) {
   const tbody = document.querySelector("#students-table tbody");
   if (tbody) tbody.innerHTML = `<tr><td colspan="5"><div class="loading-screen"><span class="spinner"></span></div></td></tr>`;
   try {
-    const [users, results] = await Promise.all([fetchAllUsersAdmin(), fetchAllResultsAdmin()]);
+    const [users, results] = await Promise.all([fetchAllUsersAdmin(opts), fetchAllResultsAdmin(opts)]);
     allUsers = users;
     attemptsByUid = {};
     results.forEach((r) => { attemptsByUid[r.uid] = (attemptsByUid[r.uid] || 0) + countAttempts(r); });

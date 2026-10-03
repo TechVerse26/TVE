@@ -4,6 +4,8 @@
 import { db } from "../firebase-config.js";
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { requireAdmin, logout } from "../utils.js";
+import { getExamCatalog, fetchAllExamsAdmin, syncExamIndex } from "../exam-data.js";
+import * as cache from "../cache.js";
 import { loadOverview } from "./overview.js";
 import { loadExamsTable } from "./exams.js";
 import { loadResultsTable, bindResultsControls } from "./results.js";
@@ -13,10 +15,40 @@ import { loadStudentsTable, bindStudentsControls } from "./students.js";
 export let me = null;
 export let courses = [];
 
-export async function refreshCourses() {
-  const snap = await getDocs(collection(db, "courses"));
-  courses = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+// The course list rarely changes: read it once per 10 minutes, not on every panel open.
+export async function refreshCourses(opts) {
+  courses = await cache.remember("admin:courses", 10 * 60 * 1000, async () => {
+    const snap = await getDocs(collection(db, "courses"));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }, { force: cache.wantsFresh(opts) });
   return courses;
+}
+
+/* Each tab loads the FIRST time it is opened — not all five at once on every page load —
+   and they all share the same cached collections (see exam-data.js), so opening more tabs
+   costs nothing extra. The ⟳ buttons inside each tab force a real re-read. */
+const sectionLoaders = {
+  overview: () => loadOverview(),
+  exams: () => loadExamsTable(),
+  results: () => loadResultsTable(),
+  leaderboard: () => loadLeaderboard(),
+  students: () => loadStudentsTable(),
+};
+const loadedSections = new Set();
+function ensureSectionLoaded(section) {
+  if (loadedSections.has(section) || !sectionLoaders[section]) return;
+  loadedSections.add(section);
+  Promise.resolve(sectionLoaders[section]()).catch(() => loadedSections.delete(section));
+}
+
+/* If the students' one-document exam index does not exist yet (first run after the upgrade),
+   build it from the real exams. Normally this is a single cheap read that finds it already there. */
+async function ensureExamIndex() {
+  try {
+    const catalog = await getExamCatalog();
+    if (catalog.source === "index") return;
+    await syncExamIndex(await fetchAllExamsAdmin(), courses);
+  } catch { /* students keep working on the slower path; ⚡ Optimize fixes it */ }
 }
 
 function bindSidebar() {
@@ -36,6 +68,7 @@ function bindSidebar() {
       document.querySelectorAll(".admin-section").forEach((s) => s.classList.remove("active"));
       btn.classList.add("active");
       document.getElementById(`section-${btn.dataset.section}`).classList.add("active");
+      ensureSectionLoaded(btn.dataset.section);
       closeDrawer();
     });
   });
@@ -62,11 +95,8 @@ async function init() {
   bindStudentsControls();
 
   await refreshCourses();
-  loadOverview();
-  loadExamsTable();
-  loadResultsTable();
-  loadLeaderboard();
-  loadStudentsTable();
+  ensureSectionLoaded("overview"); // the landing tab; the others load when opened
+  ensureExamIndex();
 }
 
 init();

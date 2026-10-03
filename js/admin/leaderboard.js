@@ -153,19 +153,26 @@ function renderTable() {
   });
 }
 
-export async function loadLeaderboard() {
+let lastPublishedPercents = "";
+export async function loadLeaderboard(opts) {
   const tbody = document.querySelector("#leaderboard-table tbody");
   if (tbody) tbody.innerHTML = `<tr><td colspan="2"><div class="loading-screen"><span class="spinner"></span></div></td></tr>`;
   try {
-    const [users, results] = await Promise.all([fetchAllUsersAdmin(), fetchAllResultsAdmin()]);
+    const [users, results] = await Promise.all([fetchAllUsersAdmin(opts), fetchAllResultsAdmin(opts)]);
     leaderboard = buildLeaderboard(users, results);
     renderTable();
-    // Refresh the anonymous percentile pool every time an admin opens this
+    // Refresh the anonymous percentile pool whenever an admin loads this
     // tab, so students' "my rank" card (My Results page) has a reasonably
     // fresh comparison set without ever letting a student query the raw
     // results collection themselves. Best-effort — a student's own rank
     // card still works from whatever was last published if this fails.
-    publishPercentileStats(leaderboard.map((row) => row.avgPercent)).catch(() => {});
+    // Skipped when the numbers are identical to what this page already published (saves a write).
+    const percents = leaderboard.map((row) => row.avgPercent);
+    const signature = percents.join(",");
+    if (signature !== lastPublishedPercents) {
+      lastPublishedPercents = signature;
+      publishPercentileStats(percents).catch(() => { lastPublishedPercents = ""; });
+    }
   } catch {
     if (tbody) tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state"><p>লোড করা যায়নি</p></div></td></tr>`;
   }
