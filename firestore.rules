@@ -10,6 +10,22 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
+    /* ---------- অ্যাডমিন রোল (অ্যাডমিন প্যানেল v2) ----------
+       কে অ্যাডমিন সেটা আগের মতোই users/{uid}.isAdmin। adminRoles/{uid}.role শুধু ঠিক করে সে এই প্যানেলে কী করতে পারবে।
+       adminRoles ডকুমেন্ট না থাকলে = Super Admin — তাই বিদ্যমান সব অ্যাডমিন আগের মতোই পূর্ণ অ্যাক্সেস পায়। */
+    function isSuperAdmin() {
+      return isAdmin() && (
+        !exists(/databases/$(database)/documents/adminRoles/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/adminRoles/$(request.auth.uid)).data.role == "super"
+      );
+    }
+    function canEditContent() {
+      return isAdmin() && (
+        !exists(/databases/$(database)/documents/adminRoles/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/adminRoles/$(request.auth.uid)).data.role in ["super", "manager", "editor"]
+      );
+    }
+
     /* ---------- একটা like/unlike toggle বৈধ কিনা যাচাই (discussions + replies দুই জায়গাতেই ব্যবহৃত) ----------
        শর্ত: (ক) শুধু request.auth.uid-টাই যোগ/বাদ হয়েছে, বাকি সব uid অপরিবর্তিত আছে,
        (খ) লিস্টের সাইজ ঠিক ১ বেড়েছে (লাইক) বা ঠিক ১ কমেছে (আনলাইক)।
@@ -69,9 +85,10 @@ match /counters/{counterId} {
       allow create: if isSignedIn() && request.auth.uid == uid &&
         request.resource.data.isAdmin == false;
 
+      // অ্যাডমিনরা রোল/স্ট্যাটাস সহ সবকিছু এডিট করতে পারে; কিন্তু কারও isAdmin ফ্ল্যাগ (অ্যাডমিন যোগ/বাদ) বদলাতে পারে শুধু Super Admin।
       allow update: if isSignedIn() && (
         (request.auth.uid == uid && request.resource.data.isAdmin == resource.data.isAdmin) ||
-        isAdmin()
+        (isAdmin() && (request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false) || isSuperAdmin()))
       );
 
       // নিজের অ্যাকাউন্ট নিজে ডিলিট করতে পারবে (প্রোফাইল পেজের "অ্যাকাউন্ট মুছে ফেলুন"), অ্যাডমিনও যে-কারো ডিলিট করতে পারবে
@@ -335,5 +352,42 @@ match /counters/{counterId} {
         allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
       }
     }
+
+    /* ==========================================================================
+       অ্যাডমিন প্যানেল v2 — নতুন কালেকশন (সবকটিই শুধু অ্যাডমিনের জন্য; শিক্ষার্থী কিছুই পড়তে পারে না)
+       ========================================================================== */
+
+    /* রোল: শুধু Super Admin বদলাতে পারে */
+    match /adminRoles/{uid} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    /* সেটিংস (adminSettings/main): পড়বে যেকোনো অ্যাডমিন, লিখবে শুধু Super Admin */
+    match /adminSettings/{docId} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    /* অ্যাক্টিভিটি লগ: নিজের নামে যোগ করা যায়, এডিট করা যায় না, মুছতে পারে শুধু Super Admin */
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isSuperAdmin();
+    }
+
+    /* বিষয় ও ক্যাটাগরি (examTaxonomy/main) */
+    match /examTaxonomy/{docId} {
+      allow read: if isAdmin();
+      allow write: if canEditContent();
+    }
+
+    /* প্রশ্নব্যাংক (questionBank/meta, qb__0, qb__1 …) — সঠিক উত্তর আছে, তাই শিক্ষার্থীদের জন্য কখনোই পড়ার অনুমতি নেই */
+    match /questionBank/{docId} {
+      allow read: if isAdmin();
+      allow write: if canEditContent();
+    }
+
   }
 }

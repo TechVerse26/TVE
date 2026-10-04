@@ -3,154 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Panel — Tech Verse Exam</title>
-<meta name="robots" content="noindex">
+<title>Admin — Tech Verse Exam</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="assets/favicon.ico">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
 
-<div id="admin-gate" class="loading-screen"><span class="spinner"></span> Verifying...</div>
+<div id="admin-gate" class="loading-screen"><span class="spinner"></span> Verifying access…</div>
 
 <div class="admin-app hidden" id="admin-shell">
   <header class="admin-topbar">
     <div class="admin-topbar-left">
-      <button class="admin-drawer-toggle" id="admin-drawer-toggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
-      <a href="index.html" class="admin-brand" aria-label="TVexam — Admin"><img src="assets/logo.svg" alt="TVexam" class="admin-brand-logo" width="133" height="30"><span class="admin-brand-tag">Admin</span></a>
+      <button type="button" class="admin-drawer-toggle" id="admin-drawer-toggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+      <a href="index.html" class="admin-brand" aria-label="Tech Verse Exam — site">
+        <img src="assets/logo.svg" alt="" class="admin-brand-logo" width="120" height="28">
+        <span class="admin-brand-name" id="admin-brand-name">Tech Verse Exam</span>
+      </a>
+      <span class="chip accent" id="admin-role-chip"></span>
     </div>
     <div class="admin-topbar-right">
-      <a href="index.html" class="admin-topbar-link"><i class="fa-solid fa-arrow-left"></i><span>Return to site</span></a>
-      <button type="button" class="nav-user-chip" id="admin-logout-btn">
+      <a href="index.html" class="admin-topbar-link"><i class="fa-solid fa-arrow-up-right-from-square"></i><span>View site</span></a>
+      <span class="nav-user-chip" title="Signed in as">
         <span class="nav-avatar" id="admin-user-avatar">?</span>
-        <span id="admin-user-name">...</span>
-      </button>
+        <span id="admin-user-name">…</span>
+      </span>
+      <button type="button" class="admin-topbar-link" id="admin-logout-btn" title="Sign out"><i class="fa-solid fa-right-from-bracket"></i><span>Sign out</span></button>
     </div>
   </header>
 
   <div class="admin-sidebar-backdrop" id="admin-sidebar-backdrop"></div>
 
   <div class="admin-body">
-    <aside class="admin-sidebar" id="admin-sidebar">
+    <aside class="admin-sidebar" id="admin-sidebar" aria-label="Admin navigation">
       <div class="admin-sidebar-mobile-head">
-        <span>মেনু</span>
-        <button class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
+        <span>Menu</span>
+        <button type="button" class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <nav class="admin-nav" id="admin-nav">
-        <button class="admin-nav-item active" data-section="overview"><span><i class="fa-solid fa-chart-pie"></i></span> Overview</button>
-        <button class="admin-nav-item" data-section="exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
-        <button class="admin-nav-item" data-section="results"><span><i class="fa-solid fa-chart-simple"></i></span> Results</button>
-        <button class="admin-nav-item" data-section="leaderboard"><span><i class="fa-solid fa-ranking-star"></i></span> Leaderboard</button>
-        <button class="admin-nav-item" data-section="students"><span><i class="fa-solid fa-users"></i></span> Students</button>
-      </nav>
+      <nav class="admin-nav" id="admin-nav"></nav>
     </aside>
 
-    <main class="admin-main">
-      <!-- Overview -->
-      <section class="admin-section active" id="section-overview">
-        <div class="admin-section-head ov-head">
-          <div><h1>Overview</h1><p class="muted">Exam site statistics at a glance</p></div>
-          <button type="button" class="btn btn-outline btn-sm" id="overview-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> Refresh</button>
-        </div>
-        <div class="ov-stat-grid" id="overview-stat-grid"><div class="loading-screen"><span class="spinner"></span></div></div>
-      </section>
-
-      <!-- Exams -->
-      <section class="admin-section" id="section-exams">
-        <div class="admin-section-head">
-          <h1>Exam Management</h1>
-          <p class="muted">manage exams.</p>
-          <button type="button" class="btn btn-outline btn-sm" id="exams-refresh-btn" title="Re-read the exams from the database"><i class="fa-solid fa-arrow-rotate-right"></i></button>
-          <button type="button" class="btn btn-outline btn-sm" id="optimize-exams-btn" title="One-time: bundle old questions, build student summaries and the exam index (cuts Firestore reads/writes)"><i class="fa-solid fa-bolt"></i> Optimize</button>
-          <button class="btn btn-primary" id="add-exam-btn-top">+ New Exam</button>
-        </div>
-        <div class="card">
-          <div class="table-wrap"><table class="data-table" id="exams-table">
-            <thead><tr><th>Exam</th><th>Type</th><th>Course Tag</th><th>Scope</th><th>Questions</th><th>Time</th><th>Settings</th><th>Schedule</th><th></th></tr></thead>
-            <tbody><tr><td colspan="9"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
-          </table></div>
-        </div>
-      </section>
-
-      <!-- Results -->
-      <section class="admin-section" id="section-results">
-        <div class="admin-section-head">
-          <h1>Results</h1>
-          <p class="muted">Results of all exam attempts</p>
-        </div>
-        <div class="card">
-          <div class="res-toolbar">
-            <div class="field" style="margin:0; flex:1.2; min-width:180px;">
-              <label>Exam</label>
-              <select id="res-exam-filter"><option value="">All exams</option></select>
-            </div>
-            <div class="field" style="margin:0; flex:1; min-width:180px;">
-              <label>Search</label>
-              <input type="text" id="res-search" placeholder="Name or email">
-            </div>
-            <button type="button" class="btn btn-outline" id="res-export-btn" style="margin-top:22px;"><i class="fa-solid fa-download"></i> CSV Export</button>
-            <button type="button" class="btn btn-outline btn-sm" id="res-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
-          </div>
-        </div>
-        <div class="card mt-16">
-          <div class="table-wrap"><table class="data-table" id="results-table">
-            <thead><tr><th>Student</th><th>Exam</th><th>Type</th><th>Score</th><th>Percent</th><th>Attempt</th><th>Submitted</th></tr></thead>
-            <tbody><tr><td colspan="7"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
-          </table></div>
-        </div>
-      </section>
-
-      <!-- Leaderboard -->
+    <main class="admin-main" id="admin-main">
+      <!-- Pages are created by js/admin/admin.js the first time they are opened.
+           Leaderboard keeps its original markup because js/admin/leaderboard.js binds to these ids. -->
       <section class="admin-section" id="section-leaderboard">
-        <div class="admin-section-head">
-          <h1>Leaderboard</h1>
-          <p class="muted">Ranked list according to best results</p>
-        </div>
-        <div class="card">
-          <div class="res-toolbar">
-            <div class="field" style="margin:0; flex:1; min-width:200px;">
-              <label>Search</label>
-              <input type="text" id="lb-search" placeholder="Name or email">
-            </div>
-            <button type="button" class="btn btn-teal" id="lb-pdf-btn" style="margin-top:22px;"><i class="fa-solid fa-file-pdf"></i>PDF</button>
-            <button type="button" class="btn btn-outline btn-sm" id="lb-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+        <div class="page-head">
+          <div><h1>Leaderboard</h1><p>Students ranked by the average of their best live-exam results.</p></div>
+          <div class="page-actions">
+            <button type="button" class="btn btn-teal btn-sm" id="lb-pdf-btn"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+            <button type="button" class="btn btn-outline btn-sm" id="lb-refresh-btn" title="Re-read from the database"><i class="fa-solid fa-arrow-rotate-right"></i></button>
           </div>
         </div>
-        <div class="card mt-16">
-          <div class="table-wrap"><table class="data-table" id="leaderboard-table">
+        <div class="panel">
+          <div class="toolbar">
+            <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="lb-search" placeholder="Search name or email"></div>
+          </div>
+          <div class="tbl-wrap"><table class="data-table" id="leaderboard-table">
             <thead><tr><th>Rank</th><th>Student</th></tr></thead>
             <tbody><tr><td colspan="2"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
-          </table></div>
-        </div>
-      </section>
-
-      <!-- Students -->
-      <section class="admin-section" id="section-students">
-        <div class="admin-section-head">
-          <h1>Students</h1>
-          <p class="muted">Enrollment and Attempt Overview</p>
-        </div>
-        <div class="card">
-          <div class="res-toolbar">
-            <div class="field" style="margin:0; flex:1; min-width:200px;">
-              <label>Search</label>
-              <input type="text" id="stu-search" placeholder="Name, Email or Role">
-            </div>
-            <div class="field" style="margin:0; min-width:170px;">
-              <label>Short</label>
-              <select id="stu-sort">
-                <option value="roll-asc">Roll low to high</option>
-                <option value="roll-desc">Roll high to low</option>
-                <option value="name-asc">All users</option>
-              </select>
-            </div>
-            <button type="button" class="btn btn-outline btn-sm" id="stu-refresh-btn" style="margin-top:22px;"><i class="fa-solid fa-arrow-rotate-right"></i></button>
-          </div>
-        </div>
-        <div class="card mt-16">
-          <div class="table-wrap"><table class="data-table" id="students-table">
-            <thead><tr><th>Student</th><th>Roll</th><th>Enrolled Courses</th><th>Attempts</th><th>Role</th></tr></thead>
-            <tbody><tr><td colspan="5"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
           </table></div>
         </div>
       </section>
@@ -158,10 +70,7 @@
   </div>
 </div>
 
+<noscript><p style="padding:24px">The admin panel needs JavaScript.</p></noscript>
 <script type="module" src="js/admin/admin.js"></script>
-<script type="module">
-  import { loadOverview } from "./js/admin/overview.js";
-  document.getElementById("overview-refresh-btn")?.addEventListener("click", loadOverview);
-</script>
 </body>
 </html>
