@@ -1,9 +1,12 @@
 // ==========================================================================
-// admin/exams.js — Exam management
+// admin/exams.js — Exam management: searchable/filterable list, status (draft/published),
+// bulk actions, per-exam statistics, and the full exam editor (settings + questions).
+// The editor and the atomic save/delete logic are the original ones; this version adds
+// status, subject/category, pass mark, instructions, a Question Bank picker and an audit trail.
 // ==========================================================================
 import { db } from "../firebase-config.js";
 import {
-  collection, getDocs, query, orderBy, Timestamp,
+  collection, getDocs, query, orderBy, Timestamp, doc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   toast, escapeHtml, formatDateTime, openModal, closeModal, confirmAction,
@@ -12,91 +15,306 @@ import {
 import {
   QUESTION_FORMAT, fetchAllExamsAdmin, primeAdminExams, isAdminExamsCached, fetchQuestionsAdmin,
   saveExamDoc, deleteExamCompletely, migrateExamQuestions, syncExamIndex, writeExamIndex,
-  fetchAllResultsAdmin, backfillUserStats,
+  fetchAllResultsAdmin, backfillUserStats, countAttempts,
 } from "../exam-data.js";
 import * as cache from "../cache.js";
 import { courses } from "./admin.js";
-import { loadOverview } from "./overview.js";
+import {
+  esc, $, fmtN, fmtPct, fmtDur, pageHead, chip, segmented, bindSegmented, createTable, bulkBar,
+  confirmDanger, openDrawer, withBusy, emptyState, errorState, skeleton, debounce, ago, toMs, avatar,
+} from "./core/ui.js";
+import { can } from "./core/permissions.js";
+import { logAction } from "./core/audit.js";
+import { emitChange, takePending, onChange } from "./core/bus.js";
+import { getSettings } from "./core/settings.js";
+import { loadTaxonomy, subjectName, categoryPath, subjectOptionsHtml, categoryOptionsHtml, categoryOptions, subjectOptions } from "./core/taxonomy.js";
+import { examState, STATE_META, isDraft, passPercentOf, totalMarksOf, passMarksOf } from "./core/exam-status.js";
+import { columns as colChart } from "./core/charts.js";
+import { loadBank, saveBank, qHash, normQuestion } from "./core/qbank.js";
+import { resultsForExam, usersByIds } from "./core/data.js";
+import { openBankPicker } from "./core/bank-picker.js";
 
 /* ==========================================================================
    Exam management
    ========================================================================== */
 export let currentExams = [];
 
-/* Reads: the exams collection is fetched at most once per 5 minutes and only when this tab is
-   opened (or ⟳ pressed). Saving / duplicating / deleting an exam updates `currentExams` in memory
-   and rewrites the students' one-document index, so none of them re-scans the collection. */
+/* ==========================================================================
+   List page
+   ========================================================================== */
+let root = null, table = null, updateBulk = () => {}, staleExams = false, loadFailed = false;
+const filters = { q: "", status: "all", type: "", subject: "", category: "", course: "" };
+
+export async function mount(el) {
+  root = el;
+  await loadTaxonomy().catch(() => {});
+  const canWrite = can("exams.write");
+  root.innerHTML = `
+    ${pageHead({
+      title: "Exams",
+      desc: "এক্সাম তৈরি, এডিট, পাবলিশ ও পরিসংখ্যান — এক জায়গা থেকে।",
+      actions: `<button type="button" class="btn btn-outline btn-sm" id="exams-refresh-btn" title="Re-read the exams from the database"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+        ${canWrite ? `<button type="button" class="btn btn-outline btn-sm" id="optimize-exams-btn" title="One-time: bundle old questions, build student summaries and the exam index (cuts Firestore reads/writes)"><i class="fa-solid fa-bolt"></i> Optimize</button>
+        <button type="button" class="btn btn-primary btn-sm" id="add-exam-btn-top"><i class="fa-solid fa-plus"></i> New exam</button>` : ""}`,
+    })}
+    <div class="panel">
+      <div class="toolbar">
+        <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="ex-q" placeholder="Search title, course, subject…" autocomplete="off"></div>
+        <select id="ex-type" aria-label="Type"><option value="">All types</option><option value="live">Live</option><option value="practice">Practice</option></select>
+        <select id="ex-subject" aria-label="Subject"></select>
+        <select id="ex-category" aria-label="Category"></select>
+        <select id="ex-course" aria-label="Course"></select>
+      </div>
+      <div class="toolbar" id="ex-seg"></div>
+      <div id="exams-table-mount"></div>
+    </div>
+    <div id="exams-bulk"></div>`;
+
+  table = createTable({
+    mount: $("#exams-table-mount", root),
+    selectable: canWrite || can("exams.delete"),
+    onSelect: (ids) => updateBulk(ids.length),
+    defaultSort: { key: "created", dir: "desc" },
+    empty: { icon: "fa-file-pen", title: "কোনো এক্সাম পাওয়া যায়নি", text: "ফিল্টার বদলান, অথবা নতুন এক্সাম তৈরি করুন।" },
+    columns: examColumns(),
+  });
+  updateBulk = bulkBar($("#exams-bulk", root), [
+    ...(canWrite ? [{ id: "publish", label: "Publish", icon: "fa-eye", tone: "teal" }, { id: "unpublish", label: "Unpublish", icon: "fa-eye-slash" }] : []),
+    ...(can("exams.delete") ? [{ id: "delete", label: "Delete", icon: "fa-trash", tone: "coral" }] : []),
+  ], onBulk);
+
+  fillFilters();
+  bindSegmented($("#ex-seg", root), (v) => { filters.status = v; refreshList(); });
+  $("#ex-q", root).addEventListener("input", debounce((e) => { filters.q = e.target.value; refreshList(); }, 150));
+  ["type", "subject", "category", "course"].forEach((k) => $(`#ex-${k}`, root).addEventListener("change", (e) => { filters[k] = e.target.value; refreshList(); }));
+  $("#exams-refresh-btn", root).addEventListener("click", () => loadExamsTable({ force: true }));
+  $("#optimize-exams-btn", root)?.addEventListener("click", optimizeAll);
+  $("#add-exam-btn-top", root)?.addEventListener("click", () => openExamModal(null));
+  root.addEventListener("click", (e) => {
+    if (e.target.closest("[data-retry]")) return loadExamsTable({ force: true });
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const id = b.dataset.id;
+    ({
+      stats: () => openExamStats(id), edit: () => openExamModal(id), dup: () => duplicateExam(id),
+      practice: () => duplicateExam(id, { asPractice: true }), toggle: () => setStatus([id], isDraft(currentExams.find((x) => x.id === id)) ? "published" : "draft"),
+      delete: () => deleteExam(id),
+    })[b.dataset.act]?.();
+  });
+  onChange((kind) => { if (kind === "exams") staleExams = true; });
+
+  await loadExamsTable();
+  if (takePending("new-exam") && canWrite) openExamModal(null);
+}
+
+export async function activate() {
+  if (!table) return;
+  await loadTaxonomy().catch(() => {});
+  fillFilters();
+  if (loadFailed) return loadExamsTable(); // the last read failed — opening the page again retries it
+  if (staleExams) { staleExams = false; currentExams = await fetchAllExamsAdmin(); }
+  refreshList();
+  if (takePending("new-exam") && can("exams.write")) openExamModal(null);
+}
+
+function fillFilters() {
+  const keep = (id, html) => { const el = $(id, root); const v = el.value; el.innerHTML = html; el.value = [...el.options].some((o) => o.value === v) ? v : ""; };
+  keep("#ex-subject", subjectOptionsHtml("", "All subjects"));
+  keep("#ex-category", categoryOptionsHtml("exam", "", "All categories"));
+  keep("#ex-course", `<option value="">All courses</option>` + courses.map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join(""));
+  filters.subject = $("#ex-subject", root).value; filters.category = $("#ex-category", root).value; filters.course = $("#ex-course", root).value;
+}
+
 export async function loadExamsTable(opts) {
-  const wasCached = isAdminExamsCached();
-  currentExams = await fetchAllExamsAdmin(opts);
-  renderExamsTable();
-  // What we just read IS the truth — make sure the students' index matches it
-  // (1 read; a write only if something differs). Skipped when we merely re-showed cached data.
-  if (!wasCached || cache.wantsFresh(opts)) {
-    syncExamIndex(currentExams, courses).catch(() => { /* retried on the next fresh load */ });
+  if (!table) return;
+  table.setState(skeleton(5));
+  try {
+    const wasCached = isAdminExamsCached();
+    currentExams = await fetchAllExamsAdmin(opts);
+    loadFailed = false;
+    refreshList();
+    // What we just read IS the truth — make sure the students' index matches it (1 read; a write only if something differs).
+    if (!wasCached || cache.wantsFresh(opts)) syncExamIndex(currentExams, courses).catch(() => { /* retried on the next fresh load */ });
+  } catch (err) {
+    loadFailed = true;
+    table.setState(errorState({ title: "এক্সাম লোড করা যায়নি", text: err?.message || "" }));
   }
 }
 
-/** Keep the shared copy, the table, the students' index and the overview in step after ANY exam change (no re-scan). */
+function filtered() {
+  const q = filters.q.trim().toLowerCase();
+  return currentExams.filter((e) => {
+    if (filters.status !== "all" && examState(e) !== filters.status) return false;
+    if (filters.type && (e.examType === "practice" ? "practice" : "live") !== filters.type) return false;
+    if (filters.subject && e.subjectId !== filters.subject) return false;
+    if (filters.category && e.categoryId !== filters.category) return false;
+    if (filters.course && (e.courseId || "") !== filters.course) return false;
+    return !q || `${e.title} ${e.courseName || ""} ${subjectName(e.subjectId)} ${categoryPath(e.categoryId)}`.toLowerCase().includes(q);
+  });
+}
+
+function renderSeg() {
+  const counts = { all: currentExams.length, open: 0, scheduled: 0, closed: 0, draft: 0 };
+  currentExams.forEach((e) => { counts[examState(e)]++; });
+  $("#ex-seg", root).innerHTML = segmented([
+    { id: "all", label: "All", count: counts.all }, { id: "open", label: "Open", count: counts.open },
+    { id: "scheduled", label: "Scheduled", count: counts.scheduled }, { id: "closed", label: "Closed", count: counts.closed },
+    { id: "draft", label: "Draft", count: counts.draft },
+  ], filters.status);
+}
+
+function refreshList() {
+  if (!table) return;
+  renderSeg();
+  table.setRows(filtered(), { keepPage: true });
+}
+
+/** Keep the shared copy, the table, the students' index and other pages in step after ANY exam change (no re-scan). */
 function afterExamsChanged() {
   primeAdminExams(currentExams);
-  renderExamsTable();
+  refreshList();
   writeExamIndex(currentExams, courses).catch(() => { /* self-heals via syncExamIndex on the next fresh load */ });
-  loadOverview();
+  staleExams = false;
+  emitChange("exams");
 }
 
-function renderExamsTable() {
-  const tbody = document.querySelector("#exams-table tbody");
-  if (!currentExams.length) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon"><i class="fa-solid fa-file-pen"></i></div><p>No exams created yet</p></div></td></tr>`;
-  } else {
-    tbody.innerHTML = currentExams
-      .map((ex) => `
-      <tr>
-        <td data-label="Exam"><div class="cell-title"><div><div class="t">${escapeHtml(ex.title)}</div></div></div></td>
-        <td data-label="Type">${examTypeBadge(ex)}</td>
-        <td data-label="Course Tag">${escapeHtml(ex.courseName || "—")}</td>
-        <td data-label="Scope">${examScopeBadge(ex)}</td>
-        <td data-label="Questions">${
-          ex.questionsPerAttempt > 0 && ex.questionsPerAttempt < (ex.questionCount || 0)
-            ? `${ex.questionsPerAttempt} <span class="muted" style="font-size:0.82em">/ ${ex.questionCount} bank</span>`
-            : (ex.questionCount || 0)
-        }</td>
-        <td data-label="Time">${ex.duration || 0} min</td>
-        <td data-label="Settings">${examSettingsBadges(ex)}</td>
-        <td data-label="Schedule">${scheduleBadge(ex)}</td>
-        <td data-label=""><div class="row-actions">
-          <button class="icon-btn" data-edit-exam="${ex.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
-          ${ex.examType !== "practice" ? `<button class="icon-btn" data-dup-exam="${ex.id}" title="Duplicate as Practice exam"><i class="fa-solid fa-clone"></i></button>` : ""}
-          <button class="icon-btn danger" data-del-exam="${ex.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
-        </div></td>
-      </tr>`)
-      .join("");
+function examColumns() {
+  const canWrite = can("exams.write"), canDel = can("exams.delete");
+  return [
+    { key: "title", label: "Exam", sortable: true, sortValue: (e) => e.title || "", render: (e) => {
+      const sub = [subjectName(e.subjectId), categoryPath(e.categoryId), e.courseName].filter(Boolean).join(" · ");
+      return `<div class="cell-main"><div class="t">${esc(e.title || "Untitled")}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ""}</div>`;
+    } },
+    { key: "status", label: "Status", sortable: true, sortValue: (e) => examState(e), render: (e) => {
+      const st = examState(e), m = STATE_META[st], av = getExamAvailability(e);
+      const hint = st === "scheduled" ? `Opens ${formatDateTime(av.publishAt)}` : st === "closed" ? `Closed ${formatDateTime(av.closesAt)}` : st === "open" && av.closesAt ? `Closes ${formatDateTime(av.closesAt)}` : st === "open" ? "Always open" : "Hidden from students";
+      return `${chip(m.label, m.tone)}<div class="muted" style="font-size:.74rem;margin-top:3px">${esc(hint)}</div>`;
+    } },
+    { key: "type", label: "Type", sortable: true, sortValue: (e) => e.examType || "live", render: (e) => e.examType === "practice" ? chip("Practice", "", "fa-dumbbell") : chip("Live", "accent", "fa-satellite-dish") },
+    { key: "questions", label: "Questions", cls: "c-num", sortable: true, sortValue: (e) => Number(e.questionCount) || 0, render: (e) =>
+      e.questionsPerAttempt > 0 && e.questionsPerAttempt < (e.questionCount || 0)
+        ? `${e.questionsPerAttempt}<span class="muted"> / ${e.questionCount}</span>` : String(e.questionCount || 0) },
+    { key: "marks", label: "Marks / Pass", cls: "c-num", sortValue: (e) => totalMarksOf(e), sortable: true, render: (e) => `${formatScore(totalMarksOf(e))}<span class="muted"> / ${passMarksOf(e)}</span>` },
+    { key: "time", label: "Time", cls: "c-num", sortable: true, sortValue: (e) => Number(e.duration) || 0, render: (e) => `${e.duration || 0} min` },
+    { key: "created", label: "Created", sortable: true, sortValue: (e) => (e.createdAt?.seconds || 0), render: (e) => `<span class="muted">${ago(e.createdAt)}</span>` },
+    { key: "act", label: "", cls: "c-act", render: (e) => `<div class="row-actions">
+      <button type="button" class="icon-btn" data-act="stats" data-id="${e.id}" title="Statistics"><i class="fa-solid fa-chart-simple"></i></button>
+      ${canWrite ? `<button type="button" class="icon-btn" data-act="edit" data-id="${e.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+      <button type="button" class="icon-btn" data-act="dup" data-id="${e.id}" title="Duplicate (saved as a draft)"><i class="fa-solid fa-clone"></i></button>
+      ${e.examType !== "practice" ? `<button type="button" class="icon-btn" data-act="practice" data-id="${e.id}" title="Create a Practice copy"><i class="fa-solid fa-dumbbell"></i></button>` : ""}
+      <button type="button" class="icon-btn" data-act="toggle" data-id="${e.id}" title="${isDraft(e) ? "Publish" : "Unpublish (move to draft)"}"><i class="fa-solid ${isDraft(e) ? "fa-eye" : "fa-eye-slash"}"></i></button>` : ""}
+      ${canDel ? `<button type="button" class="icon-btn danger" data-act="delete" data-id="${e.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ""}
+    </div>` },
+  ];
+}
+
+/* ---------- Publish / unpublish (single or bulk) ---------- */
+async function setStatus(ids, status) {
+  const list = ids.map((id) => currentExams.find((e) => e.id === id)).filter((e) => e && isDraft(e) !== (status === "draft"));
+  if (!list.length) { toast("কোনো পরিবর্তন নেই", "info"); return; }
+  if (status === "published") {
+    const empty = list.find((e) => !(Number(e.questionCount) > 0));
+    if (empty) { toast(`"${empty.title}" এ কোনো প্রশ্ন নেই — প্রকাশের আগে প্রশ্ন যোগ করুন`, "error"); return; }
   }
-  tbody.querySelectorAll("[data-edit-exam]").forEach((b) => b.addEventListener("click", () => openExamModal(b.dataset.editExam)));
-  tbody.querySelectorAll("[data-dup-exam]").forEach((b) => b.addEventListener("click", () => duplicateExamAsPractice(b.dataset.dupExam)));
-  tbody.querySelectorAll("[data-del-exam]").forEach((b) => b.addEventListener("click", () => deleteExam(b.dataset.delExam)));
+  try {
+    for (let i = 0; i < list.length; i += 400) {
+      const batch = writeBatch(db);
+      list.slice(i, i + 400).forEach((e) => batch.update(doc(db, "exams", e.id), { status }));
+      await batch.commit();
+    }
+    list.forEach((e) => { e.status = status; logAction(status === "draft" ? "exam.unpublish" : "exam.publish", { type: "exam", id: e.id, label: e.title }); });
+    toast(status === "draft" ? `${list.length}টি এক্সাম আনপাবলিশ হয়েছে` : `${list.length}টি এক্সাম পাবলিশ হয়েছে`, "success");
+    table?.clearSelection();
+    afterExamsChanged();
+  } catch { toast("স্ট্যাটাস বদলানো যায়নি", "error"); }
 }
 
-/* ---------- One-click: copy a Live exam (settings + full question bank) into
-   a brand new Practice exam — always open, no schedule, fresh empty results. ---------- */
-async function duplicateExamAsPractice(examId) {
+async function onBulk(action) {
+  const ids = table.getSelected();
+  if (action === "clear") return table.clearSelection();
+  if (action === "publish") return setStatus(ids, "published");
+  if (action === "unpublish") return setStatus(ids, "draft");
+  if (action === "delete") {
+    if (!(await confirmDanger({ title: `${ids.length}টি এক্সাম মুছবেন?`, message: "নির্বাচিত এক্সামগুলো ও তাদের প্রশ্ন স্থায়ীভাবে মুছে যাবে। শিক্ষার্থীদের পুরোনো ফলাফল থেকে যাবে।", confirmLabel: `Delete ${ids.length}`, phrase: "delete" }))) return;
+    let ok = 0;
+    for (const id of ids) {
+      const ex = currentExams.find((x) => x.id === id);
+      if (!ex) continue;
+      try { await deleteExamCompletely(id, ex); currentExams = currentExams.filter((x) => x.id !== id); logAction("exam.delete", { type: "exam", id, label: ex.title }); ok++; } catch { /* keep going */ }
+    }
+    toast(`${ok}/${ids.length}টি এক্সাম মুছে ফেলা হয়েছে`, ok === ids.length ? "success" : "error");
+    table.clearSelection();
+    afterExamsChanged();
+  }
+}
+
+/* ---------- Duplicate: an exact copy saved as a DRAFT (or a Practice copy of a Live exam, as before) ---------- */
+async function duplicateExam(examId, { asPractice = false } = {}) {
   const ex = currentExams.find((x) => x.id === examId);
   if (!ex) return;
-  if (!(await confirmAction(`"${ex.title}" এর একটি Practice কপি তৈরি করবেন? (একই প্রশ্নব্যাংক সহ, নতুন এক্সাম হিসেবে)`))) return;
+  if (asPractice && !(await confirmAction(`"${ex.title}" এর একটি Practice কপি তৈরি করবেন? (একই প্রশ্নব্যাংক সহ, নতুন এক্সাম হিসেবে)`))) return;
   try {
     const questions = await fetchQuestionsAdmin(ex.id, ex); // 1 read for a bundle exam
-    const { id, createdAt, examType, publishAt, closesAt, availableHours, qFormat, qChunks, ...rest } = ex;
-    const data = { ...rest, title: `${ex.title} (Practice)`, examType: "practice", publishAt: null, closesAt: null, availableHours: 0 };
+    const { id, createdAt, publishAt, closesAt, availableHours, qFormat, qChunks, ...rest } = ex;
+    const data = asPractice
+      ? { ...rest, title: `${ex.title} (Practice)`, examType: "practice", status: "published", publishAt: null, closesAt: null, availableHours: 0 }
+      : { ...rest, title: `${ex.title} (Copy)`, status: "draft", publishAt: null, closesAt: null, availableHours: 0 };
     const saved = await saveExamDoc({ data, questions }); // exam + whole question bank = one atomic write
     currentExams.unshift({
       id: saved.id, ...data, createdAt: Timestamp.now(),
       ...(saved.format === QUESTION_FORMAT ? { qFormat: QUESTION_FORMAT, qChunks: saved.chunks } : {}),
     });
-    toast("Practice exam তৈরি হয়েছে", "success");
+    logAction("exam.duplicate", { type: "exam", id: saved.id, label: data.title, detail: `from ${ex.title}` });
+    toast(asPractice ? "Practice exam তৈরি হয়েছে" : "কপি তৈরি হয়েছে (Draft) — প্রকাশের আগে দেখে নিন", "success");
     afterExamsChanged();
   } catch {
     toast("Could not duplicate", "error");
+  }
+}
+
+/* ---------- Per-exam statistics drawer ---------- */
+async function openExamStats(examId) {
+  const ex = currentExams.find((x) => x.id === examId);
+  if (!ex) return;
+  const d = openDrawer({ title: ex.title, subtitle: `${ex.examType === "practice" ? "Practice" : "Live"} exam · ${STATE_META[examState(ex)].label}`, width: 620, html: skeleton(5) });
+  try {
+    const rows = await resultsForExam(examId);
+    const pass = passPercentOf(ex);
+    const pcts = rows.map((r) => Number(r.percent) || 0);
+    const attempts = rows.reduce((s, r) => s + countAttempts(r), 0);
+    const times = rows.map((r) => Number(r.timeTakenSeconds) || 0).filter(Boolean);
+    const passed = pcts.filter((p) => p >= pass).length;
+    const bins = Array.from({ length: 10 }, (_, i) => ({ label: `${i * 10}`, value: 0, tone: i * 10 + 10 <= pass - 1 ? "coral" : "teal" }));
+    pcts.forEach((p) => { bins[Math.min(9, Math.floor(p / 10))].value++; });
+    const ranked = rows.slice().sort((a, b) => (Number(b.percent) || 0) - (Number(a.percent) || 0) || (Number(a.timeTakenSeconds) || 9e9) - (Number(b.timeTakenSeconds) || 9e9));
+    const shown = [...ranked.slice(0, 5), ...ranked.slice(-3).filter((r) => !ranked.slice(0, 5).includes(r))];
+    const users = await usersByIds(shown.map((r) => r.uid)).catch(() => ({}));
+    const person = (r) => { const u = users[r.uid]; return u?.displayName || u?.email || (u?.missing ? "Deleted user" : "Student"); };
+    const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+
+    d.body.innerHTML = `
+      <div class="mini-stats">
+        <div class="mini-stat"><b>${fmtN(rows.length)}</b><span>Students</span></div>
+        <div class="mini-stat"><b>${fmtN(attempts)}</b><span>Attempts</span></div>
+        <div class="mini-stat"><b>${rows.length ? fmtPct(avg(pcts)) : "—"}</b><span>Average score</span></div>
+        <div class="mini-stat"><b>${rows.length ? fmtPct((passed / rows.length) * 100) : "—"}</b><span>Pass rate (≥ ${pass}%)</span></div>
+        <div class="mini-stat"><b>${rows.length ? fmtPct(Math.max(...pcts)) : "—"}</b><span>Highest</span></div>
+        <div class="mini-stat"><b>${times.length ? fmtDur(avg(times)) : "—"}</b><span>Avg time taken</span></div>
+      </div>
+      <div><h3>Score distribution</h3>${rows.length ? colChart({ bins, height: 120 }) : emptyState({ icon: "fa-chart-simple", title: "এখনো কেউ এক্সাম দেয়নি" })}
+        ${rows.length ? `<p class="muted" style="font-size:.76rem;margin-top:6px">নিচের অক্ষ = স্কোর শুরু (%); লাল = পাস মার্কের নিচে।</p>` : ""}</div>
+      ${rows.length ? `<div><h3>Top & bottom performers</h3><ul class="feed">${shown.map((r) => `<li>${avatar(person(r), 30)}<div style="flex:1;min-width:0"><div class="feed-t">${esc(person(r))}</div><div class="feed-s">${fmtDur(r.timeTakenSeconds)} · attempt #${countAttempts(r)}</div></div>${chip(fmtPct(r.percent), (Number(r.percent) || 0) >= pass ? "teal" : "coral")}</li>`).join("")}</ul></div>` : ""}
+      <div><h3>Settings</h3><dl class="kv">
+        <dt>Total marks</dt><dd>${formatScore(totalMarksOf(ex))} (1 per correct answer)</dd>
+        <dt>Pass mark</dt><dd>${passMarksOf(ex)} (${pass}%)</dd>
+        <dt>Time limit</dt><dd>${ex.duration || 0} minutes</dd>
+        <dt>Subject</dt><dd>${esc(subjectName(ex.subjectId) || "—")}</dd>
+        <dt>Category</dt><dd>${esc(categoryPath(ex.categoryId) || "—")}</dd>
+        <dt>Options</dt><dd>${examSettingsBadges(ex)}</dd></dl></div>
+      ${can("exams.write") ? `<div class="row"><button type="button" class="btn btn-primary btn-sm" id="stats-edit"><i class="fa-solid fa-pen"></i> Edit exam</button></div>` : ""}`;
+    d.body.querySelector("#stats-edit")?.addEventListener("click", () => { d.close(); openExamModal(examId); });
+  } catch (err) {
+    d.body.innerHTML = errorState({ title: "পরিসংখ্যান লোড করা যায়নি", text: err?.message || "", retry: false });
   }
 }
 
@@ -152,7 +370,6 @@ function toDatetimeLocalValue(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-document.getElementById("add-exam-btn-top")?.addEventListener("click", () => openExamModal(null));
 
 async function openExamModal(examId) {
   const ex = examId ? currentExams.find((x) => x.id === examId) : null;
@@ -181,6 +398,17 @@ async function openExamModal(examId) {
           <span class="form-hint">This decides which of the three student-facing tabs (Upcoming / Live / Practice) the exam shows up under</span>
         </div>
         <div class="admin-grid">
+          <div class="field">
+            <label>Status</label>
+            <select id="em-status">
+              <option value="published" ${!ex || ex.status !== "draft" ? "selected" : ""}>Published — visible to students (follows the schedule below)</option>
+              <option value="draft" ${ex && ex.status === "draft" ? "selected" : ""}>Draft — hidden from students until you publish</option>
+            </select>
+          </div>
+          <div class="field"><label>Subject</label><select id="em-subject">${subjectOptionsHtml(ex?.subjectId || "")}</select></div>
+        </div>
+        <div class="field"><label>Category</label><select id="em-category">${categoryOptionsHtml("exam", ex?.categoryId || "")}</select><span class="form-hint">Subjects and categories are managed under Subjects & Categories</span></div>
+        <div class="admin-grid">
           <div class="field"><label>Exam Title</label><input type="text" id="em-title" required value="${ex ? escapeHtml(ex.title) : ""}"></div>
           <div class="field"><label>Course Name (as tag)</label><input type="text" id="em-course" value="${ex ? escapeHtml(ex.courseName || "") : ""}"></div>
         </div>
@@ -207,6 +435,7 @@ async function openExamModal(examId) {
         </div>
 
         <div class="field"><label>Description</label><textarea id="em-desc" rows="2">${ex ? escapeHtml(ex.description || "") : ""}</textarea></div>
+        <div class="field"><label>Instructions for students (shown before the exam starts)</label><textarea id="em-instructions" rows="3" placeholder="e.g. Calculators are not allowed. Each correct answer is 1 mark.">${ex ? escapeHtml(ex.instructions || "") : ""}</textarea></div>
         <div class="admin-grid">
           <div class="field"><label>Time Limit (minutes, during the exam)</label><input type="number" id="em-duration" min="1" value="${ex ? ex.duration || 10 : 10}"></div>
           <div class="field"><label>Maximum Attempts Allowed</label><input type="number" id="em-max-attempts" min="0" placeholder="Leave empty or 0 for unlimited" value="${ex && ex.maxAttempts ? ex.maxAttempts : ""}"><span class="form-hint">Leave empty to let users attempt as many times as they like</span></div>
@@ -215,6 +444,11 @@ async function openExamModal(examId) {
           <label>Negative Marking (marks deducted per wrong answer)</label>
           <input type="number" id="em-negative-marking" min="0" step="0.25" placeholder="0" value="${ex && ex.negativeMarking ? ex.negativeMarking : ""}">
           <span class="form-hint">e.g. 0.25 deducts a quarter mark for every wrong answer — unanswered questions are never penalized. Leave empty or 0 to turn negative marking off. This also feeds the Leaderboard's ranking.</span>
+        </div>
+        <div class="field">
+          <label>Passing percentage</label>
+          <input type="number" id="em-pass-percent" min="0" max="100" step="1" placeholder="Default: ${getSettings().result.passPercent}" value="${ex && ex.passPercent ? ex.passPercent : ""}">
+          <span class="form-hint" id="em-marks-hint"></span>
         </div>
 
         <div class="schedule-box">
@@ -276,7 +510,7 @@ async function openExamModal(examId) {
           <button type="button" class="btn btn-outline btn-block mb-16" id="em-back-settings-btn"><i class="fa-solid fa-arrow-left"></i> Back to Settings</button>
           <div class="qb-toolbar">
             <div class="qb-count">Total Questions: <span id="em-q-count">0</span></div>
-            <button type="button" class="btn btn-outline btn-sm" id="em-bulk-toggle-btn"><i class="fa-solid fa-bolt"></i> Bulk Import</button>
+            <div class="row" style="gap:6px"><button type="button" class="btn btn-outline btn-sm" id="em-bank-btn"><i class="fa-solid fa-circle-question"></i> From Question Bank</button><button type="button" class="btn btn-outline btn-sm" id="em-tobank-btn" title="Copy these questions into the Question Bank"><i class="fa-solid fa-box-archive"></i> Save to Bank</button><button type="button" class="btn btn-outline btn-sm" id="em-bulk-toggle-btn"><i class="fa-solid fa-bolt"></i> Bulk Import</button></div>
           </div>
           <div class="qb-bulk-panel" id="em-bulk-panel" hidden>
             <span class="form-hint">Paste each question separated by a blank line. First line is the question, then one option per line. Mark the correct option with a leading <b>*</b>. Optionally add a last line starting with <b>Explanation:</b> —</span>
@@ -297,7 +531,7 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-teal btn-block mt-24" id="exam-modal-save-btn">${ex ? "Save Changes" : "Publish Exam"}</button>
+      <div class="confirm-actions mt-24"><button type="button" class="btn btn-outline btn-block" id="em-save-draft">Save as draft</button><button type="submit" class="btn btn-teal btn-block" id="exam-modal-save-btn">${ex ? "Save Changes" : "Publish Exam"}</button></div>
     </form>
   `);
 
@@ -378,6 +612,7 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
   const MAX_OPTIONS = 6;
 
   function renderQ() {
+    refreshMarksHint();
     const wrap = overlay.querySelector("#em-question-list");
     const countEl = overlay.querySelector("#em-q-count");
     if (countEl) countEl.textContent = questionDrafts.length;
@@ -521,6 +756,62 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
     toast(`${parsed.length} question(s) added`, "success");
   });
 
+  /* ---------- Live marks hint + Question Bank hooks ---------- */
+  function refreshMarksHint() {
+    const hint = overlay.querySelector("#em-marks-hint");
+    if (!hint) return;
+    const pool = Math.max(0, Number(overlay.querySelector("#em-pool-size").value) || 0);
+    const perAttempt = pool > 0 && pool < questionDrafts.length ? pool : questionDrafts.length;
+    const own = Math.min(100, Math.max(0, Number(overlay.querySelector("#em-pass-percent").value) || 0));
+    const pct = own || Number(getSettings().result.passPercent) || 60;
+    hint.textContent = `Total marks: ${perAttempt} (1 per correct answer) · Passing marks: ${Math.ceil((perAttempt * pct) / 100 - 1e-9)}${own ? "" : ` (default ${pct}%)`}`;
+  }
+  overlay.querySelector("#em-pass-percent").addEventListener("input", refreshMarksHint);
+  overlay.querySelector("#em-pool-size").addEventListener("input", refreshMarksHint);
+  refreshMarksHint();
+
+  const draftHash = (q) => qHash({ text: q.text, options: q.options, correctIndex: q.correctIndex });
+  overlay.querySelector("#em-bank-btn").addEventListener("click", () => openBankPicker({
+    title: "Add questions from the Question Bank",
+    exclude: new Set(questionDrafts.map(draftHash)),
+    onPick: (picked) => {
+      const have = new Set(questionDrafts.map(draftHash));
+      let added = 0;
+      picked.forEach((q) => {
+        const h = qHash(q);
+        if (have.has(h)) return;
+        have.add(h);
+        questionDrafts.push({ text: q.text, options: q.options.slice(), correctIndex: q.correctIndex, explanation: q.explanation || "" });
+        added++;
+      });
+      renderQ();
+      toast(added ? `${added}টি প্রশ্ন যোগ হয়েছে` : "নির্বাচিত প্রশ্নগুলো আগে থেকেই আছে", added ? "success" : "info");
+    },
+  }));
+  overlay.querySelector("#em-tobank-btn").addEventListener("click", async (ev) => {
+    const clean = questionDrafts.filter((q) => q.text.trim() && q.options.filter((o) => o.trim()).length >= 2 && q.correctIndex >= 0);
+    if (!clean.length) { toast("ব্যাংকে রাখার মতো কোনো সম্পূর্ণ প্রশ্ন নেই", "error"); return; }
+    if (!can("questions.write")) { toast("প্রশ্নব্যাংকে লেখার অনুমতি নেই", "error"); return; }
+    await withBusy(ev.currentTarget, async () => {
+      try {
+        const bank = await loadBank({ force: true });
+        const have = new Set(bank.questions.map(qHash));
+        const defaults = { subjectId: overlay.querySelector("#em-subject").value, categoryId: "", source: "exam" };
+        const fresh = [];
+        clean.forEach((q) => { const n = normQuestion({ ...q }, defaults); const h = qHash(n); if (!have.has(h)) { have.add(h); fresh.push(n); } });
+        if (!fresh.length) { toast("সবগুলো প্রশ্ন ইতিমধ্যে ব্যাংকে আছে", "info"); return; }
+        await saveBank([...bank.questions, ...fresh], bank.chunks);
+        logAction("question.import", { type: "bank", label: `${fresh.length} questions from an exam`, detail: overlay.querySelector("#em-title").value.trim() });
+        emitChange("questions");
+        toast(`${fresh.length}টি প্রশ্ন ব্যাংকে যোগ হয়েছে`, "success");
+      } catch { toast("ব্যাংকে সংরক্ষণ করা যায়নি — firestore.rules Publish করেছেন?", "error"); }
+    });
+  });
+  overlay.querySelector("#em-save-draft").addEventListener("click", () => {
+    overlay.querySelector("#em-status").value = "draft";
+    overlay.querySelector("#exam-modal-form").requestSubmit();
+  });
+
   overlay.querySelector("#exam-modal-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const titleInput = overlay.querySelector("#em-title");
@@ -571,6 +862,11 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         negativeMarking: Math.max(0, Number(overlay.querySelector("#em-negative-marking").value) || 0),
         layout: overlay.querySelector("#em-layout").value === "all" ? "all" : "one",
         shuffle: overlay.querySelector("#em-shuffle").checked,
+        status: overlay.querySelector("#em-status").value === "draft" ? "draft" : "published",
+        subjectId: overlay.querySelector("#em-subject").value || "",
+        categoryId: overlay.querySelector("#em-category").value || "",
+        passPercent: Math.min(100, Math.max(0, Number(overlay.querySelector("#em-pass-percent").value) || 0)),
+        instructions: overlay.querySelector("#em-instructions").value.trim(),
       };
 
       // Publish schedule — leave empty for "publish now", leave hours empty/0 for "unlimited".
@@ -606,6 +902,8 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         currentExams.unshift({ id: saved.id, ...payload, ...bundleMeta, createdAt: Timestamp.now() });
       }
       toast(ex ? "Exam updated" : "Exam created", "success");
+      logAction(ex ? "exam.update" : "exam.create", { type: "exam", id: saved.id, label: payload.title, detail: `${payload.questionCount} questions · ${payload.status}` });
+      if (ex && (ex.status === "draft") !== (payload.status === "draft")) logAction(payload.status === "draft" ? "exam.unpublish" : "exam.publish", { type: "exam", id: saved.id, label: payload.title });
       closeModal();
       afterExamsChanged();
     } catch {
@@ -618,11 +916,17 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
 
 async function deleteExam(examId) {
   const ex = currentExams.find((x) => x.id === examId);
-  if (!(await confirmAction(`Do you want to delete the exam "${ex?.title || ""}"?`))) return;
+  if (!ex) return;
+  if (!(await confirmDanger({
+    title: "এক্সাম মুছবেন?",
+    message: `"${ex.title}" ও এর সব প্রশ্ন স্থায়ীভাবে মুছে যাবে। শিক্ষার্থীদের আগের ফলাফল থেকে যাবে।`,
+    confirmLabel: "Delete exam", phrase: "delete",
+  }))) return;
   try {
     await deleteExamCompletely(examId, ex); // exam + its question bundle: one atomic batch
     currentExams = currentExams.filter((x) => x.id !== examId);
     toast("Exam deleted", "success");
+    logAction("exam.delete", { type: "exam", id: examId, label: ex.title });
     afterExamsChanged();
   } catch {
     toast("Could not delete", "error");
@@ -638,8 +942,6 @@ async function deleteExam(examId) {
       profile page read that instead of one document per exam / per result.
    3. Rebuilds the students' one-document exam index.
    ========================================================================== */
-document.getElementById("exams-refresh-btn")?.addEventListener("click", loadExamsTable);
-document.getElementById("optimize-exams-btn")?.addEventListener("click", optimizeAll);
 
 let optimizing = false;
 async function optimizeAll() {
@@ -676,7 +978,7 @@ async function optimizeAll() {
     }
     currentExams = exams;
     primeAdminExams(exams);
-    renderExamsTable();
+    refreshList();
     if (rulesMissing) {
       toast("firestore.rules এখনো Publish করা হয়নি। আগে rules Publish করে তারপর আবার Optimize চালান।", "error");
       return;
@@ -702,7 +1004,8 @@ async function optimizeAll() {
     if (!summarised) parts.push("রেজাল্ট সারাংশ তৈরি হয়নি");
     if (!indexed) parts.push("ইনডেক্স লেখা যায়নি");
     toast(`Optimize শেষ — ${parts.join(", ")}`, failed || !summarised || !indexed ? "error" : "success");
-    loadOverview();
+    logAction("exam.optimize", { type: "system", label: `${converted} exams converted` });
+    emitChange("exams");
   } catch {
     toast("Optimize সম্পন্ন করা যায়নি, আবার চেষ্টা করুন", "error");
   } finally {
