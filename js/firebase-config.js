@@ -10,8 +10,8 @@ const firebaseConfig = {
   projectId: "tvsaccount",
   storageBucket: "tvsaccount.firebasestorage.app",
   messagingSenderId: "923190024339",
-  appId: "1:923190024339:web:e7b54ff051b4a746e91566",
-  measurementId: "G-MKHE6SEQ1X"
+  appId: "1:923190024339:web:fede554f57feac35e91566",
+  measurementId: "G-GXJR3YEBMS"
 };
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

@@ -127,6 +127,8 @@ async function readExamIndexDoc() {
       exams: d.exams.filter((e) => e && e.id),
       courses: d.courses && typeof d.courses === "object" ? d.courses : {},
       statsReady: !!d.statsBackfilledAt, // the admin "Optimize" run has summarised every student's results
+      // Site-wide switch set in Admin → Settings (maintenance mode). Rides along in this document: no extra read.
+      site: d.site && typeof d.site === "object" ? { maintenance: !!d.site.maintenance, message: String(d.site.message || "").slice(0, 300) } : { maintenance: false, message: "" },
     };
   } catch {
     return null; // rules not published yet / offline → caller falls back
@@ -142,8 +144,14 @@ async function readExamsCollection() {
 
 async function loadExamCatalog() {
   const idx = await readExamIndexDoc();
-  if (idx) return { exams: idx.exams.slice().sort(byNewest), courses: idx.courses, statsReady: idx.statsReady, source: "index" };
-  return { exams: (await readExamsCollection()).sort(byNewest), courses: {}, statsReady: false, source: "collection" };
+  if (idx) return { exams: idx.exams.filter((e) => !isDraftExam(e)).sort(byNewest), courses: idx.courses, statsReady: idx.statsReady, site: idx.site, source: "index" };
+  return { exams: (await readExamsCollection()).filter((e) => !isDraftExam(e)).sort(byNewest), courses: {}, statsReady: false, site: { maintenance: false, message: "" }, source: "collection" };
+}
+
+/** { maintenance, message } — from the cached exam catalog, so asking costs nothing extra. */
+export async function getSiteStatus(opts) {
+  const catalog = await getExamCatalog(opts);
+  return catalog.site || { maintenance: false, message: "" };
 }
 
 /** { exams, courses, source } — cached; `{ force: true }` (or a click Event) re-reads. */
@@ -201,9 +209,13 @@ export async function fetchAllCourses() {
 
 /* ---------- Index maintenance (admin side) ---------- */
 function slimExam(ex) {
-  const { questions, questionsBundle, ...rest } = ex || {};
+  // `instructions` is read from the full exam document when a student starts the exam — keep the shared index small.
+  const { questions, questionsBundle, instructions, ...rest } = ex || {};
   return stripUndefined(rest);
 }
+
+/** A draft exam (status: "draft", set from the admin panel) is hidden from students everywhere. Missing status = published. */
+const isDraftExam = (e) => e?.status === "draft";
 
 function buildCourseMap(exams, coursesList = []) {
   const byId = Object.fromEntries((coursesList || []).map((c) => [c.id, c]));
@@ -227,7 +239,8 @@ export function examSignature(exams, courseMap = {}) {
  * Overwrite examIndex/main from the given exams (1 write). Returns false if it could not be written.
  * `statsBackfilled: true` stamps the doc once the admin "Optimize" run has summarised every student's results.
  */
-export async function writeExamIndex(exams, coursesList = [], { statsBackfilled = false } = {}) {
+export async function writeExamIndex(allExams, coursesList = [], { statsBackfilled = false } = {}) {
+  const exams = allExams.filter((e) => !isDraftExam(e)); // drafts never reach the students' index
   const courseMap = buildCourseMap(exams, coursesList);
   const entries = exams.slice().sort(byNewest).map(slimExam);
   if (approxBytes({ entries, courseMap }) > INDEX_MAX_BYTES) {
@@ -248,13 +261,14 @@ export async function writeExamIndex(exams, coursesList = [], { statsBackfilled 
 }
 
 /** Cheap self-heal: rewrites the index only when it differs from the real exams (1 read, 0–1 write). */
-export async function syncExamIndex(exams, coursesList = []) {
+export async function syncExamIndex(allExams, coursesList = []) {
+  const exams = allExams.filter((e) => !isDraftExam(e));
   const courseMap = buildCourseMap(exams, coursesList);
   const current = await readExamIndexDoc();
   if (current && examSignature(current.exams, current.courses) === examSignature(exams, courseMap)) {
     return { written: false, upToDate: true };
   }
-  return { written: await writeExamIndex(exams, coursesList), upToDate: false };
+  return { written: await writeExamIndex(allExams, coursesList), upToDate: false };
 }
 
 /* ==========================================================================
@@ -1017,7 +1031,7 @@ export function invalidateAdminCaches() {
  * Firestore aggregation queries (count / sum / average) are billed at
  * 1 read per 1,000 matching index entries — so the whole overview costs a
  * handful of reads instead of "every user + every result + every exam".
- * Throws if aggregation isn't available (overview.js then uses the full-scan path).
+ * Throws if aggregation isn't available (the dashboard then shows what it can without the totals).
  */
 export async function fetchOverviewStats(opts) {
   if (!getAggregateFromServer || !count || !sum || !average) throw new Error("aggregate-unsupported");

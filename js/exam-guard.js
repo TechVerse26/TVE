@@ -6,7 +6,7 @@
 // rules does this resolve "confirmed".
 // ==========================================================================
 import { escapeHtml, getExamAvailability, formatDateTime } from "./utils.js";
-import { checkExamVisibility, getAttemptsCount, fetchExam } from "./exam-data.js";
+import { checkExamVisibility, getAttemptsCount, fetchExam, getSiteStatus } from "./exam-data.js";
 import { navigate } from "./router.js";
 import { state } from "./exam-engine.js";
 
@@ -60,10 +60,31 @@ export async function runVerification(container, examId, myToken) {
   const statuses = {};
   renderStepList(container, statuses);
 
+  const isAdminUser = !!state.userProfile?.isAdmin;
+
+  // A deactivated account (Admin → Students) can browse but never start an exam.
+  if (state.userProfile?.disabled && !isAdminUser) {
+    setStep(container, "auth", "fail");
+    failScreen(container, { title: "অ্যাকাউন্ট নিষ্ক্রিয়", message: "আপনার অ্যাকাউন্টটি বর্তমানে নিষ্ক্রিয় করা আছে, তাই এক্সাম শুরু করা যাবে না। বিস্তারিত জানতে অ্যাডমিনের সাথে যোগাযোগ করুন।", backLabel: "সব এক্সাম দেখুন", backHref: "#/exam" });
+    return { ok: false };
+  }
   setStep(container, "auth", "ok");
+
+  // Maintenance mode (Admin → Settings → General): no new exam starts, except for admins testing the site.
+  const site = await getSiteStatus().catch(() => ({ maintenance: false }));
+  if (myToken !== state.navToken) return { ok: false };
+  if (site.maintenance && !isAdminUser) {
+    failScreen(container, { title: "রক্ষণাবেক্ষণ চলছে", message: site.message || "এই মুহূর্তে নতুন এক্সাম শুরু করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।", backLabel: "সব এক্সাম দেখুন", backHref: "#/exam" });
+    return { ok: false };
+  }
 
   const exam = await fetchExam(examId);
   if (myToken !== state.navToken) return { ok: false };
+  // Draft exams are invisible to students (admins can still open one to preview it).
+  if (exam && exam.status === "draft" && !isAdminUser) {
+    failScreen(container, { title: "এক্সাম পাওয়া যায়নি", message: "এই এক্সামটি সরিয়ে ফেলা হয়েছে, অথবা লিংকটি সঠিক নয়।", backLabel: "সব এক্সাম দেখুন", backHref: "#/exam" });
+    return { ok: false };
+  }
   if (!exam) {
     failScreen(container, { title: "এক্সাম পাওয়া যায়নি", message: "এই এক্সামটি সরিয়ে ফেলা হয়েছে, অথবা লিংকটি সঠিক নয়।", backLabel: "সব এক্সাম দেখুন", backHref: "#/exam" });
     return { ok: false };
@@ -144,6 +165,7 @@ export function renderRulesGate(container, exam, { attemptsSoFar, maxAttempts, t
           <li>এক্সাম চলাকালীন পেজ রিফ্রেশ বা বন্ধ করবেন না — অগ্রগতি শুধু এই সেশনের জন্যই সংরক্ষিত থাকে।</li>
           <li>সময় শেষ হয়ে গেলে যা উত্তর দেওয়া হয়েছে তা স্বয়ংক্রিয়ভাবে জমা হয়ে যাবে।</li>
           ${attemptLine}
+          ${exam.instructions ? `<li><b>নির্দেশনা:</b> ${escapeHtml(String(exam.instructions)).replace(/\n/g, "<br>")}</li>` : ""}
         </ul>
         <div class="exs-rules-actions">
           <a href="#/exam?course=${encodeURIComponent(exam.courseId || "general")}" class="btn btn-outline btn-block">Go back</a>

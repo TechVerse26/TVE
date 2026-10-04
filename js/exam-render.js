@@ -4,7 +4,7 @@
 // (exam-engine.js) — this file only turns fetched data into HTML.
 // ==========================================================================
 import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBucket, formatDateTime, getExamQuestionCount, confirmAction, toBnDigits } from "./utils.js";
-import { fetchAllExams, fetchResult, checkExamVisibility } from "./exam-data.js";
+import { fetchAllExams, fetchResult, checkExamVisibility, getSiteStatus } from "./exam-data.js";
 import { startCountdowns } from "./exam-timer.js";
 import { state } from "./exam-engine.js";
 import { navigate, reloadRoute } from "./router.js";
@@ -59,6 +59,25 @@ export function setExamSectionHeader({ title, sub, showBack, backHref }) {
     backBtn.classList.toggle("hidden", !showBack);
     backBtn.dataset.href = backHref || "#/exam";
   }
+  paintSiteNotice();
+}
+
+/* Maintenance banner above the exam list (set from Admin → Settings). Optional: any failure just means no banner. */
+async function paintSiteNotice() {
+  const grid = document.getElementById("exam-grid");
+  if (!grid || !grid.parentElement) return;
+  try {
+    const site = await getSiteStatus();
+    let el = document.getElementById("exam-site-notice");
+    if (!site.maintenance) { el?.remove(); return; }
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "exam-site-notice";
+      el.className = "exs-site-notice";
+      grid.parentElement.insertBefore(el, grid);
+    }
+    el.innerHTML = `<i class="fa-solid fa-screwdriver-wrench"></i><div><b>রক্ষণাবেক্ষণ চলছে</b><p>${escapeHtml(site.message || "এই মুহূর্তে নতুন এক্সাম শুরু করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।")}</p></div>`;
+  } catch { /* the banner is optional */ }
 }
 
 function groupExamsByCourse(exams) {
