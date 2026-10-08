@@ -32,6 +32,10 @@ import { examState, STATE_META, isDraft, passPercentOf, totalMarksOf, passMarksO
 import { columns as colChart } from "./core/charts.js";
 import { loadBank, saveBank, qHash, normQuestion } from "./core/qbank.js";
 import { resultsForExam, usersByIds } from "./core/data.js";
+import { examSummary, questionPerformance } from "./core/exam-analytics.js";
+import { fetchExamStartsAdmin } from "../exam-data.js";
+import { DIFFICULTY, startOfDay, addDays, endOfDay } from "../schedule-core.js";
+import { isExamRandomPool as isRandomPool } from "../utils.js";
 import { openBankPicker } from "./core/bank-picker.js";
 
 /* ==========================================================================
@@ -43,7 +47,7 @@ export let currentExams = [];
    List page
    ========================================================================== */
 let root = null, table = null, updateBulk = () => {}, staleExams = false, loadFailed = false;
-const filters = { q: "", status: "all", type: "", subject: "", category: "", course: "" };
+const filters = { q: "", status: "all", type: "", subject: "", category: "", course: "", difficulty: "", date: "" };
 
 export async function mount(el) {
   root = el;
@@ -64,6 +68,8 @@ export async function mount(el) {
         <select id="ex-subject" aria-label="Subject"></select>
         <select id="ex-category" aria-label="Category"></select>
         <select id="ex-course" aria-label="Course"></select>
+        <select id="ex-difficulty" aria-label="Difficulty"><option value="">Any difficulty</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
+        <select id="ex-date" aria-label="Start date"><option value="">Any start date</option><option value="today">Starts today</option><option value="week">Starts in the next 7 days</option><option value="past">Started before today</option><option value="none">No start date</option></select>
       </div>
       <div class="toolbar" id="ex-seg"></div>
       <div id="exams-table-mount"></div>
@@ -86,7 +92,7 @@ export async function mount(el) {
   fillFilters();
   bindSegmented($("#ex-seg", root), (v) => { filters.status = v; refreshList(); });
   $("#ex-q", root).addEventListener("input", debounce((e) => { filters.q = e.target.value; refreshList(); }, 150));
-  ["type", "subject", "category", "course"].forEach((k) => $(`#ex-${k}`, root).addEventListener("change", (e) => { filters[k] = e.target.value; refreshList(); }));
+  ["type", "subject", "category", "course", "difficulty", "date"].forEach((k) => $(`#ex-${k}`, root).addEventListener("change", (e) => { filters[k] = e.target.value; refreshList(); }));
   $("#exams-refresh-btn", root).addEventListener("click", () => loadExamsTable({ force: true }));
   $("#optimize-exams-btn", root)?.addEventListener("click", optimizeAll);
   $("#add-exam-btn-top", root)?.addEventListener("click", () => openExamModal(null));
@@ -149,6 +155,14 @@ function filtered() {
     if (filters.subject && e.subjectId !== filters.subject) return false;
     if (filters.category && e.categoryId !== filters.category) return false;
     if (filters.course && (e.courseId || "") !== filters.course) return false;
+    if (filters.difficulty && (e.difficulty || "") !== filters.difficulty) return false;
+    if (filters.date) {
+      const t = toMs(e.publishAt), ds = startOfDay(Date.now());
+      if (filters.date === "today" && !(t >= ds && t < endOfDay(ds))) return false;
+      if (filters.date === "week" && !(t >= ds && t < addDays(ds, 7))) return false;
+      if (filters.date === "past" && !(t && t < ds)) return false;
+      if (filters.date === "none" && t) return false;
+    }
     return !q || `${e.title} ${e.courseName || ""} ${subjectName(e.subjectId)} ${categoryPath(e.categoryId)}`.toLowerCase().includes(q);
   });
 }
@@ -183,12 +197,12 @@ function examColumns() {
   return [
     { key: "title", label: "Exam", sortable: true, sortValue: (e) => e.title || "", render: (e) => {
       const sub = [subjectName(e.subjectId), categoryPath(e.categoryId), e.courseName].filter(Boolean).join(" · ");
-      return `<div class="cell-main"><div class="t">${esc(e.title || "Untitled")}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ""}</div>`;
+      return `<div class="cell-main"><div class="t">${e.featured ? '<i class="fa-solid fa-star" style="color:var(--accent-amber)" title="Featured on the home page"></i> ' : ""}${esc(e.title || "Untitled")}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ""}</div>`;
     } },
     { key: "status", label: "Status", sortable: true, sortValue: (e) => examState(e), render: (e) => {
       const st = examState(e), m = STATE_META[st], av = getExamAvailability(e);
       const hint = st === "scheduled" ? `Opens ${formatDateTime(av.publishAt)}` : st === "closed" ? `Closed ${formatDateTime(av.closesAt)}` : st === "open" && av.closesAt ? `Closes ${formatDateTime(av.closesAt)}` : st === "open" ? "Always open" : "Hidden from students";
-      return `${chip(m.label, m.tone)}<div class="muted" style="font-size:.74rem;margin-top:3px">${esc(hint)}</div>`;
+      return `${chip(m.label, m.tone)}${e.cancelled ? ` ${chip("Cancelled", "coral")}` : ""}<div class="muted" style="font-size:.74rem;margin-top:3px">${esc(hint)}</div>`;
     } },
     { key: "type", label: "Type", sortable: true, sortValue: (e) => e.examType || "live", render: (e) => e.examType === "practice" ? chip("Practice", "", "fa-dumbbell") : chip("Live", "accent", "fa-satellite-dish") },
     { key: "questions", label: "Questions", cls: "c-num", sortable: true, sortValue: (e) => Number(e.questionCount) || 0, render: (e) =>
@@ -255,10 +269,12 @@ async function duplicateExam(examId, { asPractice = false } = {}) {
   if (asPractice && !(await confirmAction(`"${ex.title}" এর একটি Practice কপি তৈরি করবেন? (একই প্রশ্নব্যাংক সহ, নতুন এক্সাম হিসেবে)`))) return;
   try {
     const questions = await fetchQuestionsAdmin(ex.id, ex); // 1 read for a bundle exam
-    const { id, createdAt, publishAt, closesAt, availableHours, qFormat, qChunks, ...rest } = ex;
+    const { id, createdAt, publishAt, closesAt, availableHours, qFormat, qChunks, scheduleUpdatedAt, ...rest } = ex;
+    // A copy starts clean: not featured, not cancelled, registration open (it inherits everything else).
+    const freshFlags = { featured: false, cancelled: false, registration: "open" };
     const data = asPractice
-      ? { ...rest, title: `${ex.title} (Practice)`, examType: "practice", status: "published", publishAt: null, closesAt: null, availableHours: 0 }
-      : { ...rest, title: `${ex.title} (Copy)`, status: "draft", publishAt: null, closesAt: null, availableHours: 0 };
+      ? { ...rest, ...freshFlags, title: `${ex.title} (Practice)`, examType: "practice", status: "published", publishAt: null, closesAt: null, availableHours: 0 }
+      : { ...rest, ...freshFlags, title: `${ex.title} (Copy)`, status: "draft", publishAt: null, closesAt: null, availableHours: 0 };
     const saved = await saveExamDoc({ data, questions }); // exam + whole question bank = one atomic write
     currentExams.unshift({
       id: saved.id, ...data, createdAt: Timestamp.now(),
@@ -272,47 +288,74 @@ async function duplicateExam(examId, { asPractice = false } = {}) {
   }
 }
 
-/* ---------- Per-exam statistics drawer ---------- */
+/* ---------- Per-exam statistics drawer (exam analytics) ---------- */
 async function openExamStats(examId) {
   const ex = currentExams.find((x) => x.id === examId);
   if (!ex) return;
-  const d = openDrawer({ title: ex.title, subtitle: `${ex.examType === "practice" ? "Practice" : "Live"} exam · ${STATE_META[examState(ex)].label}`, width: 620, html: skeleton(5) });
+  const d = openDrawer({ title: ex.title, subtitle: `${ex.examType === "practice" ? "Practice" : "Live"} exam · ${STATE_META[examState(ex)].label}`, width: 640, html: skeleton(5) });
   try {
-    const rows = await resultsForExam(examId);
+    const [rows, starts] = await Promise.all([resultsForExam(examId), fetchExamStartsAdmin(examId)]);
     const pass = passPercentOf(ex);
+    const sum = examSummary({ rows, starts, passPercent: pass });
     const pcts = rows.map((r) => Number(r.percent) || 0);
-    const attempts = rows.reduce((s, r) => s + countAttempts(r), 0);
-    const times = rows.map((r) => Number(r.timeTakenSeconds) || 0).filter(Boolean);
-    const passed = pcts.filter((p) => p >= pass).length;
     const bins = Array.from({ length: 10 }, (_, i) => ({ label: `${i * 10}`, value: 0, tone: i * 10 + 10 <= pass - 1 ? "coral" : "teal" }));
     pcts.forEach((p) => { bins[Math.min(9, Math.floor(p / 10))].value++; });
     const ranked = rows.slice().sort((a, b) => (Number(b.percent) || 0) - (Number(a.percent) || 0) || (Number(a.timeTakenSeconds) || 9e9) - (Number(b.timeTakenSeconds) || 9e9));
     const shown = [...ranked.slice(0, 5), ...ranked.slice(-3).filter((r) => !ranked.slice(0, 5).includes(r))];
     const users = await usersByIds(shown.map((r) => r.uid)).catch(() => ({}));
     const person = (r) => { const u = users[r.uid]; return u?.displayName || u?.email || (u?.missing ? "Deleted user" : "Student"); };
-    const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+    const has = rows.length > 0;
+    const tile = (v, label) => `<div class="mini-stat"><b>${v}</b><span>${label}</span></div>`;
 
     d.body.innerHTML = `
       <div class="mini-stats">
-        <div class="mini-stat"><b>${fmtN(rows.length)}</b><span>Students</span></div>
-        <div class="mini-stat"><b>${fmtN(attempts)}</b><span>Attempts</span></div>
-        <div class="mini-stat"><b>${rows.length ? fmtPct(avg(pcts)) : "—"}</b><span>Average score</span></div>
-        <div class="mini-stat"><b>${rows.length ? fmtPct((passed / rows.length) * 100) : "—"}</b><span>Pass rate (≥ ${pass}%)</span></div>
-        <div class="mini-stat"><b>${rows.length ? fmtPct(Math.max(...pcts)) : "—"}</b><span>Highest</span></div>
-        <div class="mini-stat"><b>${times.length ? fmtDur(avg(times)) : "—"}</b><span>Avg time taken</span></div>
+        ${tile(fmtN(sum.participants), "Participants")}
+        ${tile(fmtN(sum.completed), "Completed attempts")}
+        ${tile(sum.abandoned === null ? "—" : fmtN(sum.abandoned), "Abandoned")}
+        ${tile(has ? fmtPct(sum.avg) : "—", "Average score")}
+        ${tile(has ? fmtPct(sum.highest) : "—", "Highest")}
+        ${tile(has ? fmtPct(sum.lowest) : "—", "Lowest")}
+        ${tile(has ? fmtPct(sum.passRate) : "—", `Pass rate (≥ ${pass}%)`)}
+        ${tile(has ? fmtPct(sum.failRate) : "—", "Fail rate")}
+        ${tile(sum.avgTimeSeconds ? fmtDur(sum.avgTimeSeconds) : "—", "Avg completion time")}
       </div>
-      <div><h3>Score distribution</h3>${rows.length ? colChart({ bins, height: 120 }) : emptyState({ icon: "fa-chart-simple", title: "এখনো কেউ এক্সাম দেয়নি" })}
-        ${rows.length ? `<p class="muted" style="font-size:.76rem;margin-top:6px">নিচের অক্ষ = স্কোর শুরু (%); লাল = পাস মার্কের নিচে।</p>` : ""}</div>
-      ${rows.length ? `<div><h3>Top & bottom performers</h3><ul class="feed">${shown.map((r) => `<li>${avatar(person(r), 30)}<div style="flex:1;min-width:0"><div class="feed-t">${esc(person(r))}</div><div class="feed-s">${fmtDur(r.timeTakenSeconds)} · attempt #${countAttempts(r)}</div></div>${chip(fmtPct(r.percent), (Number(r.percent) || 0) >= pass ? "teal" : "coral")}</li>`).join("")}</ul></div>` : ""}
+      <p class="muted" style="font-size:.76rem">${sum.abandoned === null ? "Abandoned = শুরু করেও জমা না দেওয়া অ্যাটেম্পট — এখনো ট্র্যাক হচ্ছে না (firestore.rules পাবলিশ করুন; ট্র্যাকিং চালুর পর থেকে গণনা হবে)।" : `Abandoned = শুরু করেও জমা না দেওয়া অ্যাটেম্পট (${fmtN(sum.startedStudents)} জন শুরু করেছিল; ট্র্যাকিং চালুর পর থেকে)।`} Score-গুলো প্রতিজন শিক্ষার্থীর সর্বশেষ অ্যাটেম্পটের।</p>
+      <div><h3>Score distribution</h3>${has ? colChart({ bins, height: 120 }) : emptyState({ icon: "fa-chart-simple", title: "এখনো কেউ এক্সাম দেয়নি" })}
+        ${has ? `<p class="muted" style="font-size:.76rem;margin-top:6px">নিচের অক্ষ = স্কোর শুরু (%); লাল = পাস মার্কের নিচে।</p>` : ""}</div>
+      ${has ? `<div><h3>Top & bottom performers</h3><ul class="feed">${shown.map((r) => `<li>${avatar(person(r), 30)}<div style="flex:1;min-width:0"><div class="feed-t">${esc(person(r))}</div><div class="feed-s">${fmtDur(r.timeTakenSeconds)} · attempt #${countAttempts(r)}</div></div>${chip(fmtPct(r.percent), (Number(r.percent) || 0) >= pass ? "teal" : "coral")}</li>`).join("")}</ul></div>` : ""}
+      ${has ? `<details id="stats-qw" class="qw"><summary><h3 style="display:inline">Question-wise performance</h3> <span class="muted">— tap to load</span></summary><div id="stats-qw-body" class="qw-body"></div></details>` : ""}
       <div><h3>Settings</h3><dl class="kv">
         <dt>Total marks</dt><dd>${formatScore(totalMarksOf(ex))} (1 per correct answer)</dd>
         <dt>Pass mark</dt><dd>${passMarksOf(ex)} (${pass}%)</dd>
         <dt>Time limit</dt><dd>${ex.duration || 0} minutes</dd>
+        <dt>Difficulty</dt><dd>${esc(DIFFICULTY[ex.difficulty]?.label || "—")}</dd>
         <dt>Subject</dt><dd>${esc(subjectName(ex.subjectId) || "—")}</dd>
         <dt>Category</dt><dd>${esc(categoryPath(ex.categoryId) || "—")}</dd>
         <dt>Options</dt><dd>${examSettingsBadges(ex)}</dd></dl></div>
       ${can("exams.write") ? `<div class="row"><button type="button" class="btn btn-primary btn-sm" id="stats-edit"><i class="fa-solid fa-pen"></i> Edit exam</button></div>` : ""}`;
     d.body.querySelector("#stats-edit")?.addEventListener("click", () => { d.close(); openExamModal(examId); });
+
+    // Question-wise: only when asked (it reads the exam's question bundle once for the "easiest" list).
+    d.body.querySelector("#stats-qw")?.addEventListener("toggle", async (ev) => {
+      const box = d.body.querySelector("#stats-qw-body");
+      if (!ev.target.open || box.dataset.done) return;
+      box.dataset.done = "1";
+      box.innerHTML = skeleton(3);
+      const pool = isRandomPool(ex);
+      let questions = null;
+      if (!pool) { try { questions = await fetchQuestionsAdmin(ex.id, ex); } catch { questions = null; } }
+      const qp = questionPerformance({ rows, questions, randomPool: pool });
+      const list = (title, items, fmt) => `<div class="qw-col"><h4>${title}</h4>${items.length ? `<ol>${items.map((q) => `<li><span class="clamp2">${esc(q.text)}</span><b>${fmt(q)}</b></li>`).join("")}</ol>` : '<p class="muted">—</p>'}</div>`;
+      box.innerHTML = qp.hasData
+        ? `<p class="muted" style="font-size:.78rem">${fmtN(qp.base)}টি অ্যাটেম্পটের সংরক্ষিত রিভিউ থেকে (রিভিউ শুধু ৪৮ ঘণ্টা থাকে, আর শুধু ভুল/স্কিপ করা প্রশ্ন সংরক্ষিত হয়)।</p>
+          <div class="qw-grid">
+            ${list("Most difficult", qp.mostDifficult, (q) => `${Math.round(q.wrongRate)}% missed`)}
+            ${list("Most incorrect", qp.mostIncorrect, (q) => `${q.answeredWrong}× wrong`)}
+            ${list("Most skipped", qp.mostSkipped, (q) => `${q.blank}× skipped`)}
+            ${list("Easiest", qp.easiest, (q) => `${Math.round(100 - q.wrongRate)}% correct`)}
+          </div>${qp.easiestNote ? `<p class="muted" style="font-size:.76rem">${esc(qp.easiestNote)}</p>` : ""}`
+        : emptyState({ icon: "fa-circle-question", title: "সংরক্ষিত রিভিউ নেই", text: "রিভিউ ৪৮ ঘণ্টা পর মুছে যায় — নতুন অ্যাটেম্পটের পর আবার দেখুন।" });
+    });
   } catch (err) {
     d.body.innerHTML = errorState({ title: "পরিসংখ্যান লোড করা যায়নি", text: err?.message || "", retry: false });
   }
@@ -409,6 +452,10 @@ async function openExamModal(examId) {
         </div>
         <div class="field"><label>Category</label><select id="em-category">${categoryOptionsHtml("exam", ex?.categoryId || "")}</select><span class="form-hint">Subjects and categories are managed under Subjects & Categories</span></div>
         <div class="admin-grid">
+          <div class="field"><label>Difficulty</label><select id="em-difficulty"><option value="">— Not set —</option>${Object.entries(DIFFICULTY).map(([k, v]) => `<option value="${k}" ${ex?.difficulty === k ? "selected" : ""}>${v.label}</option>`).join("")}</select></div>
+          <div class="field"><label>Home page</label><label class="switch-row"><input type="checkbox" id="em-featured" ${ex?.featured ? "checked" : ""}> Featured exam (shown prominently)</label></div>
+        </div>
+        <div class="admin-grid">
           <div class="field"><label>Exam Title</label><input type="text" id="em-title" required value="${ex ? escapeHtml(ex.title) : ""}"></div>
           <div class="field"><label>Course Name (as tag)</label><input type="text" id="em-course" value="${ex ? escapeHtml(ex.courseName || "") : ""}"></div>
         </div>
@@ -496,7 +543,7 @@ async function openExamModal(examId) {
             </div>
             <div class="field">
               <label>Hours to Stay Open</label>
-              <input type="number" id="em-available-hours" min="0" step="1" placeholder="e.g. 48" value="${ex && ex.availableHours ? ex.availableHours : ""}">
+              <input type="number" id="em-available-hours" min="0" step="any" placeholder="e.g. 48" value="${ex && ex.availableHours ? ex.availableHours : ""}">
               <span class="form-hint">Leave empty or 0 to stay open indefinitely</span>
             </div>
           </div>
@@ -865,6 +912,8 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         status: overlay.querySelector("#em-status").value === "draft" ? "draft" : "published",
         subjectId: overlay.querySelector("#em-subject").value || "",
         categoryId: overlay.querySelector("#em-category").value || "",
+        difficulty: overlay.querySelector("#em-difficulty").value || "",
+        featured: overlay.querySelector("#em-featured").checked,
         passPercent: Math.min(100, Math.max(0, Number(overlay.querySelector("#em-pass-percent").value) || 0)),
         instructions: overlay.querySelector("#em-instructions").value.trim(),
       };

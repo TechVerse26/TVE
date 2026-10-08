@@ -9,7 +9,7 @@ import {
   emptyState, errorState, skeleton, segmented, bindSegmented, isDenied,
 } from "./core/ui.js";
 import { lineChart, hbars, donut, COLORS } from "./core/charts.js";
-import { dashboardCounts, recentResults, clearDashboardCache, usersByIds } from "./core/data.js";
+import { dashboardCounts, recentResults, clearDashboardCache, usersByIds, todayNewStudents } from "./core/data.js";
 import { fetchAllExamsAdmin, getExamCatalog } from "../exam-data.js";
 import { bankCount } from "./core/qbank.js";
 import { fetchLogs, actionMeta } from "./core/audit.js";
@@ -18,6 +18,9 @@ import { can } from "./core/permissions.js";
 import { examState, passPercentOf, isDraft } from "./core/exam-status.js";
 import { onChange, setPending } from "./core/bus.js";
 import { go } from "./admin.js";
+import { adminScheduleState, startOfDay, endOfDay } from "../schedule-core.js";
+import { hasSchedule } from "../home-core.js";
+import { serverNow, syncServerTime } from "../server-time.js";
 
 let root, stale = false, range = 14, data = null;
 
@@ -31,9 +34,13 @@ export async function mount(el) {
                 <button type="button" class="btn btn-outline btn-sm" id="dash-refresh" title="Re-read from the database"><i class="fa-solid fa-arrow-rotate-right"></i> Refresh</button>`,
     })}
     <div class="stack" id="dash-body">${skeleton(4)}</div>`;
+  syncServerTime();
   root.querySelector("#dash-refresh").addEventListener("click", () => load({ force: true }));
   root.querySelector("#dash-new-exam")?.addEventListener("click", () => { setPending("new-exam"); go("exams"); });
-  root.addEventListener("click", (e) => { const a = e.target.closest("[data-go]"); if (a) go(a.dataset.go); });
+  root.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-go]");
+    if (a) { if (a.dataset.pending) setPending(a.dataset.pending); go(a.dataset.go); }
+  });
   onChange((kind) => { if (["exams", "results", "users", "questions", "settings"].includes(kind)) stale = true; });
   await load();
 }
@@ -47,16 +54,17 @@ async function load(opts) {
   if (!data) body.innerHTML = skeleton(4);
   if (opts?.force) clearDashboardCache();
   const wantLogs = can("logs.view");
-  const [counts, exams, recent, bank, catalog, logs] = await Promise.allSettled([
+  const [counts, exams, recent, bank, catalog, logs, todayNew] = await Promise.allSettled([
     dashboardCounts(opts),
     fetchAllExamsAdmin(opts),
     recentResults({ days: 30, cap: 400 }, opts),
     bankCount(),
     getExamCatalog(opts),
     wantLogs ? fetchLogs({ pageSize: 8 }) : Promise.resolve(null),
+    todayNewStudents(opts),
   ]);
   const ok = (r) => (r.status === "fulfilled" ? r.value : null);
-  data = { counts: ok(counts), exams: ok(exams), recent: ok(recent), bank: ok(bank), catalog: ok(catalog), logs: ok(logs), logsDenied: logs.status === "rejected" && isDenied(logs.reason), errs: { counts: counts.reason, exams: exams.reason, recent: recent.reason } };
+  data = { counts: ok(counts), exams: ok(exams), recent: ok(recent), bank: ok(bank), catalog: ok(catalog), logs: ok(logs), todayNew: ok(todayNew), logsDenied: logs.status === "rejected" && isDenied(logs.reason), errs: { counts: counts.reason, exams: exams.reason, recent: recent.reason } };
 
   const rows = data.recent?.rows || [];
   data.users = rows.length ? await usersByIds(rows.slice(0, 10).map((r) => r.uid)).catch(() => ({})) : {};
@@ -72,8 +80,22 @@ function derive() {
   const rows = data.recent?.rows || [];
   const active = new Set(rows.map((r) => r.uid));
   const passed = rows.filter((r) => (Number(r.percent) || 0) >= passPercentOf(byId[r.examId])).length;
+  // Schedule view (live-type exams only): what is on air, what is coming, what is over, and what falls on today.
+  const now = serverNow(), dayStart = startOfDay(now);
+  const sched = { live: 0, upcoming: 0, completed: 0, today: 0 };
+  exams.forEach((e) => {
+    if (e.examType === "practice") return;
+    if (!hasSchedule(e)) return; // always-open exams are neither "live" nor "upcoming" — they have no schedule
+    const st = adminScheduleState(e, now);
+    if (st === "live") sched.live++;
+    else if (st === "scheduled") sched.upcoming++;
+    else if (st === "completed") sched.completed++;
+    if (st === "draft" || st === "cancelled") return;
+    const open = toMs(e.publishAt), close = toMs(e.closesAt);
+    if (st === "live" || (open >= dayStart && open < endOfDay(dayStart)) || (st === "completed" && close >= dayStart)) sched.today++;
+  });
   return {
-    exams, byId, states, rows,
+    exams, byId, states, rows, sched, attemptsToday: attemptSeries(rows, 1)[0]?.y ?? 0,
     questions: exams.reduce((s, e) => s + (Number(e.questionCount) || 0), 0),
     activeUsers: active.size,
     passRate: rows.length ? (passed / rows.length) * 100 : null,
@@ -99,27 +121,54 @@ function render() {
   const dash = (v) => (v === null || v === undefined ? "—" : v);
   const capNote = data.recent?.capped ? "≥ " : "";
 
-  const contentStrip = `<div class="kpis">
-    ${kpi({ label: "Total exams", value: dash(data.exams ? fmtN(d.exams.length) : null), sub: `${d.states.open} open now` })}
-    ${kpi({ label: "Published", value: dash(data.exams ? fmtN(d.exams.length - d.states.draft) : null), sub: "visible to students", tone: "teal" })}
-    ${kpi({ label: "Active now", value: dash(data.exams ? fmtN(d.states.open) : null), sub: `${d.states.scheduled} scheduled · ${d.states.closed} closed`, tone: "accent" })}
-    ${kpi({ label: "Draft", value: dash(data.exams ? fmtN(d.states.draft) : null), sub: "hidden from students", tone: d.states.draft ? "amber" : "" })}
-    ${kpi({ label: "Questions in exams", value: dash(data.exams ? fmtN(d.questions) : null), sub: "across all exams" })}
-    ${kpi({ label: "Question bank", value: dash(data.bank === null ? null : fmtN(data.bank)), sub: "reusable library" })}
-  </div>`;
-
-  const peopleStrip = `<div class="kpis">
-    ${kpi({ label: "Total users", value: dash(c ? fmtN(c.users) : null), sub: c ? `${fmtN(c.admins)} admin${c.admins === 1 ? "" : "s"}${c.disabledUsers ? ` · ${fmtN(c.disabledUsers)} deactivated` : ""}` : "" })}
-    ${kpi({ label: "Active users", value: data.recent ? `${capNote}${fmtN(d.activeUsers)}` : "—", sub: "took an exam in 30 days", tone: "teal" })}
-    ${kpi({ label: "Exam attempts", value: dash(c ? fmtN(c.attempts) : null), sub: "all time", tone: "accent" })}
-    ${kpi({ label: "Completed exams", value: dash(c ? fmtN(c.resultDocs) : null), sub: "student × exam results" })}
+  // The eight headline numbers of an exam platform …
+  const overviewStrip = `<div class="kpis kpis-4">
+    ${kpi({ label: "Total students", value: dash(c ? fmtN(Math.max(0, c.users - c.admins)) : null), sub: c && c.disabledUsers ? `${fmtN(c.disabledUsers)} deactivated` : "registered accounts" })}
+    ${kpi({ label: "Total exams", value: dash(data.exams ? fmtN(d.exams.length) : null), sub: `${d.states.draft} draft · ${d.exams.length - d.states.draft} published` })}
+    ${kpi({ label: "Live exams", value: dash(data.exams ? fmtN(d.sched.live) : null), sub: "open right now", tone: d.sched.live ? "coral" : "" })}
+    ${kpi({ label: "Upcoming exams", value: dash(data.exams ? fmtN(d.sched.upcoming) : null), sub: "scheduled, not started", tone: "amber" })}
+    ${kpi({ label: "Completed exams", value: dash(data.exams ? fmtN(d.sched.completed) : null), sub: "window closed", tone: "accent" })}
+    ${kpi({ label: "Total attempts", value: dash(c ? fmtN(c.attempts) : null), sub: "all time", tone: "accent" })}
     ${kpi({ label: "Average score", value: c ? fmtPct(c.avgPercent) : "—", sub: "all results" })}
     ${kpi({ label: "Pass rate", value: d.passRate === null ? "—" : fmtPct(d.passRate), sub: "last 30 days", tone: d.passRate !== null && d.passRate < 50 ? "coral" : "teal" })}
   </div>`;
 
+  // … what is happening today …
+  const todayPanel = `<div class="panel"><div class="panel-head"><h2>Today's overview</h2><small>${esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" }))}</small></div>
+    <div class="panel-body"><div class="mini-stats mini-stats-2">
+      <div class="mini-stat"><b>${data.exams ? fmtN(d.sched.today) : "—"}</b><span>Today's exams</span></div>
+      <div class="mini-stat"><b>${data.recent ? `${capNote}${fmtN(d.attemptsToday)}` : "—"}</b><span>Today's attempts</span></div>
+      <div class="mini-stat"><b>${dash(data.todayNew === null || data.todayNew === undefined ? null : fmtN(data.todayNew))}</b><span>New students today</span></div>
+      <div class="mini-stat"><b>${data.exams ? fmtN(d.sched.upcoming) : "—"}</b><span>Pending / upcoming</span></div>
+    </div></div></div>`;
+
+  // … and the things an admin does most.
+  const qa = (icon, label, go, perm, pending = "") => (can(perm) ? `<button type="button" class="qa-btn" data-go="${go}"${pending ? ` data-pending="${pending}"` : ""}><i class="fa-solid ${icon}"></i><span>${label}</span></button>` : "");
+  const quickPanel = `<div class="panel"><div class="panel-head"><h2>Quick actions</h2></div>
+    <div class="panel-body"><div class="qa-grid">
+      ${qa("fa-plus", "Create exam", "exams", "exams.write", "new-exam")}
+      ${qa("fa-calendar-plus", "Schedule exam", "schedule", "exams.write", "new-schedule")}
+      ${qa("fa-circle-question", "Add questions", "questions", "questions.view")}
+      ${qa("fa-bullhorn", "Send notice", "notices", "notices.manage", "new-notice")}
+      ${qa("fa-square-poll-vertical", "View results", "results", "results.view")}
+      ${qa("fa-users", "Manage students", "students", "students.view")}
+    </div></div></div>`;
+
+  // … then the wider content picture that was always here.
+  const contentStrip = `<div class="kpis">
+    ${kpi({ label: "Published", value: dash(data.exams ? fmtN(d.exams.length - d.states.draft) : null), sub: "visible to students", tone: "teal" })}
+    ${kpi({ label: "Open (incl. practice)", value: dash(data.exams ? fmtN(d.states.open) : null), sub: `${d.states.scheduled} scheduled · ${d.states.closed} closed` })}
+    ${kpi({ label: "Draft", value: dash(data.exams ? fmtN(d.states.draft) : null), sub: "hidden from students", tone: d.states.draft ? "amber" : "" })}
+    ${kpi({ label: "Questions in exams", value: dash(data.exams ? fmtN(d.questions) : null), sub: "across all exams" })}
+    ${kpi({ label: "Question bank", value: dash(data.bank === null ? null : fmtN(data.bank)), sub: "reusable library" })}
+    ${kpi({ label: "Active users", value: data.recent ? `${capNote}${fmtN(d.activeUsers)}` : "—", sub: "took an exam in 30 days", tone: "teal" })}
+  </div>`;
+
   const noteErr = (data.errs.counts && !c) ? `<div class="note warn"><b>কিছু সংখ্যা লোড হয়নি।</b> ${esc(data.errs.counts?.message || "")} Refresh করে দেখুন।</div>` : "";
 
-  body.innerHTML = `${noteErr}${contentStrip}${peopleStrip}
+  body.innerHTML = `${noteErr}${overviewStrip}
+    <div class="grid-2">${todayPanel}${quickPanel}</div>
+    ${contentStrip}
     <div class="grid-3">
       <div class="panel span-2">
         <div class="panel-head"><div><h2>Exam attempts</h2><small>${data.recent?.capped ? "সর্বশেষ ৪০০টি ফলাফল ডকুমেন্টের ভিত্তিতে" : "গত ৩০ দিনের ফলাফল ডকুমেন্টের ভিত্তিতে"}</small></div>

@@ -28,7 +28,7 @@ export async function mount(el) {
       actions: `<button type="button" class="btn btn-outline btn-sm" id="nt-refresh" title="Re-read from the database"><i class="fa-solid fa-arrow-rotate-right"></i></button>
         <button type="button" class="btn btn-primary btn-sm" id="nt-new"><i class="fa-solid fa-paper-plane"></i> New notification</button>` })}
     <div class="stack">
-      <div class="note"><b>কীভাবে কাজ করে:</b> বার্তাটি প্ল্যাটফর্মের <code>notifications</code> কালেকশনে জমা হয়, যা কোর্স সাইটের নোটিফিকেশন তালিকা পড়ে। এক্সাম সাইটে সরাসরি দেখানোর জন্য Settings → Site status-এ মেইনটেন্যান্স নোটিশ ব্যবহার করুন।</div>
+      <div class="note"><b>কীভাবে কাজ করে:</b> বার্তাটি প্ল্যাটফর্মের <code>notifications</code> কালেকশনে জমা হয়, যা কোর্স সাইটের নোটিফিকেশন তালিকা পড়ে। এক্সাম সাইটের হোমপেজ ও নোটিফিকেশন বেলে ঘোষণা দেখানোর জন্য <b>Notices</b> পেজ ব্যবহার করুন; মেইনটেন্যান্স বার্তা Settings → Site status-এ।</div>
       <div class="panel">
         <div class="toolbar"><div class="search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="nt-q" placeholder="Search title or message…" autocomplete="off"></div></div>
         <div id="nt-table"></div>

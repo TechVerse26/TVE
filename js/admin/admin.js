@@ -33,6 +33,7 @@ const NAV = [
   ] },
   { group: "Exam system", items: [
     { id: "exams", label: "Exams", icon: "fa-file-pen", perm: "exams.view", mod: "./exams.js" },
+    { id: "schedule", label: "Exam Schedule", icon: "fa-calendar-days", perm: "exams.view", mod: "./schedule.js" },
     { id: "questions", label: "Question Bank", icon: "fa-circle-question", perm: "questions.view", mod: "./questions.js" },
     { id: "taxonomy", label: "Subjects & Categories", icon: "fa-folder-tree", perm: "taxonomy.view", mod: "./taxonomy-page.js" },
   ] },
@@ -46,6 +47,8 @@ const NAV = [
     { id: "logs", label: "Activity Logs", icon: "fa-clock-rotate-left", perm: "logs.view", mod: "./logs.js" },
   ] },
   { group: "Communication", items: [
+    { id: "notices", label: "Notices", icon: "fa-bullhorn", perm: "notices.manage", mod: "./notices.js" },
+    { id: "homepage", label: "Homepage", icon: "fa-house-laptop", perm: "homepage.manage", mod: "./homepage.js" },
     { id: "notifications", label: "Notifications", icon: "fa-bell", perm: "notifications.manage", mod: "./notifications.js" },
   ] },
   { group: "System", items: [

@@ -8,6 +8,7 @@ import { toast } from "../utils.js";
 import * as cache from "../cache.js";
 import { esc, $, $$, pageHead, chip, withBusy, errorState, isDenied, ago, confirmDanger } from "./core/ui.js";
 import { DEFAULTS, getSettings, saveSettings, publishSiteConfig, settingsMeta, loadSettings } from "./core/settings.js";
+import { writeFeedFields } from "../home-data.js";
 import { logAction } from "./core/audit.js";
 import { emitChange } from "./core/bus.js";
 import { me } from "./admin.js";
@@ -142,6 +143,8 @@ async function save() {
       if (changed.includes("site")) { try { await publishSiteConfig(draft.site); cache.del("exams:catalog"); } catch { siteOk = false; } }
       saved = clone(getSettings());
       draft = clone(saved);
+      // Students' pass-mark default (result cards, "My Performance") comes from the home feed — keep it in step (best effort).
+      if (changed.includes("result")) writeFeedFields({ passPercent: saved.result.passPercent }).catch(() => {});
       logAction("settings.update", { type: "settings", label: changed.map((id) => SCHEMA.find((t) => t.id === id).label).join(", "), detail: changed.includes("site") ? `maintenance ${saved.site.maintenance ? "ON" : "OFF"}` : "" });
       emitChange("settings");
       paint();

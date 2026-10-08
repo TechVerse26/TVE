@@ -14,7 +14,7 @@ import { emitChange, onChange } from "./core/bus.js";
 const PAGE = 50;
 let root, table, rows = [], cursor = null, done = false, loading = false;
 const f = { q: "", group: "", who: "" };
-const GROUPS = { exam: "Exams", question: "Questions", subject: "Subjects", category: "Categories", user: "Students", notification: "Notifications", settings: "Settings", admin: "Admins", logs: "Logs" };
+const GROUPS = { exam: "Exams", schedule: "Schedule", notice: "Notices", homepage: "Homepage", question: "Questions", subject: "Subjects", category: "Categories", user: "Students", notification: "Notifications", settings: "Settings", admin: "Admins", logs: "Logs" };
 
 export async function mount(el) {
   root = el;

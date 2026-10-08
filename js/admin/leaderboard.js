@@ -17,6 +17,8 @@
 // ==========================================================================
 import { escapeHtml, toast, formatScore, formatDateTime } from "../utils.js";
 import { fetchAllResultsAdmin, fetchAllUsersAdmin, publishPercentileStats, countAttempts } from "../exam-data.js";
+import { getHomeFeed } from "../home-data.js";
+import { buildTopList } from "../home-core.js";
 
 let leaderboard = []; // ranked: [{ uid, displayName, email, results[], examsTaken, totalAttempts, avgPercent, bestPercent }]
 
@@ -168,10 +170,15 @@ export async function loadLeaderboard(opts) {
     // card still works from whatever was last published if this fails.
     // Skipped when the numbers are identical to what this page already published (saves a write).
     const percents = leaderboard.map((row) => row.avgPercent);
-    const signature = percents.join(",");
+    // The home page's "Top Performers" preview rides along in the same document (names follow Admin → Homepage → privacy).
+    const mode = (await getHomeFeed().catch(() => null))?.content?.leaderboardNames || "full";
+    const top = buildTopList(
+      leaderboard.filter((r) => r.examsTaken > 0).map((r) => ({ ...r, displayName: r.displayName === "নাম নেই" ? "Student" : r.displayName })), 10, mode,
+    );
+    const signature = `${percents.join(",")}|${mode}|${JSON.stringify(top)}`;
     if (signature !== lastPublishedPercents) {
       lastPublishedPercents = signature;
-      publishPercentileStats(percents).catch(() => { lastPublishedPercents = ""; });
+      publishPercentileStats(percents, top).catch(() => { lastPublishedPercents = ""; });
     }
   } catch {
     if (tbody) tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state"><p>লোড করা যায়নি</p></div></td></tr>`;
