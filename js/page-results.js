@@ -28,6 +28,7 @@ import { requireAuth, escapeHtml, formatScore, formatDateTime, toBnDigits } from
 import { fetchMyResults, fetchPercentileStats, isReviewExpired, reviewMsLeft } from "./exam-data.js";
 import { normalizeReview, reviewItemHtml, reviewTtlHours } from "./exam-review.js";
 import { renderNav } from "./nav.js";
+import { pageHead, sectionHead, skeleton, emptyBlock, errorBlock, onRetry } from "./home-ui.js";
 
 const OVERVIEW_MAX_BARS = 40;
 const COUNT_UP_MS = 650;
@@ -171,7 +172,7 @@ function barChartHtml(points, { tip, label }) {
 function rankCardHtml(liveResults, stats) {
   if (!liveResults.length) {
     return `
-      <div class="ov-card ov-card--rank">
+      <div class="ov-card card ov-card--rank">
         <div class="ov-card-head">
           <div class="ov-card-icon"><i class="fa-solid fa-ranking-star"></i></div>
           <div><h2>আপনার র‍্যাংক</h2><p>লাইভ এক্সাম দিলে এখানে আপনার অবস্থান দেখা যাবে</p></div>
@@ -186,7 +187,7 @@ function rankCardHtml(liveResults, stats) {
   const pool = Array.isArray(stats?.percents) ? stats.percents : null;
   if (!pool || pool.length < 2) {
     return `
-      <div class="ov-card ov-card--rank">
+      <div class="ov-card card ov-card--rank">
         <div class="ov-card-head">
           <div class="ov-card-icon"><i class="fa-solid fa-ranking-star"></i></div>
           <div><h2>আপনার র‍্যাংক</h2><p>যথেষ্ট ডেটা জমা হলে এখানে দেখা যাবে</p></div>
@@ -204,7 +205,7 @@ function rankCardHtml(liveResults, stats) {
   const diffIcon = diff > 0 ? "fa-arrow-up" : diff < 0 ? "fa-arrow-down" : "fa-minus";
 
   return `
-    <div class="ov-card ov-card--rank">
+    <div class="ov-card card ov-card--rank">
       <div class="ov-card-head">
         <div class="ov-card-icon"><i class="fa-solid fa-ranking-star"></i></div>
         <div><h2>আপনার র‍্যাংক</h2><p>${total} জন শিক্ষার্থীর মধ্যে তুলনা করা হয়েছে</p></div>
@@ -235,7 +236,7 @@ function overviewCardHtml(type, results) {
 
   if (!filtered.length) {
     return `
-      <div class="ov-card ov-card--${type}">
+      <div class="ov-card card ov-card--${type}">
         <div class="ov-card-head">
           <div class="ov-card-icon"><i class="fa-solid ${icon}"></i></div>
           <div><h2>${title}</h2><p>${isLive ? "লাইভ" : "প্র্যাকটিস"} এক্সামের ট্রেন্ড এখানে দেখা যাবে</p></div>
@@ -254,7 +255,7 @@ function overviewCardHtml(type, results) {
   });
 
   return `
-    <div class="ov-card ov-card--${type}">
+    <div class="ov-card card ov-card--${type}">
       <div class="ov-card-head">
         <div class="ov-card-icon"><i class="fa-solid ${icon}"></i></div>
         <div><h2>${title}</h2><p>${filtered.length} টি এক্সাম · সর্বমোট ${flatFull.length} বার দিয়েছেন</p></div>
@@ -265,28 +266,22 @@ function overviewCardHtml(type, results) {
     </div>`;
 }
 
-/* ---------- Per-exam card in the list below the graphs ---------- */
+/* ---------- Per-exam row in the list below the graphs: a card on phones, a compact table row on desktop ---------- */
 function resultCardHtml(r) {
   const attempts = normalizeAttempts(r);
-  const typeBadge = resultType(r) === "practice"
-    ? `<span class="exs-type-badge exs-type-badge--practice">Practice</span>`
-    : `<span class="exs-type-badge exs-type-badge--live">Live</span>`;
+  const isPractice = resultType(r) === "practice";
   return `
-    <button type="button" class="result-row-card" data-open-history="${escapeHtml(r.id)}">
-      <div class="result-row-top">
-        <div class="result-row-main">
-          <h3>${escapeHtml(r.examTitle || "এক্সাম")}</h3>
-          <span class="exs-muted exs-small">${formatDateTime(r.submittedAt)} ${typeBadge}</span>
-        </div>
-        <div class="result-row-score">
-          <b>${formatScore(r.score)} / ${r.total}</b>
-          <span class="exs-tag ${r.percent >= 60 ? "exs-tag--teal" : "exs-tag--coral"}">${r.percent}%</span>
-        </div>
-      </div>
-      <div class="result-row-hint">
-        <span><i class="fa-solid fa-clock-rotate-left"></i> ${attempts.length} বার পরীক্ষা দেওয়া হয়েছে</span>
-        <i class="fa-solid fa-chevron-right"></i>
-      </div>
+    <button type="button" class="result-row-card" data-open-history="${escapeHtml(r.id)}" aria-label="${escapeHtml(r.examTitle || "এক্সাম")} — ${formatScore(r.score)}/${r.total}, ${r.percent}%">
+      <span class="rr-main">
+        <b class="rr-title">${escapeHtml(r.examTitle || "এক্সাম")}</b>
+        <span class="rr-date">${formatDateTime(r.submittedAt)}</span>
+      </span>
+      <span class="rr-score"><b>${formatScore(r.score)} / ${r.total}</b><span class="badge ${r.percent >= 60 ? "badge-pass" : "badge-fail"}">${r.percent}%</span></span>
+      <span class="rr-meta">
+        <span class="badge ${isPractice ? "badge-accent" : "badge-teal"}">${isPractice ? "Practice" : "Live"}</span>
+        <span class="rr-attempts"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> ${attempts.length} বার</span>
+      </span>
+      <i class="fa-solid fa-chevron-right rr-go" aria-hidden="true"></i>
     </button>`;
 }
 
@@ -395,9 +390,9 @@ export async function initResultsPage(params, container) {
   if (!user) return;
 
   container.innerHTML = `
-    <div class="container page-pad">
-      <div class="page-head"><h1><i class="fa-solid fa-chart-simple"></i> আমার ফলাফল</h1><p>আপনার দেওয়া সব এক্সামের ফলাফল এখানে দেখতে পাবেন</p></div>
-      <div id="my-results-list" class="exs-loading"><span class="exs-spinner"></span> লোড হচ্ছে...</div>
+    <div class="container page">
+      ${pageHead("My Activity", "আপনার সব পরীক্ষার অ্যাটেম্পট, স্কোর, তারিখ ও ভুলের রিভিউ এক জায়গায়।", '<a class="btn btn-outline btn-sm" href="#/performance"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Performance</a>')}
+      <div id="my-results-list">${skeleton("card", 3)}</div>
     </div>
     <div class="result-modal-overlay" id="result-modal">
       <div class="result-modal" role="dialog" aria-modal="true">
@@ -446,37 +441,50 @@ export async function initResultsPage(params, container) {
   escapeHandler = (e) => { if (e.key === "Escape") closeHistory(); };
   document.addEventListener("keydown", escapeHandler);
 
-  try {
-    const [results, percentileStats] = await Promise.all([
-      fetchMyResults(user.uid),
-      fetchPercentileStats(),
-    ]);
+  async function load() {
+    listEl.innerHTML = skeleton("card", 3);
+    try {
+      const [results, percentileStats] = await Promise.all([
+        fetchMyResults(user.uid),
+        fetchPercentileStats(),
+      ]);
 
-    if (!results.length) {
-      listEl.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>এখনো কোনো এক্সাম দেননি</p></div>`;
-      return;
+      if (!results.length) {
+        listEl.innerHTML = emptyBlock("fa-file-lines", "এখনো কোনো এক্সাম দেননি", '<a class="btn btn-primary btn-sm" href="#/exams">পরীক্ষা দেখুন</a>');
+        return;
+      }
+      resultsById = Object.fromEntries(results.map((r) => [r.id, r]));
+      const liveResults = results.filter((r) => resultType(r) === "live");
+
+      listEl.innerHTML = `
+        <div class="results-stack">
+          <section class="section" aria-labelledby="h-act-summary">
+            ${sectionHead("h-act-summary", "Summary", { icon: "fa-chart-simple", sub: "আপনার অবস্থান ও অগ্রগতি" })}
+            <div class="results-overview">${rankCardHtml(liveResults, percentileStats)}</div>
+            <div class="results-overview">
+              ${overviewCardHtml("live", results)}
+              ${overviewCardHtml("practice", results)}
+            </div>
+          </section>
+          <section class="section" aria-labelledby="h-act-list">
+            ${sectionHead("h-act-list", "Exam attempts", { icon: "fa-clock-rotate-left", sub: "কোনো পরীক্ষায় ট্যাপ করে সব অ্যাটেম্পট ও ভুলের রিভিউ দেখুন" })}
+            <div class="results-grid">
+              <div class="results-cols" aria-hidden="true"><span>Exam</span><span>Type</span><span>Score</span></div>
+              ${results.map(resultCardHtml).join("")}
+            </div>
+          </section>
+        </div>`;
+
+      animateBars(listEl);
+      animateStats(listEl);
+
+      listEl.querySelectorAll("[data-open-history]").forEach((btn) => {
+        btn.addEventListener("click", () => openHistory(btn.dataset.openHistory));
+      });
+    } catch {
+      listEl.innerHTML = errorBlock("results", "ফলাফল লোড করা যায়নি। আবার চেষ্টা করুন।");
     }
-    resultsById = Object.fromEntries(results.map((r) => [r.id, r]));
-    const liveResults = results.filter((r) => resultType(r) === "live");
-
-    listEl.className = "";
-    listEl.innerHTML = `
-      <div class="results-overview">
-        ${rankCardHtml(liveResults, percentileStats)}
-      </div>
-      <div class="results-overview">
-        ${overviewCardHtml("live", results)}
-        ${overviewCardHtml("practice", results)}
-      </div>
-      <div class="results-grid">${results.map(resultCardHtml).join("")}</div>`;
-
-    animateBars(listEl);
-    animateStats(listEl);
-
-    listEl.querySelectorAll("[data-open-history]").forEach((btn) => {
-      btn.addEventListener("click", () => openHistory(btn.dataset.openHistory));
-    });
-  } catch {
-    listEl.innerHTML = `<div class="exs-empty"><p>ফলাফল লোড করা যায়নি</p></div>`;
   }
+  onRetry(listEl, () => load());   // bound to this page's own element, so it disappears with the page
+  await load();
 }

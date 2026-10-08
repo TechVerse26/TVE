@@ -5,8 +5,11 @@
 // after every step passes AND the student explicitly accepts the exam
 // rules does this resolve "confirmed".
 // ==========================================================================
-import { escapeHtml, getExamAvailability, formatDateTime } from "./utils.js";
+import { escapeHtml, formatDateTime } from "./utils.js";
 import { checkExamVisibility, getAttemptsCount, fetchExam, getSiteStatus } from "./exam-data.js";
+import { computeStatus, passMarksFor, toMs } from "./schedule-core.js";
+import { serverNow } from "./server-time.js";
+import { peekHomeFeed } from "./home-data.js";
 import { navigate } from "./router.js";
 import { state } from "./exam-engine.js";
 
@@ -45,7 +48,7 @@ function setStep(container, key, status) {
     : status === "fail" ? '<i class="fa-solid fa-circle-xmark"></i>'
     : '<i class="fa-solid fa-spinner fa-spin"></i>';
 }
-function failScreen(container, { title, message, backLabel, backHref }) {
+export function failScreen(container, { title, message, backLabel, backHref }) {
   container.innerHTML = `
     <div class="exs-verify-card exs-verify-card--fail">
       <div class="exs-verify-head exs-verify-head--fail">
@@ -54,6 +57,28 @@ function failScreen(container, { title, message, backLabel, backHref }) {
       </div>
       <a href="${backHref}" class="btn btn-outline btn-block">${escapeHtml(backLabel)}</a>
     </div>`;
+}
+
+/**
+ * Is this exam closed to the student right now? → { title, message } for the fail screen, or null when they may go in.
+ * Judged against the SERVER clock (server-time.js). The schedule applies to everyone (as it always has);
+ * "cancelled" and "registration closed" are bypassed for admins so they can still test an exam.
+ */
+export function windowBlock(exam, isAdminUser = false) {
+  const st = computeStatus(exam, serverNow());
+  if (st.reason === "upcoming") return { title: "The exam hasn't started yet.", message: `This exam starts on ${formatDateTime(st.startsAt)}.` };
+  if (st.reason === "window-closed") return { title: "Exam time is over.", message: `This exam closed on ${formatDateTime(st.endsAt)}.` };
+  if (!isAdminUser && st.reason === "cancelled") return { title: "Exam not available.", message: "এই পরীক্ষার সময়সূচি বাতিল করা হয়েছে।" };
+  if (!isAdminUser && st.reason === "registration-closed") return { title: "Registration closed.", message: "এই পরীক্ষায় নতুন করে অংশগ্রহণের সুযোগ বন্ধ করা হয়েছে।" };
+  return null;
+}
+
+/** The student sat on the rules page while the window closed (or the exam was cancelled)? Caught here, at "Start". */
+export function recheckWindow(container, exam, isAdminUser) {
+  const blocked = windowBlock(exam, isAdminUser);
+  if (!blocked) return true;
+  failScreen(container, { ...blocked, backLabel: "Go back", backHref: `#/exam?course=${encodeURIComponent(exam.courseId || "general")}` });
+  return false;
 }
 
 export async function runVerification(container, examId, myToken) {
@@ -103,15 +128,10 @@ export async function runVerification(container, examId, myToken) {
   setStep(container, "access", "ok");
 
   const courseBackHref = `#/exam?course=${encodeURIComponent(exam.courseId || "general")}`;
-  const { state: availState, publishAt, closesAt } = getExamAvailability(exam);
-  if (availState === "upcoming") {
+  const blocked = windowBlock(exam, isAdminUser);
+  if (blocked) {
     setStep(container, "window", "fail");
-    failScreen(container, { title: "The exam hasn't started yet.", message: `This exam starts on ${formatDateTime(publishAt)}.`, backLabel: "Go back", backHref: courseBackHref });
-    return { ok: false };
-  }
-  if (availState === "closed") {
-    setStep(container, "window", "fail");
-    failScreen(container, { title: "Exam time is over.", message: `This exam closed on ${formatDateTime(closesAt)}.`, backLabel: "Go back", backHref: courseBackHref });
+    failScreen(container, { ...blocked, backLabel: "Go back", backHref: courseBackHref });
     return { ok: false };
   }
   setStep(container, "window", "ok");
@@ -145,6 +165,11 @@ export function renderRulesGate(container, exam, { attemptsSoFar, maxAttempts, t
     function onNavigateAway() { finish("away"); }
     window.addEventListener("hashchange", onNavigateAway);
 
+    const passMarks = passMarksFor(exam, peekHomeFeed()?.passPercent || 60);
+    const negative = exam.examType === "practice" ? 0 : Math.max(0, Number(exam.negativeMarking) || 0);
+    const closesAt = exam.examType === "practice" ? null : toMs(exam.closesAt);
+    const negativeLine = negative > 0 ? `<li><b>নেগেটিভ মার্কিং আছে:</b> প্রতিটি ভুল উত্তরে ${negative} নম্বর কাটা যাবে।</li>` : "";
+    const closesLine = closesAt ? `<li>এই এক্সাম শুরু করার শেষ সময়: <b>${escapeHtml(formatDateTime(closesAt))}</b>।</li>` : "";
     const attemptLine = maxAttempts > 0
       ? `<li>এটি হবে <b>${maxAttempts}</b> টির মধ্যে <b>${attemptsSoFar + 1}</b> নম্বর অ্যাটেম্পট।</li>` : "";
 
@@ -157,6 +182,7 @@ export function renderRulesGate(container, exam, { attemptsSoFar, maxAttempts, t
         <div class="exs-rules-stats">
           <div class="exs-rules-stat"><span>সময়সীমা</span><b>${exam.duration || 10} মিনিট</b></div>
           <div class="exs-rules-stat"><span>মোট নম্বর</span><b>${totalMarks}</b></div>
+          <div class="exs-rules-stat"><span>পাস নম্বর</span><b>${passMarks}</b></div>
         </div>
         <ul class="exs-rules-list">
           <li>একবার এক্সাম শুরু হলে টাইমার থামবে না — শুরু করার আগে প্রস্তুত থাকুন।</li>
@@ -164,6 +190,8 @@ export function renderRulesGate(container, exam, { attemptsSoFar, maxAttempts, t
           <li>প্রশ্ন যেকোনো ক্রমে দেখা যাবে, তবে উত্তর সিলেক্ট করার সাথে সাথেই সেটা লক হয়ে যাবে — পরে বদলানো যাবে না।</li>
           <li>এক্সাম চলাকালীন পেজ রিফ্রেশ বা বন্ধ করবেন না — অগ্রগতি শুধু এই সেশনের জন্যই সংরক্ষিত থাকে।</li>
           <li>সময় শেষ হয়ে গেলে যা উত্তর দেওয়া হয়েছে তা স্বয়ংক্রিয়ভাবে জমা হয়ে যাবে।</li>
+          ${negativeLine}
+          ${closesLine}
           ${attemptLine}
           ${exam.instructions ? `<li><b>নির্দেশনা:</b> ${escapeHtml(String(exam.instructions)).replace(/\n/g, "<br>")}</li>` : ""}
         </ul>

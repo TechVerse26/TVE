@@ -41,7 +41,7 @@ import * as cache from "./cache.js";
 // count / sum / average are read off the namespace object on purpose: if some
 // SDK build ever lacked them, this module would still load and only the
 // aggregate-based admin overview would fall back to its slower path.
-const { getAggregateFromServer, sum, average, count } = FirestoreLib;
+const { getAggregateFromServer, sum, average, count, increment } = FirestoreLib;
 
 /* ==========================================================================
    Tunables
@@ -162,6 +162,9 @@ export function getExamCatalog(opts) {
 export function invalidateExamCatalog() {
   cache.del("exams:catalog");
 }
+
+/** The catalog if it is already in memory (else undefined). Never reads — used by the notification bell. */
+export const peekExamCatalog = () => cache.get("exams:catalog");
 
 export async function fetchAllExams(opts) {
   const catalog = await getExamCatalog(opts);
@@ -623,7 +626,7 @@ async function fetchResultDoc(uid, examId) {
    4. Per-student summary — userStats/{uid}
    ==========================================================================
    { v, uid, examsTaken, exams: { [examId]: { n, s, t, p, at, ty, ti, h? } } }
-     n  attempts so far           s/t/p  latest score / total / percent
+     n  attempts so far           s/t/p  latest score / total / percent      b  best percent (optional)
      at latest submit (ms)        ty     "live" | "practice"      ti  exam title
      h  practice exams only: last ≤30 attempts [{p,s,t}] for the sparkline
 
@@ -653,6 +656,12 @@ function statsEntry({ attemptNumber, score, total, percent, examType, examTitle,
     ty: typeOf(examType),
     ti: String(examTitle || "").slice(0, 120),
   };
+  // Best attempt so far (the home dashboard's "best score" / pass rate / rank use it). Optional: older summaries
+  // simply don't have it and readers fall back to the latest percent `p`.
+  if (Array.isArray(attempts) && attempts.length) {
+    const best = Math.max(...attempts.map((a) => Math.round(Number(a?.percent) || 0)), entry.p);
+    if (Number.isFinite(best)) entry.b = best;
+  }
   if (entry.ty === "practice" && Array.isArray(attempts) && attempts.length) {
     entry.h = attempts.slice(-STATS_HISTORY_CAP).map((a) => ({
       p: Math.round(Number(a?.percent) || 0), s: Number(a?.score) || 0, t: Number(a?.total) || 0,
@@ -730,6 +739,9 @@ export async function fetchUserStats(uid, opts) {
   }
 }
 
+/** The summary if it is already in memory (else undefined/null). Never reads. */
+export const peekUserStats = (uid) => cache.get(`stats:${uid}`);
+
 /** Result of one exam for the exam-list cards: served from the summary (0 extra reads); old per-doc read only as a fallback. */
 export async function fetchResult(uid, examId) {
   const stats = await fetchUserStats(uid);
@@ -771,6 +783,27 @@ function applySavedAttempt(uid, payload, saved) {
     stats.exams[payload.examId] = entry;
     await persistStats(uid, { exams: { [payload.examId]: entry }, examsTaken: Object.keys(stats.exams).length });
   })().catch(() => { /* best-effort */ });
+}
+
+/* ---------- "Started" counter (admin analytics: completed vs abandoned) ----------
+   examSessions/{uid}_{examId} = { uid, examId, starts, lastStartAt } — written ONCE per exam START (not per
+   question, not per tick), fire-and-forget: a failed or blocked write never delays or breaks an exam.
+   starts − submitted attempts (results doc) = attempts a student began but never finished. */
+let sessionsWriteBlocked = false;
+export function recordExamStart(uid, examId) {
+  if (sessionsWriteBlocked || !uid || !examId) return;
+  setDoc(doc(db, "examSessions", `${uid}_${examId}`), { uid, examId, starts: increment(1), lastStartAt: serverTimestamp() }, { merge: true })
+    .catch((err) => { if (isPermissionDenied(err)) sessionsWriteBlocked = true; /* rules not published yet → just stop trying */ });
+}
+
+/** Admin: how many times each student started this exam. [{ uid, starts }] — 1 read per student who started it. */
+export async function fetchExamStartsAdmin(examId) {
+  try {
+    const snap = await getDocs(query(collection(db, "examSessions"), where("examId", "==", examId)));
+    return snap.docs.map((d) => ({ uid: d.data().uid, starts: Number(d.data().starts) || 0 }));
+  } catch {
+    return null; // rules not published / offline → analytics shows "not tracked"
+  }
 }
 
 /* ---------- Attempt counter used by the start-of-exam check ---------- */
@@ -960,11 +993,15 @@ export async function saveResult(payload) {
          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
      }
 ---------- */
-export async function publishPercentileStats(percents) {
-  await setDoc(doc(db, "leaderboard", "publicStats"), {
+export async function publishPercentileStats(percents, top = null) {
+  const body = {
     percents: percents.map((p) => Math.round(Number(p) || 0)),
     updatedAt: serverTimestamp(),
-  });
+  };
+  // Optional "Top performers" preview for the home page: [{ n: display name, p: avg %, e: exams }] (≤ 10).
+  // Names are shortened / hidden at publish time according to Admin → Homepage → leaderboard privacy.
+  if (Array.isArray(top)) body.top = top.slice(0, 10);
+  await setDoc(doc(db, "leaderboard", "publicStats"), body);
   cache.del("percentile");
 }
 

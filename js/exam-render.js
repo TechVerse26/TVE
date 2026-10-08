@@ -3,26 +3,19 @@
 // No Firestore calls here (exam-data.js), no scoring/shuffle rules here
 // (exam-engine.js) — this file only turns fetched data into HTML.
 // ==========================================================================
-import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBucket, formatDateTime, getExamQuestionCount, confirmAction, toBnDigits } from "./utils.js";
+import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBucket, confirmAction, toBnDigits } from "./utils.js";
 import { fetchAllExams, fetchResult, checkExamVisibility, getSiteStatus } from "./exam-data.js";
 import { startCountdowns } from "./exam-timer.js";
+import { computeStatus } from "./schedule-core.js";
+import { serverNow } from "./server-time.js";
+import { getHomeFeed } from "./home-data.js";
+import { reminderIds } from "./reminders.js";
+import { examCardHtml, bindExamCardActions } from "./exam-card.js";
 import { state } from "./exam-engine.js";
 import { navigate, reloadRoute } from "./router.js";
 import { normalizeReview, reviewListHtml, reviewTtlHours } from "./exam-review.js";
 import { printReport } from "./exam-report.js";
 
-function lessonTagHtml(ex) {
-  return ex.lessonNames?.length
-    ? `<span class="exs-chip exs-chip-tag"><i class="fa-solid fa-list-check"></i> ${escapeHtml(ex.lessonNames.join(", "))}</span>`
-    : "";
-}
-
-/* ---------- Small Live/Practice corner badge — shown on every exam card ---------- */
-function typeBadgeHtml(ex) {
-  return ex.examType === "practice"
-    ? `<span class="exs-type-badge exs-type-badge--practice">Practice</span>`
-    : `<span class="exs-type-badge exs-type-badge--live">Live</span>`;
-}
 
 /* ---------- Practice score history — a small pure-CSS sparkline ----------
    Only appears once there's an actual trend to show (2+ attempts). Bars are
@@ -223,9 +216,9 @@ export async function renderExamCourseHub(grid, courseKey) {
    Re-checks visibility itself (not just trusting the hub), so a direct
    #/exam?course=xxx&type=yyy URL to a course the student isn't enrolled in
    shows nothing rather than leaking the exam list. ---------- */
-export async function renderExamList(grid, courseKey = null, bucketKey = null) {
+export async function renderExamList(grid, courseKey = null, bucketKey = null, { silent = false } = {}) {
   grid.classList.remove("exam-grid--courses");
-  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> loading...</div>`;
+  if (!silent) grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> loading...</div>`;
   const myToken = state.navToken;
   const backHref = courseKey ? `#/exam?course=${encodeURIComponent(courseKey)}` : "#/exam";
   const hubTab = HUB_TABS.find((t) => t.key === bucketKey);
@@ -244,6 +237,7 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
     if (state.navToken !== myToken) return;
     let exams = courseKey ? allExams.filter((ex) => (ex.courseId || "general") === courseKey) : allExams;
     if (bucketKey) exams = exams.filter((ex) => getExamBucket(ex) === bucketKey);
+    exams = exams.filter((ex) => ex.visibility !== "unlisted"); // unlisted = direct link only
 
     if (courseKey) {
       let title = hubTab ? hubTab.label : "Course Exams";
@@ -260,91 +254,35 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null) {
       return;
     }
 
-    const cards = (await Promise.all(exams.map(async (ex) => {
+    // Everything below comes from caches the page already filled (catalog, my summary, home feed): no extra reads.
+    const [feed, site] = await Promise.all([getHomeFeed(), getSiteStatus().catch(() => ({ maintenance: false }))]);
+    const isAdminUser = !!state.userProfile?.isAdmin;
+    const now = serverNow();
+    const ctx = { tax: feed.taxonomy, now, reminders: reminderIds(state.currentUser.uid), loggedIn: true, uid: state.currentUser.uid, participants: feed.participants, defaultPass: feed.passPercent };
+    const items = (await Promise.all(exams.map(async (ex) => {
       const { visible } = await checkExamVisibility(ex.courseId, state.userProfile);
-      if (!visible) return "";
-
-      const { state: availState, publishAt, closesAt } = getExamAvailability(ex);
-      if (availState === "upcoming") {
-        return `
-        <div class="exs-card exs-card--locked">
-          <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
-          <div class="exs-card-top">
-            <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
-            <span class="exs-countdown" data-countdown="${publishAt.getTime()}"><i class="fa-solid fa-hourglass-half"></i> <span class="countdown-val">...</span></span>
-          </div>
-          <h3>${escapeHtml(ex.title)}</h3>
-          <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
-          <div class="exs-meta-row">
-            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
-            <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} টি প্রশ্ন</span>
-          </div>
-          <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-lock"></i> Starts ${formatDateTime(publishAt)}</span>
-        </div>`;
-      }
-
+      if (!visible) return null;
       const result = await fetchResult(state.currentUser.uid, ex.id);
-      const maxAttempts = Number(ex.maxAttempts || 0);
-      const attemptsUsed = maxAttempts > 0 ? Number(result?.attemptNumber || 0) : 0;
-      const attemptsExhausted = maxAttempts > 0 && attemptsUsed >= maxAttempts;
-      const attemptsMeta = maxAttempts > 0
-        ? `<span><i class="fa-solid fa-rotate"></i> Attempts ${attemptsUsed}/${maxAttempts}</span>`
-        : `<span><i class="fa-solid fa-infinity"></i> Unlimited Attempts</span>`;
-
-      if (availState === "closed") {
-        return `
-        <div class="exs-card exs-card--locked">
-          <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
-          <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
-          <h3>${escapeHtml(ex.title)}</h3>
-          <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
-          <div class="exs-meta-row">
-            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
-            <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} Questions</span>
-          </div>
-          ${result ? `<span class="exs-tag exs-tag--amber">Last Score ${formatScore(result.score)}/${result.total}</span>` : ""}
-          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-stopwatch"></i> Exam Closed — ended ${formatDateTime(closesAt)}</span>
-        </div>`;
-      }
-
-      if (attemptsExhausted) {
-        return `
-        <div class="exs-card exs-card--locked">
-          <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
-          <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
-          <h3>${escapeHtml(ex.title)}</h3>
-          <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
-          <div class="exs-meta-row">
-            <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
-            <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} টি প্রশ্ন</span>
-          </div>
-          ${result ? `<span class="exs-tag exs-tag--amber">Last Score${formatScore(result.score)}/${result.total}</span>` : ""}
-          <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-ban"></i> You’ve Already Attempted This Exam</span>
-          ${ex.examType === "practice" ? practiceHistoryHtml(result) : ""}
-        </div>`;
-      }
-
-      return `
-      <div class="exs-card">
-        <div class="exs-type-row">${typeBadgeHtml(ex)}</div>
-        <div><span class="exs-chip exs-chip-course">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
-        <h3>${escapeHtml(ex.title)}</h3>
-        <p class="exs-muted">${escapeHtml(ex.description || "")}</p>
-        <div class="exs-meta-row">
-          <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} Minute</span>
-          <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} Questions</span>
-        </div>
-        <div class="exs-meta-row">${attemptsMeta}</div>
-        ${result ? `<span class="exs-tag exs-tag--amber">Last Score ${formatScore(result.score)}/${result.total}</span>` : ""}
-        ${closesAt ? `<span class="exs-muted exs-small">Closes ${formatDateTime(closesAt)}</span>` : ""}
-        ${ex.examType === "practice" ? practiceHistoryHtml(result) : ""}
-        <a href="#/exam?id=${ex.id}" class="btn btn-primary btn-block">${result ? "Retake Exam" : "Start Exam"}</a>
-      </div>`;
+      const attemptsUsed = Number(result?.attemptNumber || 0);
+      const status = computeStatus(ex, now, {
+        hasResult: !!result, attemptsUsed,
+        maintenance: !!site.maintenance && !isAdminUser, disabled: !!state.userProfile?.disabled && !isAdminUser,
+      });
+      const last = result ? { s: result.score, t: result.total, p: Math.round(Number(result.percent) || 0) } : null;
+      return { exam: ex, status, last, attemptsUsed, result };
     }))).filter(Boolean);
 
     if (state.navToken !== myToken) return;
-    grid.innerHTML = cards.length ? cards.join("") : `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No Exams Available</p></div>`;
-    startCountdowns(grid);
+    if (!items.length) {
+      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No Exams Available</p></div>`;
+      return;
+    }
+    // Practice exams keep their little score history under the card, exactly as before.
+    grid.innerHTML = `<div class="xc-grid">${items.map((it) =>
+      examCardHtml(it, ctx, { extra: it.exam.examType === "practice" ? practiceHistoryHtml(it.result) : "" })).join("")}</div>`;
+    grid._xcModel = { ctx, items: new Map(items.map((it) => [it.exam.id, it])) };
+    bindExamCardActions(grid, (id) => { const m = grid._xcModel; const it = m?.items.get(id); return it ? { item: it, ctx: m.ctx } : null; });
+    startCountdowns(grid, { onReach: () => { if (state.navToken === myToken) renderExamList(grid, courseKey, bucketKey, { silent: true }); } });
   } catch {
     if (state.navToken !== myToken) return;
     grid.innerHTML = `<div class="exs-empty"><p>Unable to Load Exams</p></div>`;

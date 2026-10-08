@@ -7,8 +7,8 @@
 import { requireAuth, toast, getUserProfile, getExamQuestionCount, confirmAction, closeModal, toBnDigits } from "./utils.js";
 import { navigate } from "./router.js";
 import { state, resetSessionState, buildQuestionPool, scoreExam } from "./exam-engine.js";
-import { fetchQuestions, saveResult } from "./exam-data.js";
-import { runVerification, renderRulesGate } from "./exam-guard.js";
+import { fetchQuestions, saveResult, recordExamStart } from "./exam-data.js";
+import { runVerification, renderRulesGate, recheckWindow, failScreen } from "./exam-guard.js";
 import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult, updateSaveStatus, renderExamLoading } from "./exam-render.js";
 import { startExamTimer, stopExamTimer, formatClock } from "./exam-timer.js";
 import { renderNav } from "./nav.js";
@@ -59,6 +59,7 @@ export async function initExamPage(params) {
   stopExamTimer();
   unmountReport();      // the PDF report only exists while a result screen is showing
   disarmUnloadGuard();  // whatever was in progress is being replaced
+  document.body.classList.remove("exam-taking");
   currentAttempt = null;
 
   const examId = params.get("id");
@@ -105,7 +106,7 @@ export async function initExamPage(params) {
   }
 
   return cleanup;
-  function cleanup() { stopExamTimer(); }
+  function cleanup() { stopExamTimer(); document.body.classList.remove("exam-taking"); }
 }
 
 async function runExamEntry(examId, myToken) {
@@ -123,6 +124,9 @@ async function runExamEntry(examId, myToken) {
   if (myToken !== state.navToken) return;
   if (gateResult === "away") return;
   if (gateResult !== "confirmed") { navigate("#/exam"); return; }
+
+  // The window may have closed (or the exam been cancelled) while the student was reading the rules.
+  if (!recheckWindow(verifyView, verdict.exam, !!state.userProfile?.isAdmin)) return;
 
   await beginAttempt(verdict.exam, myToken);
 }
@@ -142,7 +146,17 @@ async function beginAttempt(exam, myToken) {
     loading.finish(true);
   } catch (err) {
     loading.finish(false);
-    throw err;
+    if (myToken !== state.navToken) return;
+    // permission-denied = the server itself says the exam is not open right now (firestore.rules checks the exam window).
+    const closed = err?.code === "permission-denied";
+    failScreen(verifyView, {
+      title: closed ? "Exam not available." : "প্রশ্ন লোড করা যায়নি।",
+      message: closed
+        ? "এই মুহূর্তে এক্সামটি খোলা নেই — সময় শেষ হয়ে গেছে, বন্ধ করা হয়েছে অথবা এখনো শুরু হয়নি।"
+        : "ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।",
+      backLabel: "সব এক্সাম দেখুন", backHref: "#/exam",
+    });
+    return;
   }
   if (myToken !== state.navToken) return;
   if (!questionBank.length) {
@@ -159,6 +173,8 @@ async function beginAttempt(exam, myToken) {
   state.secondsLeft = (exam.duration || 10) * 60;
   state.submitted = false;
   armUnloadGuard();
+  recordExamStart(state.currentUser?.uid, state.examId); // one tiny write per start (admin analytics: abandoned attempts)
+  document.body.classList.add("exam-taking");             // hides the phone bottom bar so nothing is tapped by accident
 
   verifyView.classList.add("hidden");
   takeView.classList.remove("hidden");
@@ -220,6 +236,7 @@ async function submitExam({ auto = false } = {}) {
   }
 
   state.submitted = true;
+  document.body.classList.remove("exam-taking");
   stopExamTimer();
   closeModal();
 

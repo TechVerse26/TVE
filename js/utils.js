@@ -5,6 +5,12 @@ import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import * as cache from "./cache.js";
+import { serverNow } from "./server-time.js";
+import { toBnDigits, availabilityOf, getExamQuestionCount, isExamRandomPool } from "./schedule-core.js";
+
+// One implementation (schedule-core.js) for everything about exam windows / counts / Bengali numerals;
+// these names stay exported from here so every existing import keeps working.
+export { toBnDigits, getExamQuestionCount, isExamRandomPool };
 
 /* ---------- Toast ---------- */
 export function toast(message, type = "info") {
@@ -156,12 +162,6 @@ export function escapeHtml(str = "") {
     .replace(/"/g, "&quot;");
 }
 
-/* Bengali numerals (০-৯) for sentences written in Bengali, e.g. "৪৮ ঘণ্টা" */
-const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
-export function toBnDigits(value) {
-  return String(value).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
-}
-
 export function formatTime(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds));
   const m = Math.floor(s / 60);
@@ -211,14 +211,8 @@ export function timeAgo(ts) {
    any time, so a publishAt/closesAt left over from before the type was
    switched (or copy-pasted from a live exam) is never honored. ---------- */
 export function getExamAvailability(exam) {
-  if (exam.examType === "practice") return { state: "open", publishAt: null, closesAt: null };
-  const now = new Date();
-  const publishAt = exam.publishAt?.toDate ? exam.publishAt.toDate() : exam.publishAt ? new Date(exam.publishAt) : null;
-  const closesAt = exam.closesAt?.toDate ? exam.closesAt.toDate() : exam.closesAt ? new Date(exam.closesAt) : null;
-  let state = "open";
-  if (publishAt && now < publishAt) state = "upcoming";
-  else if (closesAt && now > closesAt) state = "closed";
-  return { state, publishAt, closesAt };
+  // Judged against the SERVER clock (server-time.js), so a phone with the wrong date can't see an exam early/late.
+  return availabilityOf(exam, serverNow());
 }
 /* ---------- Which of the 3 student-facing buckets an exam belongs to ----------
    "practice" — exam.examType === "practice", always open.
@@ -230,16 +224,6 @@ export function getExamBucket(exam) {
   const { state } = getExamAvailability(exam);
   return state === "upcoming" ? "upcoming" : "live";
 }
-export function getExamQuestionCount(exam = {}) {
-  const perAttempt = Number(exam.questionsPerAttempt) || 0;
-  const pool = Number(exam.questionCount) || 0;
-  return perAttempt > 0 && perAttempt < pool ? perAttempt : pool;
-}
-export function isExamRandomPool(exam = {}) {
-  const perAttempt = Number(exam.questionsPerAttempt) || 0;
-  return perAttempt > 0 && perAttempt < (Number(exam.questionCount) || 0);
-}
-
 /* ---------- CSV export (admin) ---------- */
 export function downloadCsv(filename, rows) {
   const csv = rows.map((r) => r.map((cell) => {
