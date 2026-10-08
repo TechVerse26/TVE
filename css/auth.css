@@ -1,10 +1,17 @@
-.auth-shell { min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 40px 16px; }
-.auth-card { width: 100%; max-width: 400px; }
-.auth-logo { display: flex; justify-content: center; margin-bottom: 20px; }
-.auth-logo img { height: 46px; width: auto; max-width: 100%; }
-.auth-card h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.auth-card h1 i { color: var(--accent-soft); }
-.auth-sub { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 22px; }
-.auth-form { margin-bottom: 14px; }
-.auth-switch { text-align: center; margin-top: 16px; font-size: 0.88rem; color: var(--text-muted); }
-.auth-switch a { color: var(--accent-soft); font-weight: 600; }
+/* ==========================================================================
+   Login / Sign up — one centred card, same tokens as the rest of the product.
+   ========================================================================== */
+.auth-page { align-items: center; justify-content: center; min-height: calc(100vh - var(--nav-h) - 96px); min-height: calc(100dvh - var(--nav-h) - 96px); }
+.auth-card { width: 100%; max-width: 420px; }
+.auth-logo { display: flex; justify-content: center; margin-bottom: var(--sp-5); }
+.auth-logo img { height: 44px; width: auto; max-width: 100%; }
+.auth-card h1 { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); font-size: var(--fs-stat); line-height: 1.25; }
+.auth-card h1 i { flex: none; color: var(--accent-soft); font-size: 0.85em; }
+.auth-sub { margin-bottom: var(--sp-5); font-size: var(--fs-md); color: var(--text-muted); }
+.auth-form { margin-bottom: var(--sp-4); }
+.auth-form .field:last-of-type { margin-bottom: var(--sp-5); }
+.auth-or { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); font-size: var(--fs-sm); color: var(--text-muted); }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.auth-switch { margin-top: var(--sp-5); text-align: center; font-size: var(--fs-md); color: var(--text-muted); }
+.auth-switch a { display: inline-block; padding: var(--sp-1) 2px; color: var(--accent-soft); font-weight: 700; }
+.auth-switch a:hover { text-decoration: underline; }

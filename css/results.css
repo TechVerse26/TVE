@@ -1,0 +1,132 @@
+/* ==========================================================================
+   My Activity (#/results) — summary cards, progress charts, one row per exam, attempt-history sheet.
+   Same system as everywhere else: .card · .badge · stat tiles · hairline borders · one accent.
+   Charts are pure CSS (bar height = --pct); gridlines are one repeating gradient.
+   ========================================================================== */
+.results-stack { display: flex; flex-direction: column; gap: var(--page-gap); }
+.results-overview { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.results-overview + .results-overview { margin-top: var(--sp-4); }
+@media (max-width: 760px) { .results-overview { grid-template-columns: 1fr; } }
+
+/* ---------- summary cards ---------- */
+.ov-card { min-width: 0; }
+.ov-card-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.ov-card-icon { width: 36px; height: 36px; display: grid; place-items: center; flex-shrink: 0; border-radius: var(--radius-sm); font-size: 0.95rem; }
+.ov-card--live .ov-card-icon { background: var(--tint-green); color: var(--green-text); }
+.ov-card--practice .ov-card-icon { background: var(--tint-accent); color: var(--accent-soft); }
+.ov-card--rank .ov-card-icon { background: var(--tint-amber); color: var(--accent-amber); }
+.ov-card-head h2 { font-size: var(--fs-lg); margin-bottom: 1px; }
+.ov-card-head p { font-size: var(--fs-sm); color: var(--text-muted); }
+.ov-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); padding: var(--sp-6) var(--sp-3); color: var(--text-muted); text-align: center; font-size: var(--fs-md); }
+.ov-empty i { font-size: 1.5rem; color: var(--border-strong); }
+
+/* nested number tiles (same look as the dashboard's status strip) */
+.rc-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-3); }
+@media (min-width: 480px) { .rc-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.rc-stat, .rank-own, .rank-top, .rank-diff { background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--sp-3); min-width: 0; }
+.rc-stat { text-align: center; }
+.rc-stat span, .rank-own span, .rank-top span, .rank-diff span { display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); line-height: 1.35; }
+.rc-stat b { font-family: var(--font-display); font-size: var(--fs-xl); }
+.rc-stat.trend-up b, .rank-diff.trend-up b { color: var(--accent-green); }
+.rc-stat.trend-down b, .rank-diff.trend-down b { color: var(--accent-coral); }
+.rank-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: var(--sp-2); }
+.rank-own, .rank-top, .rank-diff { display: flex; flex-direction: column; gap: var(--sp-1); }
+.rank-own b, .rank-top b, .rank-diff b { font-family: var(--font-display); font-size: var(--fs-stat); line-height: 1.2; }
+.rank-top b em { font-style: normal; color: var(--accent-amber); }
+
+/* ---------- bar charts ---------- */
+.ov-chart-scroll { overflow-x: auto; padding-bottom: 2px; }
+.ov-chart-grid { display: flex; gap: var(--sp-2); min-width: 100%; }
+.ov-yaxis { flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; height: 150px; font-size: var(--fs-xs); color: var(--text-muted); padding-bottom: 18px; }
+.ov-bars {
+  flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(16px, 1fr); gap: 5px;
+  height: 150px; align-items: end; padding-bottom: 18px; position: relative;
+  background-image: repeating-linear-gradient(to top, var(--border) 0, var(--border) 1px, transparent 1px, transparent 25%);
+  border-bottom: 1px solid var(--border-strong);
+}
+.ov-bar { position: relative; height: 100%; display: flex; align-items: flex-end; }
+.ov-bar-fill { width: 100%; height: calc(var(--pct) * 1%); min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--accent-soft); transition: height 0.62s cubic-bezier(0.22, 1, 0.36, 1); }
+.ov-bar-fill.is-fail { background: var(--accent-coral); }
+.ov-bar-fill.is-latest { background: var(--accent-green); }
+.ov-bar[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(var(--pct) * 1% + 10px); transform: translateX(-50%);
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong); color: var(--text-primary);
+  font-size: var(--fs-xs); line-height: 1.5; white-space: normal; width: max-content; max-width: 190px; text-align: center;
+  padding: 6px var(--sp-2); border-radius: var(--radius-sm); z-index: 8; pointer-events: none;
+}
+.ov-xlabel { text-align: center; font-size: 10px; color: var(--text-muted); position: absolute; bottom: -16px; left: 0; right: 0; }
+.ov-note { margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--text-muted); text-align: right; }
+
+/* ---------- one row per exam: card on phones, table row from 760px ---------- */
+.results-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+.results-cols { display: none; }
+.result-row-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main score" "meta go"; align-items: center; gap: var(--sp-2) var(--sp-3);
+  width: 100%; padding: var(--sp-4); text-align: left; font-family: inherit; color: inherit;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); transition: border-color var(--t-fast);
+}
+.result-row-card:hover { border-color: var(--accent-soft); }
+.rr-main { grid-area: main; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rr-title { font-size: var(--fs-lg); line-height: 1.4; overflow-wrap: break-word; }
+.rr-date { font-size: var(--fs-sm); color: var(--text-muted); }
+.rr-score { grid-area: score; display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); }
+.rr-score b { font-family: var(--font-display); font-size: var(--fs-lg); white-space: nowrap; }
+.rr-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.rr-attempts { font-size: var(--fs-sm); color: var(--text-muted); }
+.rr-go { grid-area: go; justify-self: end; color: var(--text-muted); font-size: 0.8rem; transition: transform var(--t-fast); }
+.result-row-card:hover .rr-go { transform: translateX(3px); color: var(--accent-soft); }
+@media (min-width: 760px) {
+  .results-grid { gap: 0; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .results-cols, .result-row-card { grid-template-columns: minmax(0, 1fr) 230px 150px 24px; }
+  .results-cols { display: grid; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); background: var(--bg-elevated-2); font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); }
+  .results-cols span:last-child { text-align: right; }
+  .result-row-card { grid-template-areas: "main meta score go"; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
+  .result-row-card:hover { background: var(--bg-elevated-2); }
+  .rr-score { flex-direction: row; align-items: center; justify-content: flex-end; gap: var(--sp-3); }
+  .rr-score b { order: 1; }
+}
+
+/* ---------- attempt-history sheet ---------- */
+.result-modal-overlay { position: fixed; inset: 0; background: rgba(6, 6, 10, 0.66); z-index: 200; display: flex; align-items: flex-end; justify-content: center; padding: 0; opacity: 0; pointer-events: none; transition: opacity 0.16s ease; }
+.result-modal-overlay.is-open { opacity: 1; pointer-events: auto; }
+@media (min-width: 640px) { .result-modal-overlay { align-items: center; padding: var(--sp-5); } }
+.result-modal {
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); width: 100%; max-width: 620px; max-height: 88vh; max-height: 88dvh; overflow-y: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: var(--sp-5) var(--sp-5) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
+  transform: translateY(24px); transition: transform 0.18s ease;
+}
+.result-modal-overlay.is-open .result-modal { transform: translateY(0); }
+@media (min-width: 640px) { .result-modal { border-radius: var(--radius-lg); max-height: 84vh; padding-bottom: var(--sp-6); } }
+.result-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-1); }
+.result-modal-head h3 { font-size: var(--fs-xl); margin-bottom: var(--sp-2); overflow-wrap: break-word; min-width: 0; }
+.result-modal-close { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--bg-elevated-2); color: var(--text-muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background var(--t-fast), color var(--t-fast); }
+.result-modal-close:hover { background: var(--accent-coral); color: #fff; }
+.result-modal-chart { margin: var(--sp-4) 0 var(--sp-2); }
+.result-modal-list { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-4); }
+.rm-row-wrap { display: flex; flex-direction: column; gap: var(--sp-2); }
+.rm-row { display: flex; align-items: center; gap: var(--sp-3); min-height: 48px; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-sm); background: var(--bg-elevated-2); border: 1px solid var(--border); font-size: var(--fs-md); width: 100%; text-align: left; font-family: inherit; color: inherit; cursor: pointer; transition: border-color var(--t-fast); }
+.rm-row:not(:disabled):hover { border-color: var(--accent-soft); }
+.rm-row:disabled { cursor: default; }
+.rm-row.is-latest { border-color: var(--accent-green); }
+.rm-row-n { min-width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); flex-shrink: 0; padding: 0 4px; }
+.rm-row.is-latest .rm-row-n { background: var(--tint-green); color: var(--green-text); }
+.rm-row-when { flex: 1; min-width: 0; color: var(--text-muted); font-size: var(--fs-sm); }
+.rm-row-score { font-family: var(--font-display); font-weight: 700; white-space: nowrap; }
+.rm-row-delta { font-size: var(--fs-xs); font-weight: 700; min-width: 44px; text-align: right; }
+.rm-row-delta.up { color: var(--accent-green); } .rm-row-delta.down { color: var(--accent-coral); } .rm-row-delta.flat { color: var(--text-muted); }
+.rm-row-arrow { color: var(--text-muted); font-size: var(--fs-xs); transition: transform 0.15s; flex-shrink: 0; }
+.rm-row.is-open .rm-row-arrow { transform: rotate(180deg); }
+.rm-row-lock { color: var(--border-strong); font-size: var(--fs-xs); flex-shrink: 0; }
+.rm-review-panel { display: flex; flex-direction: column; gap: var(--sp-3); padding: 2px 2px var(--sp-2) var(--sp-1); }
+.rm-review-panel[hidden] { display: none; }
+.rm-row-note { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-1); font-size: var(--fs-sm); line-height: 1.45; color: var(--text-muted); }
+.rm-row-note i { flex-shrink: 0; font-size: var(--fs-xs); }
+.rm-row-note.is-open-note { color: var(--accent-soft); }
+.rm-viewonly { display: flex; align-items: flex-start; gap: var(--sp-2); margin-top: var(--sp-4); padding: var(--sp-3); border-radius: var(--radius-sm); background: var(--bg-elevated-2); border: 1px dashed var(--border-strong); color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.5; }
+.rm-viewonly i { margin-top: 3px; color: var(--accent-soft); flex-shrink: 0; }
+
+@media print {
+  /* "My Activity" is VIEW-ONLY: the mistakes shown there must not be printable / saveable as a PDF.
+     The PDF report exists only on the result screen right after an exam (exam-report.js). */
+  .result-modal-overlay, .rm-review-panel { display: none !important; }
+}

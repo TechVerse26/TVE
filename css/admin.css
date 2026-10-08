@@ -434,3 +434,45 @@ body.drawer-open { overflow: hidden; }
 .roll-gen-btn:hover:not(:disabled) { border-color: var(--accent-soft); color: var(--accent-soft); }
 .roll-gen-btn:disabled { opacity: 0.6; cursor: default; }
 .roll-gen-btn i { font-size: 0.72rem; }
+
+/* ==========================================================================
+   Exam-platform upgrade: schedule · notices · homepage · dashboard quick actions · exam analytics
+   ========================================================================== */
+.kpis-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 980px) { .kpis-4 { grid-template-columns: repeat(2, 1fr); } }
+.mini-stats-2 { grid-template-columns: repeat(2, 1fr); }
+.nowrap { white-space: nowrap; }
+tr.row-muted td { opacity: 0.62; }
+.panel.pad { padding: 16px 18px; }
+.panel-title { font-size: 0.98rem; margin-bottom: 10px; }
+.bad-text { color: var(--accent-coral); }
+
+/* pick lists (notice audience) */
+.pick-list { display: grid; gap: 2px; max-height: 190px; overflow-y: auto; margin-top: 8px; padding: 8px 10px; background: var(--bg); border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm); }
+.check-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; font-size: 0.88rem; cursor: pointer; }
+.check-row input { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
+
+/* homepage manager */
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0 14px; }
+.feat-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 18px; }
+.feat-row { min-width: 0; }
+.feat-row .feat-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.savebar { position: sticky; bottom: 0; z-index: 5; display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; padding: 12px 0; background: var(--bg); border-top: 1px solid var(--border); }
+
+/* dashboard quick actions */
+.qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 560px) { .qa-grid { grid-template-columns: repeat(2, 1fr); } }
+.qa-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 78px; padding: 10px 6px; background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.82rem; font-weight: 600; text-align: center; transition: border-color .14s, color .14s; }
+.qa-btn i { font-size: 1.15rem; color: var(--accent-soft); }
+.qa-btn:hover { border-color: var(--accent-soft); color: var(--accent-soft); }
+
+/* exam analytics drawer */
+.mini-stats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.qw { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; }
+.qw summary { cursor: pointer; }
+.qw-body { margin-top: 10px; }
+.qw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 10px; }
+.qw-col h4 { margin-bottom: 6px; font-size: 0.86rem; }
+.qw-col ol { margin: 0; padding-inline-start: 20px; display: grid; gap: 8px; font-size: 0.84rem; }
+.qw-col li { padding-inline-start: 2px; }
+.qw-col li b { display: block; margin-top: 2px; font-size: 0.76rem; color: var(--text-muted); font-weight: 600; }
