@@ -55,6 +55,19 @@ export function ago(v) {
   if (sec < 86400 * 30) return `${Math.floor(sec / 86400)}d ago`;
   return fmtDate(d).replace(/ /g, "\u00A0"); // keep "04 Sep 2026" on one line
 }
+/** Timestamp | Date | ms → the "YYYY-MM-DDTHH:MM" string a <input type="datetime-local"> wants (viewer's local time). */
+export function toLocalInput(v) {
+  const d = toDate(v);
+  if (!d) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+/** The reverse: "" → null, otherwise a Date in the viewer's local time. */
+export function fromLocalInput(str) {
+  if (!str) return null;
+  const d = new Date(str);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 export const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const rid = (prefix = "") => prefix + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 

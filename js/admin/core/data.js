@@ -86,3 +86,26 @@ export function resultsForExam(examId, opts) {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }, { force: cache.wantsFresh(opts) });
 }
+
+/** { [examId]: submittedStudents } — one aggregation query per exam (≈1 read each), used for the "Participants" numbers. */
+export async function participantCounts(examIds) {
+  if (!aggOk()) throw new Error("aggregate-unsupported");
+  const out = {};
+  await Promise.all(examIds.map(async (id) => {
+    const snap = await getAggregateFromServer(query(collection(db, "results"), where("examId", "==", id)), { n: count() });
+    out[id] = num(snap.data().n);
+  }));
+  return out;
+}
+
+/** { newStudents } registered since local midnight — one aggregation query (≈1 read). */
+export function todayNewStudents(opts) {
+  return cache.remember("admin:today-new", TTL, async () => {
+    if (!aggOk()) return null;
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    try {
+      const snap = await getAggregateFromServer(query(collection(db, "users"), where("createdAt", ">=", Timestamp.fromDate(midnight))), { n: count() });
+      return num(snap.data().n);
+    } catch { return null; }
+  }, { force: cache.wantsFresh(opts) });
+}

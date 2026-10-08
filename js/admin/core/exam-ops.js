@@ -3,7 +3,8 @@
 // assigns questions to exams and builds exams from a selection). Same atomic saveExamDoc path
 // as the exam editor, and the same bookkeeping afterwards: shared cache, students' index, audit, bus.
 // ==========================================================================
-import { Timestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { Timestamp, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { db } from "../../firebase-config.js";
 import { fetchAllExamsAdmin, fetchQuestionsAdmin, saveExamDoc, primeAdminExams, writeExamIndex, QUESTION_FORMAT } from "../../exam-data.js";
 import { courses } from "../admin.js";
 import { qHash } from "./qbank.js";
@@ -55,4 +56,27 @@ export async function createExamFromQuestions({ title, examType = "live", durati
   logAction("exam.create", { type: "exam", id: saved.id, label: title, detail: `${questions.length} questions from the bank · draft` });
   emitChange("exams");
   return exam;
+}
+
+/**
+ * Change a few fields on one or more exams WITHOUT touching their questions (schedule, featured, registration …).
+ * patches: [{ id, patch }] — values must be concrete (use Timestamp.now(), never serverTimestamp(): the same values are
+ * mirrored into the students' index document, where a sentinel inside an array is not allowed).
+ * Same bookkeeping as every other exam write: shared cache, students' index, bus. Callers write their own audit entry.
+ */
+export async function patchExamFields(patches) {
+  const exams = await fetchAllExamsAdmin();
+  for (let i = 0; i < patches.length; i += 400) {
+    const batch = writeBatch(db);
+    patches.slice(i, i + 400).forEach(({ id, patch }) => batch.update(doc(db, "exams", id), patch));
+    await batch.commit();
+  }
+  patches.forEach(({ id, patch }) => {
+    const i = exams.findIndex((e) => e.id === id);
+    if (i >= 0) exams[i] = { ...exams[i], ...patch };
+  });
+  primeAdminExams(exams);
+  writeExamIndex(exams, courses).catch(() => { /* self-heals through syncExamIndex on the next fresh load */ });
+  emitChange("exams");
+  return exams;
 }

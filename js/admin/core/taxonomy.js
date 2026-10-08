@@ -11,6 +11,8 @@
 import { db } from "../../firebase-config.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import * as cache from "../../cache.js";
+import { writeFeedFields } from "../../home-data.js";
+import { normalizeTaxonomy } from "../../home-core.js";
 
 const REF = ["examTaxonomy", "main"];
 const KEY = "admin:taxonomy";
@@ -40,7 +42,16 @@ export async function saveTaxonomy(subjects, categories) {
   await setDoc(doc(db, ...REF), { v: 1, subjects, categories, updatedAt: serverTimestamp() });
   last = { subjects, categories, ok: true, blocked: false };
   cache.set(KEY, last, TTL);
+  publishTaxonomyMirror(subjects, categories).catch(() => { /* Homepage → "Sync" repairs it; saving the taxonomy never fails because of it */ });
   return last;
+}
+
+/**
+ * Students can't read examTaxonomy/main (admin-only), so the NAMES are mirrored into homeFeed/main.taxonomy —
+ * the document they already read for the home page. Ids + names + parent only; nothing else leaves this collection.
+ */
+export function publishTaxonomyMirror(subjects = last.subjects, categories = last.categories) {
+  return writeFeedFields({ taxonomy: normalizeTaxonomy({ subjects, categories }) });
 }
 
 /* ---------- Lookups (synchronous, from the last loaded copy) ---------- */

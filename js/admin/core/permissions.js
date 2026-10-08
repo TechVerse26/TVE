@@ -14,10 +14,10 @@ export const ROLES = {
   },
   manager: {
     label: "Manager", tone: "teal",
-    desc: "এক্সাম, প্রশ্ন, শিক্ষার্থী, রেজাল্ট ও নোটিফিকেশন পরিচালনা করতে পারে; সেটিংস ও অ্যাডমিন বদলাতে পারে না।",
+    desc: "এক্সাম, শিডিউল, প্রশ্ন, শিক্ষার্থী, রেজাল্ট, নোটিশ ও হোমপেজ কন্টেন্ট পরিচালনা করতে পারে; সেটিংস ও অ্যাডমিন বদলাতে পারে না।",
     perms: ["exams.view", "exams.write", "exams.delete", "questions.view", "questions.write", "questions.delete",
       "taxonomy.view", "taxonomy.write", "students.view", "students.manage", "results.view", "results.export",
-      "analytics.view", "notifications.manage", "logs.view"],
+      "analytics.view", "notifications.manage", "notices.manage", "homepage.manage", "logs.view"],
   },
   editor: {
     label: "Content Editor", tone: "amber",
