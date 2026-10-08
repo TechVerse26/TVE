@@ -2,9 +2,10 @@
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14151E">
 <title>Tech Verse Exam</title>
-<meta name="description" content="Tech Verse — Course & Exam Platform for Students">
+<meta name="description" content="Tech Verse Exam — live exams, practice, schedule, results and leaderboard for students">
 <link rel="icon" href="assets/favicon.ico">
 <link rel="preload" href="assets/logo.svg" as="image" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -12,6 +13,8 @@
 <link rel="stylesheet" href="css/auth.css">
 <link rel="stylesheet" href="css/exam.css">
 <link rel="stylesheet" href="css/profile.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="css/results.css">
 </head>
 <body class="site-body">
 
@@ -21,15 +24,15 @@
      Flow for #/exam?id=xxx: exam-list-view → exam-verify-view (checklist + rules gate)
      → exam-take-view → exam-result-view. -->
 <div id="page-exam" class="hidden exam-shell">
-  <main class="container">
-    <div id="exam-list-view">
-      <div class="section-head mt-24">
-        <div>
-          <button type="button" id="exam-back-btn" class="exs-back-btn hidden"><i class="fa-solid fa-arrow-left"></i> Course List </button>
-          <h2 id="exam-section-title">Verify yourself.</h2>
-          <p id="exam-section-sub">Take the exam for your enrolled course, see your score.</p>
+  <main class="container page">
+    <div id="exam-list-view" class="exam-list-view">
+      <header class="page-head">
+        <div class="page-head-text">
+          <button type="button" id="exam-back-btn" class="exs-back-btn hidden"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Course List </button>
+          <h1 class="page-title" id="exam-section-title">Verify yourself.</h1>
+          <p class="page-desc" id="exam-section-sub">Take the exam for your enrolled course, see your score.</p>
         </div>
-      </div>
+      </header>
       <div class="exam-grid" id="exam-grid"></div>
     </div>
 
@@ -59,7 +62,7 @@
 
 <!-- Generic single-mount shell — login / signup / my-results / 404 -->
 <div id="page-generic" class="hidden">
-  <div id="generic-page-content"></div>
+  <div id="generic-page-content" role="main"></div>
 </div>
 
 <footer class="site-footer">

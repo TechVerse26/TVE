@@ -26,6 +26,39 @@ service cloud.firestore {
       );
     }
 
+    /* নোটিশ/হোমপেজের লেখা বদলাতে পারে শুধু Super Admin ও Manager (Content Editor-রা এক্সামের কাজ করে, ঘোষণা নয়) */
+    function canManageComms() {
+      return isAdmin() && (
+        !exists(/databases/$(database)/documents/adminRoles/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/adminRoles/$(request.auth.uid)).data.role in ["super", "manager"]
+      );
+    }
+
+    /* ---------- এক্সাম এই মুহূর্তে শিক্ষার্থীর জন্য খোলা কিনা — সার্ভারের নিজের ঘড়ি (request.time) দিয়ে ----------
+       ক্লায়েন্টের ঘড়ি/UI-র ওপর ভরসা নয়: প্রশ্ন (সঠিক উত্তর সহ) পড়ার অনুমতিই মেলে না যদি
+         • এক্সাম Draft হয়, বা সময়সূচি বাতিল (cancelled) হয়,
+         • Live এক্সামের শুরুর সময় (publishAt) এখনো না আসে, বা শেষ সময় (closesAt) পেরিয়ে যায়,
+         • Registration বন্ধ করা হয়।
+       Practice এক্সাম সবসময় খোলা (Draft/বাতিল ছাড়া)। সব ফিল্ডই ঐচ্ছিক — পুরোনো এক্সামে না থাকলে আগের মতোই খোলা।
+       খরচ: প্রশ্ন পড়ার সময় exams/{id} ডকুমেন্টের ১টা get() (≈ ১ বাড়তি রিড, এক্সাম শুরু পিছু)। */
+    function examOpenForStudents(examId) {
+      let ex = get(/databases/$(database)/documents/exams/$(examId)).data;
+      return ex.get('status', 'published') != 'draft'
+        && ex.get('cancelled', false) != true
+        && (
+          ex.get('examType', 'live') == 'practice'
+          || (
+            ex.get('registration', 'open') != 'closed'
+            && (ex.get('publishAt', null) == null || ex.publishAt <= request.time)
+            && (ex.get('closesAt', null) == null || ex.closesAt >= request.time)
+          )
+        );
+    }
+    /* বড় প্রশ্নব্যাংকের চাংক-আইডি "{examId}__1" থেকে examId বের করে */
+    function bundleExamId(bundleId) {
+      return bundleId.split('__')[0];
+    }
+
     /* ---------- একটা like/unlike toggle বৈধ কিনা যাচাই (discussions + replies দুই জায়গাতেই ব্যবহৃত) ----------
        শর্ত: (ক) শুধু request.auth.uid-টাই যোগ/বাদ হয়েছে, বাকি সব uid অপরিবর্তিত আছে,
        (খ) লিস্টের সাইজ ঠিক ১ বেড়েছে (লাইক) বা ঠিক ১ কমেছে (আনলাইক)।
@@ -135,8 +168,9 @@ match /counters/{counterId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
 
+      /* প্রশ্ন (সঠিক উত্তর সহ): এক্সাম খোলা থাকলে শিক্ষার্থী, সবসময় অ্যাডমিন */
       match /questions/{questionId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && (examOpenForStudents(examId) || isAdmin());
         allow write: if isAdmin();
       }
     }
@@ -153,9 +187,11 @@ match /counters/{counterId} {
 
     /* ---------- প্রশ্ন-বান্ডল (examBundles/{examId}) — ৫০টা প্রশ্ন = ৫০ রিড এড়াতে ----------
        একটা এক্সামের সব প্রশ্ন একটা ডকুমেন্টে (খুব বড় প্রশ্নব্যাংক হলে {examId}__1, __2 … চাংকে ভাগ হয়)।
-       exams/{id}/questions-এর সাথে নিয়ম হুবহু এক: সাইন-ইন করা যে কেউ পড়তে পারবে, লিখতে পারবে শুধু অ্যাডমিন। */
+       exams/{id}/questions-এর সাথে নিয়ম হুবহু এক: এক্সাম শিক্ষার্থীর জন্য খোলা থাকলে (examOpenForStudents — সার্ভারের ঘড়ি দিয়ে)
+       সাইন-ইন করা যে কেউ পড়তে পারবে, অ্যাডমিন সবসময় পারবে; লিখতে পারবে শুধু অ্যাডমিন।
+       ⚠ যদি কখনো সব শিক্ষার্থীর প্রশ্ন লোড আটকে যায়, জরুরি অবস্থায় শুধু নিচের শর্তটি `isSignedIn()` করে দিন (আগের আচরণ)। */
     match /examBundles/{bundleId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (examOpenForStudents(bundleExamId(bundleId)) || isAdmin());
       allow write: if isAdmin();
     }
 
@@ -387,6 +423,43 @@ match /counters/{counterId} {
     match /questionBank/{docId} {
       allow read: if isAdmin();
       allow write: if canEditContent();
+    }
+
+    /* ==========================================================================
+       এক্সাম প্ল্যাটফর্ম আপগ্রেড — হোমপেজ, নোটিশ, শুরুর কাউন্টার
+       ========================================================================== */
+
+    /* হোমপেজ ফিড (homeFeed/main): হোমপেজের লেখা, প্রকাশিত নোটিশের কপি, বিষয়/ক্যাটাগরির নাম, অংশগ্রহণকারীর সংখ্যা, ডিফল্ট পাস %।
+       সবই এমন তথ্য যা শিক্ষার্থীর স্ক্রিনে এমনিতেই দেখানো হয় — প্রশ্ন, উত্তর বা ব্যক্তিগত কিছু নেই। পড়বে সাইন-ইন করা যে কেউ (১ ডকুমেন্ট, ৫ মিনিট ক্যাশ)।
+       তৈরি/বদলাতে পারবে Super Admin ও Manager; Content Editor শুধু বিষয়-নাম ও অংশগ্রহণকারীর সংখ্যা আপডেট করতে পারবে। */
+    match /homeFeed/{docId} {
+      allow read: if isSignedIn();
+      allow create: if canManageComms();
+      allow update: if canManageComms() ||
+        (canEditContent() && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['taxonomy', 'participants', 'participantsAt', 'updatedAt']));
+      allow delete: if isSuperAdmin();
+    }
+
+    /* নোটিশ (notices/{id}): অ্যাডমিনের মূল তালিকা। শিক্ষার্থীরা সরাসরি পড়ে না — প্রকাশিতগুলোর ছোট কপি homeFeed/main-এ যায়।
+       কোর্স সাইটের `notifications` কালেকশন থেকে সম্পূর্ণ আলাদা (সেটা অপরিবর্তিত)। */
+    match /notices/{noticeId} {
+      allow read: if isAdmin();
+      allow write: if canManageComms();
+    }
+
+    /* এক্সাম-শুরুর কাউন্টার (examSessions/{uid}_{examId}): কে কতবার এক্সাম শুরু করেছে — অ্যাডমিন অ্যানালিটিক্সের "Abandoned" হিসাবের জন্য।
+       এক্সাম শুরু পিছু ১টাই লেখা (প্রতি প্রশ্নে বা সেকেন্ডে নয়)। শিক্ষার্থী শুধু নিজেরটা বানাতে/১ করে বাড়াতে পারে; কমাতে বা অন্যেরটা ছুঁতে পারে না। */
+    match /examSessions/{sessionId} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.uid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid &&
+        sessionId == request.auth.uid + '_' + request.resource.data.examId &&
+        request.resource.data.starts == 1;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.examId == resource.data.examId &&
+        request.resource.data.starts == resource.data.starts + 1;
+      allow delete: if isAdmin();
     }
 
   }
