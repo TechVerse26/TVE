@@ -4,7 +4,7 @@
   const GITHUB_REPO = "YOUR_REPOSITORY_NAME";
 
   // বর্তমান ইনস্টল করা অ্যাপের ভার্সন
-  const CURRENT_VERSION = "1.0.2";
+  const CURRENT_VERSION = "1.0.3";
 
   async function checkForUpdate() {
     try {
