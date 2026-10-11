@@ -13,8 +13,8 @@ permissions:
 env:
   APP_NAME: Tech Verse Exam
   APP_ID: com.techverse.exam
-  APP_VERSION: '1.0.1'
-  APP_VERSION_CODE: '1'
+  APP_VERSION: '1.0.2'
+  APP_VERSION_CODE: '2'
   LIVE_URL: https://tvexam.vercel.app/app/
 
 
