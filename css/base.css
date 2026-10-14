@@ -531,7 +531,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 @media print {
   #topnav-root, .site-footer, .exs-no-print, #q-prev, #q-next { display: none !important; }
   body { background: #fff; color: #000; }
-  .exs-review-list, .exs-result-hero { color: #000; }
+  .exs-review-list { color: #000; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

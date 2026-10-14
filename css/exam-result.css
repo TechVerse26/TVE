@@ -1,0 +1,379 @@
+/* ==========================================================================
+   Result Experience — everything after "জমা দিন" (markup: js/exam-result.js)
+
+   Flat navy / cobalt / green / red on neutral surfaces. No glow, no neon, no blur, no gradients, nothing that
+   flashes. Light AND dark theme (scoped to .rx — the rest of the site is not touched).
+
+   MOTION RULES
+   • Every animation lives behind .rx-animate (JS adds it only when motion is allowed and the tab is visible) and is
+     "from"-only: the normal, un-animated style IS the finished state. If JS fails, the class is missing, the tab is
+     hidden or the student prefers reduced motion, the finished result is simply there.
+   • Entrance is a short stagger (≤ 8 steps, 70 ms apart); the submit overlay lasts ≈ 1 s.
+   • prefers-reduced-motion: all animation and transitions are switched off here (not just shortened — a delay
+     would still hide content), and the submit overlay never appears.
+   ========================================================================== */
+
+/* ---------- Theme tokens (dark = Deep Navy, light = Neutral Surface) ---------- */
+.rx,
+.rx[data-theme="dark"] {
+  --rx-bg: #0A1329;
+  --rx-surface: #101C38;
+  --rx-surface-2: #172647;
+  --rx-border: #2A3D68;
+  --rx-text: #EAF0FF;
+  --rx-muted: #A3B4D8;
+  --rx-cobalt: #7AA5FF;        /* cobalt as text / icon on navy */
+  --rx-cobalt-solid: #2B66F3;  /* cobalt as a fill (buttons, bars) — white text on it is 4.9:1 */
+  --rx-cobalt-hover: #2358D8;  /* darker on hover so the white label stays ≥ 4.5:1 (6.1:1) */
+  --rx-on-cobalt: #FFFFFF;
+  --rx-green: #45D894;
+  --rx-green-solid: #1FA463;
+  --rx-red: #FF8F86;
+  --rx-red-solid: #E5484D;
+  --rx-neutral: #8A9CC4;
+  --rx-cobalt-bg: rgba(122, 165, 255, 0.14);
+  --rx-green-bg: rgba(69, 216, 148, 0.13);
+  --rx-red-bg: rgba(255, 143, 134, 0.13);
+  --rx-neutral-bg: rgba(138, 156, 196, 0.14);
+}
+.rx[data-theme="light"] {
+  --rx-bg: #F2F5FB;
+  --rx-surface: #FFFFFF;
+  --rx-surface-2: #E8EEF9;
+  --rx-border: #CCD7EC;
+  --rx-text: #0B1B3F;
+  --rx-muted: #4A5B84;
+  --rx-cobalt: #0A47B8;
+  --rx-cobalt-solid: #0047AB;
+  --rx-cobalt-hover: #003A8C;
+  --rx-on-cobalt: #FFFFFF;
+  --rx-green: #0F7A3E;
+  --rx-green-solid: #15803D;
+  --rx-red: #B42318;
+  --rx-red-solid: #C62828;
+  --rx-neutral: #6B7BA3;
+  --rx-cobalt-bg: rgba(0, 71, 171, 0.09);
+  --rx-green-bg: rgba(21, 128, 61, 0.10);
+  --rx-red-bg: rgba(198, 40, 40, 0.09);
+  --rx-neutral-bg: rgba(74, 91, 132, 0.10);
+}
+
+/* ---------- Shell ---------- */
+.exam-take-wrap.exam-result-wrap { max-width: 920px; }
+.rx {
+  position: relative; display: flex; flex-direction: column; gap: 14px; padding: 14px;
+  background: var(--rx-bg); color: var(--rx-text); border: 1px solid var(--rx-border); border-radius: var(--radius-lg);
+  font-family: var(--font-body); font-size: var(--fs-base); line-height: 1.6;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+/* Margins already start at 0 (base.css: `* { margin: 0 }`). There is deliberately NO `.rx p { margin: 0 }` here: that
+   selector out-ranks the single-class rules below (.rx-line, .rx-sub, .rx-h …) and silently cancels their spacing. */
+.rx h2, .rx h3 { color: var(--rx-text); }
+.rx ul, .rx ol { list-style: none; padding: 0; }
+.rx button { font-family: inherit; }
+@media (min-width: 640px) { .rx { padding: 22px; gap: 16px; } }
+
+/* ---------- The checkmark (drawn with stroke-dash; "100 200" = no dot artefact at either end) ---------- */
+.rx-check { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.rx-check-circle, .rx-check-tick { stroke-dasharray: 100 200; stroke-dashoffset: 0; }
+
+/* ---------- Submit overlay (only while .rx-animate) ---------- */
+.rx-stage {
+  display: none; position: fixed; inset: 0; z-index: 65; align-items: center; justify-content: center;
+  background: var(--rx-bg); color: var(--rx-green); text-align: center; padding: var(--sp-6);
+  cursor: pointer;
+}
+.rx-stage-inner { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 420px; }
+.rx-stage .rx-check { width: 92px; height: 92px; color: var(--rx-green); }
+.rx-stage-title { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; line-height: 1.4; color: var(--rx-text); margin-top: 6px; }
+.rx-stage-sub { color: var(--rx-muted); font-size: var(--fs-md); }
+.rx-stage-done .rx-stage { display: none !important; }
+
+/* ---------- Top row ---------- */
+.rx-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.rx-top-main { min-width: 0; }
+.rx-kicker { display: inline-flex; align-items: center; gap: 8px; color: var(--rx-green); font-weight: 700; font-size: var(--fs-md); }
+.rx-check--sm { width: 22px; height: 22px; flex: none; }
+.rx-exam { font-size: 1.15rem; line-height: 1.45; margin: 6px 0 8px; overflow-wrap: anywhere; }
+.rx-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.rx-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px;
+  font-size: var(--fs-xs); font-weight: 700; line-height: 1.6;
+  background: var(--rx-surface-2); border: 1px solid var(--rx-border); color: var(--rx-muted);
+}
+.rx-chip--cobalt { background: var(--rx-cobalt-bg); border-color: transparent; color: var(--rx-cobalt); }
+.rx-theme {
+  flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: var(--rx-surface); border: 1px solid var(--rx-border); color: var(--rx-muted); font-size: 1rem;
+  transition: color var(--t-fast), border-color var(--t-fast), background-color var(--t-fast);
+}
+.rx-theme:hover { color: var(--rx-text); border-color: var(--rx-cobalt); }
+.rx a:focus-visible, .rx button:focus-visible, .rx [tabindex]:focus-visible { outline: 2px solid var(--rx-cobalt); outline-offset: 2px; }
+.rx-tier:focus, #rx-review:focus { outline: none; }
+
+/* ---------- Cards ---------- */
+.rx-card { background: var(--rx-surface); border: 1px solid var(--rx-border); border-radius: var(--radius-md); padding: 16px; min-width: 0; }
+.rx-h { display: flex; align-items: center; gap: 8px; font-size: var(--fs-lg); line-height: 1.4; margin-bottom: 10px; }
+.rx-h i { color: var(--rx-cobalt); font-size: 0.9em; }
+.rx-line { font-size: var(--fs-md); line-height: 1.6; margin-top: 6px; }
+.rx-line b { font-weight: 700; }
+.rx-good { color: var(--rx-green); font-weight: 600; }
+.rx-sub { margin-top: 16px; font-size: var(--fs-sm); font-weight: 700; color: var(--rx-muted); }
+.rx-foot { margin-top: 12px; font-size: var(--fs-xs); color: var(--rx-muted); line-height: 1.55; }
+
+/* ---------- Hero: ring + headline ---------- */
+.rx-hero { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 20px 16px; }
+.rx-ring-wrap { position: relative; width: 148px; height: 148px; flex: none; }
+.rx-ring { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+.rx-ring circle { fill: none; stroke-width: 9; }
+.rx-ring-track { stroke: var(--rx-border); }
+.rx-ring-bar { stroke: var(--rx-cobalt-solid); stroke-linecap: round; stroke-dasharray: 100 200; stroke-dashoffset: var(--off, 0); }
+.rx[data-pass="yes"] .rx-ring-bar { stroke: var(--rx-green-solid); }
+.rx-ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.rx-ring-text b { font-family: var(--font-utility); font-size: 2.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rx-ring-text span { margin-top: 2px; font-size: var(--fs-xs); color: var(--rx-muted); }
+.rx-hero-body { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.rx-tier { font-size: 1.3rem; line-height: 1.4; }
+.rx-tier-msg { max-width: 46ch; color: var(--rx-muted); font-size: var(--fs-base); }
+.rx-score { color: var(--rx-muted); font-size: 1.05rem; }
+.rx-score b { color: var(--rx-text); font-family: var(--font-utility); font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rx-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.rx-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: var(--fs-sm); font-weight: 700; line-height: 1.4; }
+.rx-pill--ok { background: var(--rx-green-bg); color: var(--rx-green); }
+.rx-pill--info { background: var(--rx-cobalt-bg); color: var(--rx-cobalt); }
+@media (min-width: 640px) {
+  .rx-hero { flex-direction: row; align-items: center; text-align: left; gap: 28px; padding: 24px; }
+  .rx-ring-wrap { width: 172px; height: 172px; }
+  .rx-hero-body { align-items: flex-start; }
+  .rx-pills { justify-content: flex-start; }
+  .rx-tier { font-size: 1.5rem; }
+}
+@media (max-width: 380px) {
+  .rx { padding: 10px; }
+  .rx-ring-wrap { width: 128px; height: 128px; }
+  .rx-ring-text b { font-size: 1.85rem; }
+}
+
+/* Save status chip (the result is shown at once, the save runs in the background) */
+.rx .exs-save-status { margin-top: 4px; background: var(--rx-surface-2); color: var(--rx-muted); }
+.rx .exs-save-status.is-saving { background: var(--rx-cobalt-bg); color: var(--rx-cobalt); }
+.rx .exs-save-status.is-saved { background: var(--rx-green-bg); color: var(--rx-green); }
+.rx .exs-save-status.is-failed, .rx .exs-save-status.is-blocked { background: var(--rx-red-bg); color: var(--rx-red); }
+.rx .exs-save-retry { min-height: 32px; border-color: currentColor; color: inherit; }
+.rx .exs-save-retry:hover { background: var(--rx-red-bg); }
+
+/* ---------- Notes ---------- */
+.rx-note {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm);
+  background: var(--rx-surface); border: 1px solid var(--rx-border); border-inline-start: 3px solid var(--rx-cobalt);
+  font-size: var(--fs-md); line-height: 1.55;
+}
+.rx-note i { margin-top: 4px; color: var(--rx-cobalt); flex: none; }
+
+/* ---------- Stat cards + distribution bar ---------- */
+.rx-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 640px) { .rx-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; } }
+.rx-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 14px; background: var(--rx-surface); border: 1px solid var(--rx-border); border-radius: var(--radius-md); }
+.rx-stat-ico { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 6px; font-size: 0.85rem; }
+.rx-stat-num { font-family: var(--font-utility); font-size: 1.75rem; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rx-stat-label { font-weight: 600; font-size: var(--fs-md); line-height: 1.4; }
+.rx-stat-sub { color: var(--rx-muted); font-size: var(--fs-xs); line-height: 1.45; }
+.rx-stat--ok .rx-stat-ico { background: var(--rx-green-bg); color: var(--rx-green); }
+.rx-stat--ok .rx-stat-num { color: var(--rx-green); }
+.rx-stat--bad .rx-stat-ico { background: var(--rx-red-bg); color: var(--rx-red); }
+.rx-stat--bad .rx-stat-num { color: var(--rx-red); }
+.rx-stat--skip .rx-stat-ico { background: var(--rx-neutral-bg); color: var(--rx-neutral); }
+.rx-stat--time .rx-stat-ico { background: var(--rx-cobalt-bg); color: var(--rx-cobalt); }
+.rx-stat--time .rx-stat-num { color: var(--rx-cobalt); }
+
+.rx-dist { position: relative; display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--rx-surface-2); }
+.rx-dist-seg { flex: 0 0 calc(var(--w) * 1%); min-width: 0; height: 100%; }
+.rx-dist-seg--ok { background: var(--rx-green-solid); }
+.rx-dist-seg--bad { background: var(--rx-red-solid); }
+.rx-dist-seg--skip { background: var(--rx-neutral); }
+.rx-dist::after { content: ""; position: absolute; inset: 0; background: var(--rx-surface-2); transform: scaleX(0); transform-origin: right; }
+
+/* ---------- Actions ---------- */
+.rx-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rx-actions .rx-btn--primary { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .rx-actions { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .rx-actions .rx-btn--primary { grid-column: auto; }
+}
+.rx-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 14px;
+  border: 1.5px solid transparent; border-radius: var(--radius-sm); font-size: var(--fs-base); font-weight: 700; line-height: 1.3; text-align: center; cursor: pointer;
+  transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.rx-btn i { flex: none; font-size: 0.95em; }
+.rx-btn--primary { background: var(--rx-cobalt-solid); color: var(--rx-on-cobalt); }
+.rx-btn--primary:hover { background: var(--rx-cobalt-hover); }
+.rx-btn--outline { background: var(--rx-surface); border-color: var(--rx-border); color: var(--rx-text); }
+.rx-btn--outline:hover { border-color: var(--rx-cobalt); color: var(--rx-cobalt); }
+.rx-btn--ghost { background: transparent; color: var(--rx-muted); }
+.rx-btn--ghost:hover { background: var(--rx-surface-2); color: var(--rx-text); }
+
+/* ---------- Grids + section title ---------- */
+.rx-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (min-width: 760px) {
+  .rx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rx-grid > :only-child { grid-column: 1 / -1; }
+}
+.rx-section-title { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; font-size: 1.1rem; }
+.rx-section-title small { font-family: var(--font-body); font-weight: 500; font-size: var(--fs-sm); color: var(--rx-muted); }
+
+/* ---------- Bars ---------- */
+.rx-meter { height: 8px; margin: 8px 0; border-radius: 999px; background: var(--rx-surface-2); overflow: hidden; }
+.rx-meter-fill { display: block; width: calc(var(--w) * 1%); height: 100%; border-radius: inherit; background: var(--rx-cobalt-solid); transform-origin: left; }
+.rx-meter--ok .rx-meter-fill { background: var(--rx-green-solid); }
+
+/* ---------- Key/value rows, slowest questions ---------- */
+.rx-kv, .rx-slow { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.rx-kv li, .rx-slow li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 6px; border-bottom: 1px dashed var(--rx-border); font-size: var(--fs-md); }
+.rx-kv li:last-child, .rx-slow li:last-child { border-bottom: 0; padding-bottom: 0; }
+.rx-kv li span { color: var(--rx-muted); }
+.rx-kv li b, .rx-slow li b { text-align: end; font-weight: 700; }
+.rx-slow li span { flex: none; }
+.rx-dot { margin-inline-end: auto; padding: 0 8px; border-radius: 999px; font-style: normal; font-size: var(--fs-xs); font-weight: 700; line-height: 1.7; }
+.rx-dot.is-ok { background: var(--rx-green-bg); color: var(--rx-green); }
+.rx-dot.is-bad { background: var(--rx-red-bg); color: var(--rx-red); }
+.rx-dot.is-skip { background: var(--rx-neutral-bg); color: var(--rx-muted); }
+
+/* ---------- Negative marking equation ---------- */
+.rx-eq { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 6px; margin-top: 12px; }
+.rx-eq-item { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 6px; border-radius: var(--radius-sm); background: var(--rx-surface-2); text-align: center; overflow-wrap: anywhere; }
+.rx-eq-item small { font-size: var(--fs-xs); color: var(--rx-muted); }
+.rx-eq-item b { font-family: var(--font-utility); font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.rx-eq-item.is-bad b { color: var(--rx-red); }
+.rx-eq-item.is-total { background: var(--rx-cobalt-bg); }
+.rx-eq-item.is-total b { color: var(--rx-cobalt); }
+.rx-eq-op { align-self: center; color: var(--rx-muted); font-weight: 700; }
+@media (max-width: 359px) { .rx-eq { grid-template-columns: minmax(0, 1fr); } .rx-eq-op { justify-self: center; } }  /* tiny phones: stack the sum */
+
+/* ---------- Accuracy ---------- */
+.rx-acc { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.rx-acc-num { font-family: var(--font-utility); font-size: 2rem; line-height: 1.1; font-weight: 700; color: var(--rx-green); font-variant-numeric: tabular-nums; }
+.rx-acc-cap { color: var(--rx-muted); font-size: var(--fs-md); }
+.rx-rate { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px; font-size: var(--fs-md); }
+.rx-rate span { color: var(--rx-muted); }
+.rx-rate b { font-weight: 700; }
+.rx-rate small { font-weight: 500; color: var(--rx-muted); font-size: var(--fs-xs); }
+
+/* ---------- Comparison ---------- */
+.rx-cmp-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.rx-cmp-title { font-weight: 700; line-height: 1.45; }
+.rx-delta-big { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: var(--radius-sm); font-family: var(--font-utility); font-weight: 700; font-size: 1.15rem; }
+.rx-delta-big.is-up { background: var(--rx-green-bg); color: var(--rx-green); }
+.rx-delta-big.is-down { background: var(--rx-red-bg); color: var(--rx-red); }
+.rx-delta-big.is-same { background: var(--rx-neutral-bg); color: var(--rx-muted); }
+.rx-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 10px; border-radius: 999px; font-size: var(--fs-xs); font-weight: 700; background: var(--rx-neutral-bg); color: var(--rx-muted); }
+.rx-badge--ok { background: var(--rx-green-bg); color: var(--rx-green); }
+.rx-cmp-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0; }
+.rx-cmp-pair > div { display: flex; flex-direction: column; gap: 1px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--rx-surface-2); }
+.rx-cmp-pair > .is-now { background: var(--rx-cobalt-bg); }
+.rx-cmp-pair span { font-size: var(--fs-xs); color: var(--rx-muted); }
+.rx-cmp-pair b { font-family: var(--font-utility); font-size: 1.4rem; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.rx-cmp-pair small { font-size: var(--fs-xs); color: var(--rx-muted); }
+.rx-deltas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.rx-delta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--rx-surface-2); font-size: var(--fs-sm); }
+.rx-delta span { color: var(--rx-muted); }
+.rx-delta b { font-weight: 700; text-align: end; }
+.rx-delta.is-good b { color: var(--rx-green); }
+.rx-delta.is-bad b { color: var(--rx-red); }
+.rx-trend { display: flex; align-items: flex-end; gap: 5px; height: 56px; margin-top: 6px; }
+.rx-trend-bar { flex: 1; height: calc(var(--h) * 1%); min-height: 4px; border-radius: 4px 4px 2px 2px; background: var(--rx-neutral); transform-origin: bottom; }
+.rx-trend-bar.is-latest { background: var(--rx-cobalt-solid); }
+.rx-others { color: var(--rx-muted); margin-top: 10px; }
+
+/* ---------- Subjects ---------- */
+.rx-subjects { display: flex; flex-direction: column; gap: 12px; }
+.rx-subj-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.rx-subj-head b { font-weight: 700; overflow-wrap: anywhere; }
+.rx-subj-n { margin-inline-start: auto; color: var(--rx-muted); font-size: var(--fs-xs); }
+.rx-subj-head em { font-style: normal; font-family: var(--font-utility); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rx-subj .rx-meter { margin: 6px 0 4px; }
+.rx-subj-state { font-size: var(--fs-xs); color: var(--rx-muted); }
+.rx-subj.is-weak .rx-meter-fill { background: var(--rx-red-solid); }
+.rx-subj.is-weak .rx-subj-state { color: var(--rx-red); }
+.rx-subj.is-strong .rx-meter-fill { background: var(--rx-green-solid); }
+.rx-subj.is-strong .rx-subj-state { color: var(--rx-green); }
+
+/* ---------- Suggestions ---------- */
+.rx-tips { display: flex; flex-direction: column; gap: 10px; }
+.rx-tip { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--rx-surface-2); font-size: var(--fs-md); line-height: 1.6; }
+.rx-tip > i { flex: none; width: 18px; margin-top: 5px; text-align: center; color: var(--rx-cobalt); }
+.rx-tip.is-good > i { color: var(--rx-green); }
+.rx-tip.is-warn > i { color: var(--rx-red); }
+.rx-link { padding: 0; border: 0; background: none; color: var(--rx-cobalt); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.rx-link:hover { color: var(--rx-text); }
+
+/* ---------- Empty / loading states ---------- */
+.rx-empty { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--rx-surface-2); color: var(--rx-muted); font-size: var(--fs-md); line-height: 1.6; }
+.rx-empty i { flex: none; width: 18px; margin-top: 4px; text-align: center; color: var(--rx-cobalt); }
+.rx-loading { display: flex; align-items: center; gap: 8px; color: var(--rx-muted); font-size: var(--fs-md); }
+
+/* ---------- Shared pieces re-themed inside the result (My Activity keeps its own look) ---------- */
+.rx .exs-muted { color: var(--rx-muted); }
+.rx .exs-result-note { display: flex; align-items: flex-start; gap: 8px; padding: 0 2px; color: var(--rx-muted); font-size: var(--fs-sm); line-height: 1.6; }
+.rx .exs-result-note i { flex: none; margin-top: 4px; color: var(--rx-cobalt); }
+.rx .exs-review-note { margin-top: 0; color: var(--rx-muted); }
+.rx .exs-review-note i { color: var(--rx-cobalt); }
+.rx .exs-review-list { margin-top: 12px; }
+.rx .exs-review-item { background: var(--rx-surface); border-color: var(--rx-border); color: var(--rx-text); }
+.rx .exs-review-answer.is-correct { color: var(--rx-green); }
+.rx .exs-review-answer.is-wrong { color: var(--rx-red); }
+.rx .exs-review-explain { background: var(--rx-surface-2); color: var(--rx-text); }
+.rx .exs-review-explain i { color: var(--rx-cobalt); }
+.rx .exs-empty { background: var(--rx-surface); border: 1px dashed var(--rx-border); color: var(--rx-muted); }
+.rx .exs-empty p { color: var(--rx-text); }
+
+/* ==========================================================================
+   Motion — ONLY under .rx-animate, FROM-only keyframes (the plain style is the finished state)
+   ========================================================================== */
+@keyframes rx-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes rx-draw { from { stroke-dashoffset: 100; } }
+@keyframes rx-grow { from { transform: scaleX(0); } }
+@keyframes rx-grow-y { from { transform: scaleY(0); } }
+@keyframes rx-curtain { from { transform: scaleX(1); } }
+@keyframes rx-fade { from { opacity: 0; } }
+@keyframes rx-stage-in { from { opacity: 0; } }   /* a short ease-in: no hard cut from the dark exam to a light sheet */
+@keyframes rx-stage-out { to { opacity: 0; visibility: hidden; } }
+
+.rx-animate { --rx-stage: 1s; }
+.rx-animate .rx-stage { display: flex; animation: rx-stage-in .16s ease backwards, rx-stage-out .28s ease 1s both; }
+.rx-animate .rx-stage .rx-check-circle { animation: rx-draw .42s cubic-bezier(.65, 0, .35, 1) .08s backwards; }
+.rx-animate .rx-stage .rx-check-tick { animation: rx-draw .3s cubic-bezier(.65, 0, .35, 1) .42s backwards; }
+.rx-animate .rx-stage-title { animation: rx-rise .35s ease .5s backwards; }
+.rx-animate .rx-stage-sub { animation: rx-rise .35s ease .6s backwards; }
+
+.rx-animate .rx-in { animation: rx-rise .5s cubic-bezier(.2, .7, .2, 1) calc(var(--rx-stage) + .05s + var(--i, 0) * .07s) backwards; }
+.rx-animate .rx-ring-bar { animation: rx-draw .95s cubic-bezier(.22, .8, .25, 1) calc(var(--rx-stage) + .1s) backwards; }
+.rx-animate .rx-meter-fill { animation: rx-grow .8s cubic-bezier(.22, .8, .25, 1) calc(var(--rx-stage) + .35s) backwards; }
+.rx-animate .rx-trend-bar { animation: rx-grow-y .7s cubic-bezier(.22, .8, .25, 1) calc(var(--rx-stage) + .35s) backwards; }
+.rx-animate .rx-dist::after { animation: rx-curtain .8s cubic-bezier(.22, .8, .25, 1) calc(var(--rx-stage) + .3s) backwards; }
+/* analytics that arrives after the entrance has finished: a plain, quick fade instead of waiting for the stage delays */
+.rx-animate .rx-fresh > * { animation: rx-fade .3s ease backwards; }
+.rx-animate .rx-fresh .rx-meter-fill, .rx-animate .rx-fresh .rx-trend-bar { animation-delay: .1s; }
+
+/* Reduced motion: no animation, no transition, no overlay — and no delays that could keep content hidden. */
+@media (prefers-reduced-motion: reduce) {
+  .rx, .rx *, .rx *::before, .rx *::after { animation: none !important; transition: none !important; }
+  .rx-stage { display: none !important; }
+}
+/* .rx-static: skipped / failed animation → finished state right now */
+.rx-static, .rx-static *, .rx-static *::before, .rx-static *::after { animation: none !important; }
+
+/* ==========================================================================
+   Print — the PDF is the dedicated report (exam-report.js); this only matters when the page itself is printed
+   ========================================================================== */
+@media print {
+  .rx, .rx[data-theme] {
+    --rx-bg: #fff; --rx-surface: #fff; --rx-surface-2: #F1F4FA; --rx-border: #CCD7EC; --rx-text: #0B1B3F; --rx-muted: #4A5B84;
+    --rx-cobalt: #0047AB; --rx-cobalt-solid: #0047AB; --rx-green: #0F7A3E; --rx-green-solid: #15803D; --rx-red: #B42318; --rx-red-solid: #C62828;
+    --rx-neutral: #6B7BA3; --rx-cobalt-bg: #E6EEFB; --rx-green-bg: #E6F4EC; --rx-red-bg: #FBEAE8; --rx-neutral-bg: #EEF1F7;
+    border: 0; padding: 0;
+  }
+  .rx, .rx *, .rx *::before, .rx *::after { animation: none !important; transition: none !important; }
+  .rx-stage, .rx-theme, .rx-actions { display: none !important; }
+  .rx-card, .rx-stat, .rx .exs-review-item { break-inside: avoid; page-break-inside: avoid; }
+}
