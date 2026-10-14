@@ -6,13 +6,16 @@
 // ==========================================================================
 import { requireAuth, toast, getUserProfile, getExamQuestionCount, confirmAction, closeModal, toBnDigits } from "./utils.js";
 import { navigate } from "./router.js";
-import { state, resetSessionState, buildQuestionPool, scoreExam } from "./exam-engine.js";
-import { fetchQuestions, saveResult, recordExamStart } from "./exam-data.js";
+import { state, resetSessionState, buildQuestionPool, scoreExam, stopQuestionClock } from "./exam-engine.js";
+import { fetchQuestions, saveResult, recordExamStart, fetchUserStats, getExamCatalog } from "./exam-data.js";
 import { runVerification, renderRulesGate, recheckWindow, failScreen } from "./exam-guard.js";
-import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult, updateSaveStatus, renderExamLoading } from "./exam-render.js";
+import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult, updateSaveStatus, renderExamLoading, disposeResult } from "./exam-render.js";
 import { startExamTimer, stopExamTimer, formatClock } from "./exam-timer.js";
 import { renderNav } from "./nav.js";
-import { mountReport, unmountReport } from "./exam-report.js";
+import { mountReport, unmountReport, isReportMounted } from "./exam-report.js";
+import { getHomeFeed, peekHomeFeed } from "./home-data.js";
+import { passPercentFor } from "./schedule-core.js";
+import { entryFromAttempt, pickPrevious } from "./exam-analytics.js";
 
 let listView, verifyView, takeView, resultView, refs;
 
@@ -35,6 +38,64 @@ function disarmUnloadGuard() {
 // against it, so a save that finishes late can never repaint the status chip
 // of a NEWER attempt the student has since started and finished.
 let currentAttempt = null;
+
+/* What the student's history looked like BEFORE this attempt: their results summary, the exam list's subjects, the
+   subject names and the site pass mark. Fetched in the background when the exam starts — all three are normally
+   already cached by the exam list, so this is usually 0 extra reads — and used ONLY by the result screen's
+   comparison / subject analytics. Taken at the START on purpose: the summary cache can expire during a long exam,
+   and by the time of the result it must not already contain this attempt (it would be compared with itself). */
+let attemptCtx = null;        // the captured context, once it has arrived
+let attemptCtxPromise = null; // …and the capture that is still running
+
+/* The last attempt finished in THIS browser session, per exam (summary-shaped). A quick retake can then be compared
+   with it even if the stored summary has not caught up yet (its save is still pending, or it failed). */
+const sessionAttempts = new Map(); // examId → summary-shaped entry
+
+/** Never lets a slow lookup hold the result screen hostage: resolves null after `ms`. */
+const withCap = (promise, ms) =>
+  Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(null), ms))]).catch(() => null);
+
+async function captureAttemptContext(examId) {
+  const uid = state.currentUser?.uid;
+  const sessionEntry = sessionAttempts.get(examId) || null; // read NOW — before this attempt can be remembered
+  const [stats, feed, catalog] = await Promise.all([
+    uid ? fetchUserStats(uid).catch(() => null) : null,
+    getHomeFeed().catch(() => null),
+    getExamCatalog().catch(() => null),
+  ]);
+  // A copy: the live summary is updated (in memory) the moment this attempt is saved.
+  const entries = stats?.exams ? Object.fromEntries(Object.entries(stats.exams).map(([id, e]) => [id, { ...e }])) : null;
+  const examsById = {};
+  (catalog?.exams || []).forEach((e) => { examsById[e.id] = { subjectId: e.subjectId || "" }; });
+  return {
+    statsOk: !!entries,
+    entries: entries || {},
+    sessionEntry,
+    examsById,
+    taxonomy: feed?.taxonomy || null,
+    defaultPass: feed?.passPercent || 60,
+  };
+}
+
+/** For the result screen: the context captured when the exam started; if that did not work out, one fresh try. Never longer than ~5 s. */
+function loadAttemptContext(examId) {
+  return withCap((async () => {
+    if (attemptCtx) return attemptCtx;
+    const early = attemptCtxPromise ? await attemptCtxPromise : null;
+    return early || captureAttemptContext(examId);
+  })(), 5000);
+}
+
+/** Keep this attempt as "the previous one" for a quick retake in the same session (see sessionAttempts). */
+function rememberSessionAttempt(attempt, ctx) {
+  const prev = ctx
+    ? pickPrevious(ctx.entries?.[attempt.examId], ctx.sessionEntry)
+    : sessionAttempts.get(attempt.examId) || null;
+  sessionAttempts.set(attempt.examId, entryFromAttempt(attempt, prev));
+}
+
+// The latest analytics shown on the result screen — the PDF report prints exactly the same numbers and words.
+let currentAnalytics = null;
 
 let controlsBound = false;
 function bindStaticControlsOnce() {
@@ -59,8 +120,12 @@ export async function initExamPage(params) {
   stopExamTimer();
   unmountReport();      // the PDF report only exists while a result screen is showing
   disarmUnloadGuard();  // whatever was in progress is being replaced
+  disposeResult();      // a previous result screen's timers / animation frames stop here
   document.body.classList.remove("exam-taking");
   currentAttempt = null;
+  attemptCtx = null;
+  attemptCtxPromise = null;
+  currentAnalytics = null;
 
   const examId = params.get("id");
   resetSessionState(examId);
@@ -172,6 +237,12 @@ async function beginAttempt(exam, myToken) {
   state.currentIndex = 0;
   state.secondsLeft = (exam.duration || 10) * 60;
   state.submitted = false;
+  state.submitting = false;
+  // The student's history as it is RIGHT NOW (before this attempt) — fetched quietly while they answer.
+  attemptCtx = null;
+  attemptCtxPromise = captureAttemptContext(state.examId)
+    .then((ctx) => { if (myToken === state.navToken) attemptCtx = ctx; return ctx; })
+    .catch(() => null);
   armUnloadGuard();
   recordExamStart(state.currentUser?.uid, state.examId); // one tiny write per start (admin analytics: abandoned attempts)
   document.body.classList.add("exam-taking");             // hides the phone bottom bar so nothing is tapped by accident
@@ -211,25 +282,37 @@ async function beginAttempt(exam, myToken) {
    Order matters here and is the heart of the "never lose a student's result"
    design:
      1. lock (state.submitted flips synchronously → a double click, or the
-        timer expiring at the same instant, can only ever submit once)
+        timer expiring at the same instant, can only ever submit once; while
+        the "unanswered questions" dialog is open state.submitting makes an
+        extra tap on Submit do nothing — the timer's auto-submit is never
+        blocked by it)
      2. score + build an immutable snapshot of the attempt
-     3. SHOW the result immediately (with the mistakes + PDF button)
+     3. SHOW the result immediately (the submit animation, the stat cards, the
+        mistakes + PDF button) — the animation is only decoration on top of an
+        already-complete screen and never waits for, or delays, anything below
      4. save to Firestore in the background, with retries and a visible
         status — a slow or failed save can no longer leave the student
         staring at a frozen exam screen with no result, which is what
         happened when saveResult() was awaited before anything was drawn. ---------- */
 async function submitExam({ auto = false } = {}) {
   if (state.submitted || !state.exam || !state.questions.length) return;
+  if (!auto && state.submitting) return; // the confirm dialog of an earlier tap is still open
 
   // Manual submit with unanswered questions → one quick "are you sure".
   // (When the time runs out there is nothing to ask — it just submits.)
   if (!auto) {
     const unanswered = state.questions.reduce((n, q) => n + (state.answers[q.id] === undefined ? 1 : 0), 0);
     if (unanswered > 0) {
-      const ok = await confirmAction(
-        `${toBnDigits(unanswered)}টি প্রশ্নের উত্তর দেওয়া হয়নি। এখন জমা দিলে সেগুলো "উত্তর দেওয়া হয়নি" ধরা হবে এবং পরে আর বদলানো যাবে না।`,
-        { title: "জমা দিতে চান?", confirmLabel: "হ্যাঁ, জমা দিন", cancelLabel: "ফিরে যাই" }
-      );
+      state.submitting = true;
+      let ok = false;
+      try {
+        ok = await confirmAction(
+          `${toBnDigits(unanswered)}টি প্রশ্নের উত্তর দেওয়া হয়নি। এখন জমা দিলে সেগুলো "উত্তর দেওয়া হয়নি" ধরা হবে এবং পরে আর বদলানো যাবে না।`,
+          { title: "জমা দিতে চান?", confirmLabel: "হ্যাঁ, জমা দিন", cancelLabel: "ফিরে যাই" }
+        );
+      } finally {
+        state.submitting = false;
+      }
       if (!ok) return;
       if (state.submitted) return; // time ran out while the dialog was open — already submitted
     }
@@ -239,9 +322,16 @@ async function submitExam({ auto = false } = {}) {
   document.body.classList.remove("exam-taking");
   stopExamTimer();
   closeModal();
+  const questionTimes = stopQuestionClock(); // per-question screen time (result analytics only)
 
-  const attempt = buildAttemptSnapshot(state.exam, scoreExam(state.exam));
+  const attempt = buildAttemptSnapshot(state.exam, scoreExam(state.exam), { auto, questionTimes });
   currentAttempt = attempt;
+  currentAnalytics = null;
+
+  // History for the comparison / subject analytics: started NOW so it reads "the previous result" before this attempt
+  // is remembered below, and so a slow lookup can only ever delay those two cards — never the score.
+  const contextPromise = loadAttemptContext(attempt.examId);
+  contextPromise.then((ctx) => rememberSessionAttempt(attempt, ctx), () => rememberSessionAttempt(attempt, null));
 
   takeView.classList.add("hidden");
   resultView.classList.remove("hidden");
@@ -250,7 +340,17 @@ async function submitExam({ auto = false } = {}) {
   // below — whatever goes wrong on screen, the attempt still gets stored and is
   // still viewable in My Activity.
   try {
-    renderResult(resultView, attempt, { onRetrySave: () => persistAttempt(attempt) });
+    const view = renderResult(resultView, attempt, {
+      onRetrySave: () => persistAttempt(attempt),
+      loadContext: () => contextPromise,
+      // The comparison / subject sections arrived: the PDF report gets the same finished analysis.
+      onAnalytics: (analytics) => {
+        if (currentAttempt !== attempt) return;
+        currentAnalytics = analytics;
+        if (isReportMounted()) mountReport(attempt, analytics);
+      },
+    });
+    currentAnalytics = view?.analytics?.() || null;
 
     // If the student wandered off to another page while the clock ran out, the
     // attempt is still submitted and saved below — but there is no result screen
@@ -258,7 +358,7 @@ async function submitExam({ auto = false } = {}) {
     // from some other page).
     const resultScreenVisible = !document.getElementById("page-exam")?.classList.contains("hidden");
     if (resultScreenVisible) {
-      mountReport(attempt);
+      mountReport(attempt, currentAnalytics);
       window.scrollTo(0, 0);
       // Drop the "leave site?" prompt if the student navigates inside the app
       // (that result screen is gone then).
@@ -285,13 +385,19 @@ async function submitExam({ auto = false } = {}) {
    keeps the Firestore write and the review screen small. `n` remembers each
    question's original position so the numbering stays the same everywhere.
    The saved review naturally expires (REVIEW_TTL_MS / isReviewExpired() in
-   exam-data.js) 48 hours after submission. */
-function buildAttemptSnapshot(exam, breakdown) {
+   exam-data.js) 48 hours after submission.
+
+   The fields after `saving` exist for the result screen only (analytics, PDF) and are NOT part of what gets saved
+   (see saveResultPayload, which lists its fields one by one). */
+function buildAttemptSnapshot(exam, breakdown, { auto = false, questionTimes = {} } = {}) {
   const user = state.currentUser || {};
   const profile = state.userProfile || {};
   const review = [];
+  const qStats = [];
+  const timed = state.examLayout === "one"; // only this layout shows one question at a time, so only it can be timed
   state.questions.forEach((q, i) => {
     const selected = state.answers[q.id] !== undefined ? state.answers[q.id] : null;
+    if (timed) qStats.push({ n: i + 1, sec: Math.round(questionTimes[q.id] || 0), status: selected === null ? "skipped" : selected === q.correctIndex ? "correct" : "wrong" });
     if (selected === q.correctIndex) return;
     review.push({
       id: q.id,
@@ -332,6 +438,13 @@ function buildAttemptSnapshot(exam, breakdown) {
     review,
     saveState: "saving", // "saving" | "saved" | "failed" | "blocked"
     saving: false,
+    // ---- result screen only ----
+    auto: !!auto,                                              // submitted by the timer, not by the student
+    layout: state.examLayout,                                  // "one" | "all"
+    durationSeconds: (exam?.duration || 10) * 60,              // the time limit (same figure scoreExam uses)
+    passPercent: passPercentFor(exam, peekHomeFeed()?.passPercent || 60), // the exam's pass line, else the site default
+    subjectId: exam?.subjectId || "",
+    qStats,                                                    // [{ n, sec, status }] — [] when not timed
   };
 }
 
@@ -400,7 +513,8 @@ async function persistAttempt(attempt) {
       // start (e.g. another tab finished an attempt meanwhile), fix the PDF too.
       if (saved?.attemptNumber && saved.attemptNumber !== attempt.attemptNumber) {
         attempt.attemptNumber = saved.attemptNumber;
-        if (currentAttempt === attempt) mountReport(attempt);
+        // Only while the result screen is still showing: leaving it unmounted the report, and it must not come back on another page.
+        if (currentAttempt === attempt && isReportMounted()) mountReport(attempt, currentAnalytics);
       }
       paintSaveStatus(attempt);
       if (currentAttempt === attempt) disarmUnloadGuard();

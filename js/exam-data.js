@@ -629,6 +629,8 @@ async function fetchResultDoc(uid, examId) {
      n  attempts so far           s/t/p  latest score / total / percent      b  best percent (optional)
      at latest submit (ms)        ty     "live" | "practice"      ti  exam title
      h  practice exams only: last ≤30 attempts [{p,s,t}] for the sparkline
+     c/w/u/tt  (optional, newer summaries) latest attempt's correct / wrong / unanswered counts and seconds used — only
+               the result screen's "compare with your previous attempt" reads them; older entries simply lack them
 
    One 1-read document answers "which exams did I take and how did I do?" for the
    exam list and the profile page — instead of one read per exam card / result doc.
@@ -646,7 +648,7 @@ let statsReadBlocked = false;  // set when the rules reject the read (not publis
 
 const typeOf = (examType) => (examType === "practice" ? "practice" : "live");
 
-function statsEntry({ attemptNumber, score, total, percent, examType, examTitle, submittedMs, attempts }) {
+function statsEntry({ attemptNumber, score, total, percent, examType, examTitle, submittedMs, attempts, correct, wrong, unanswered, seconds }) {
   const entry = {
     n: Math.max(0, Number(attemptNumber) || 0),
     s: Number(score) || 0,
@@ -656,6 +658,11 @@ function statsEntry({ attemptNumber, score, total, percent, examType, examTitle,
     ty: typeOf(examType),
     ti: String(examTitle || "").slice(0, 120),
   };
+  // Counts and time of the latest attempt, so the result screen can compare accuracy / time with the next attempt.
+  // Written only when the caller really knows them (never a made-up 0), and only ever read by the result screen.
+  [["c", correct], ["w", wrong], ["u", unanswered], ["tt", seconds]].forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "" && Number.isFinite(Number(value))) entry[key] = Math.max(0, Math.round(Number(value)));
+  });
   // Best attempt so far (the home dashboard's "best score" / pass rate / rank use it). Optional: older summaries
   // simply don't have it and readers fall back to the latest percent `p`.
   if (Array.isArray(attempts) && attempts.length) {
@@ -679,6 +686,7 @@ function statsEntryFromResultDoc(r) {
     examType: r.examType, examTitle: r.examTitle,
     submittedMs: timestampToMs(r.submittedAt) || timestampToMs(last?.submittedAt) || 0,
     attempts,
+    correct: last?.correctCount, wrong: last?.wrongCount, unanswered: last?.unansweredCount, seconds: last?.timeTakenSeconds,
   });
 }
 
@@ -773,6 +781,7 @@ function applySavedAttempt(uid, payload, saved) {
     score: payload.score, total: payload.total, percent: payload.percent,
     examType: payload.examType, examTitle: payload.examTitle,
     submittedMs: Date.now(), attempts: saved.attempts,
+    correct: payload.correctCount, wrong: payload.wrongCount, unanswered: payload.unansweredCount, seconds: payload.timeTakenSeconds,
   });
   const inMemory = cache.get(`stats:${uid}`);
   if (inMemory) inMemory.exams[payload.examId] = entry;

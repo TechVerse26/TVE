@@ -2,8 +2,9 @@
 // exam-report.js — the student's downloadable PDF result report.
 //
 // Exists ONLY while the result screen that follows an exam is showing:
-//   mountReport(attempt)  — called when the result screen is drawn
-//   unmountReport()       — called the moment the student leaves it
+//   mountReport(attempt, analytics?)  — called when the result screen is drawn (and again when the comparison /
+//                                       subject analysis has arrived, so the PDF carries the same analysis)
+//   unmountReport()                   — called the moment the student leaves it
 // so the PDF can be produced right after the exam and never again from
 // "My Activity" (which is view-only by design).
 //
@@ -17,11 +18,18 @@
 // print view shows (see the @media print rules in exam.css). Because it is
 // pre-built and its logo is already loaded, both the "PDF ডাউনলোড" button and
 // a plain Ctrl+P produce exactly the same clean report.
+//
+// The report is static paper: no animation, no buttons, no theme toggle, nothing that only makes sense on a
+// screen. Its numbers and sentences come from exam-analytics.js — the same source as the on-screen result — so the
+// two can never disagree; a section whose data is not known (history that never loaded) is simply left out.
 // ==========================================================================
-import { escapeHtml, formatScore, formatDuration, formatDateTime } from "./utils.js";
+import { escapeHtml, formatScore, formatDateTime } from "./utils.js";
+import { toBnDigits } from "./schedule-core.js";
 import { normalizeReview } from "./exam-review.js";
+import { buildCoreAnalytics, formatClockText, formatDurationBn, formatScoreText, deltaText } from "./exam-analytics.js";
 
 const LOGO_SRC = "assets/logo.svg";
+const bn = (v) => toBnDigits(v);
 
 let mounted = null; // { el, fileName, prevTitle }
 
@@ -54,11 +62,57 @@ function mistakeHtml(q) {
     </article>`;
 }
 
-function reportHtml(attempt) {
+/* ---------- the analysis block (only what is really known) ---------- */
+function analysisRow(label, value, note = "") {
+  return `<div class="exs-report-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${note ? `<small>${escapeHtml(note)}</small>` : ""}</div>`;
+}
+
+function analysisHtml(a) {
+  const { m, tier, comparison: c, subjects: s, suggestions } = a;
+  const rows = [];
+
+  rows.push(analysisRow("পাস মার্ক", `${bn(tier.pass.percent)}%`, tier.pass.passed ? "অতিক্রম করেছেন" : `আর ${bn(tier.pass.gap)}% বাকি`));
+  if (m.accuracy !== null) rows.push(analysisRow("নির্ভুলতা", `${bn(m.accuracy)}%`, `উত্তর দেওয়া ${bn(m.attempted)}টির মধ্যে ${bn(m.correct)}টি সঠিক`));
+  rows.push(analysisRow("উত্তর দেওয়ার হার", `${bn(m.attemptRate)}%`, `${bn(m.total)}টির মধ্যে ${bn(m.attempted)}টি`));
+  rows.push(analysisRow("সময় ব্যবহার", formatDurationBn(m.takenSeconds),
+    [m.allowedSeconds > 0 ? `বরাদ্দ ${formatDurationBn(m.allowedSeconds)} (${bn(m.timeUsedPercent)}% ব্যবহার)` : "", m.auto ? "সময় শেষ হওয়ায় স্বয়ংক্রিয়ভাবে জমা" : ""].filter(Boolean).join(" · ")));
+  if (m.negativeMarking > 0 && m.wrong > 0) {
+    rows.push(analysisRow("নেগেটিভ মার্কিং", `${bn(formatScoreText(m.penalty))} নম্বর কাটা গেছে`, `${bn(m.wrong)} ভুল × ${bn(formatScoreText(m.negativeMarking))}`));
+  }
+  if (m.belowZero) rows.push(analysisRow("স্কোর", "শূন্যের নিচে", "তাই শতকরা ০% দেখানো হয়েছে"));
+
+  if (c.state === "ok") {
+    rows.push(analysisRow("আগের অ্যাটেম্পটের সাথে", `${bn(c.prevPercent)}% → ${bn(m.percent)}%`,
+      c.direction === "same" ? "অপরিবর্তিত" : `${bn(deltaText(c.deltaPercent))}${c.isNewBest ? " · নতুন সেরা ফলাফল" : ""}`));
+  } else if (c.state === "first") {
+    rows.push(analysisRow("আগের অ্যাটেম্পটের সাথে", "প্রযোজ্য নয়", "এটি এই এক্সামে আপনার প্রথম অ্যাটেম্পট"));
+  }
+
+  const subjectBlock = s.state === "ok"
+    ? `<h3 class="exs-report-h3">বিষয়ভিত্তিক পারফরম্যান্স</h3>
+       <ul class="exs-report-subj">${s.rows.map((r) => `<li><span>${escapeHtml(r.name)}${r.isCurrent ? " (এই পরীক্ষা)" : ""}</span><em>${bn(r.exams)}টি পরীক্ষা</em><b>${bn(r.avg)}%</b><small>${r.status === "weak" ? "রিভিশন দরকার" : r.status === "strong" ? "ভালো" : "মোটামুটি"}</small></li>`).join("")}</ul>`
+    : "";
+
+  const tips = suggestions.length
+    ? `<h3 class="exs-report-h3">পরামর্শ</h3><ul class="exs-report-tips">${suggestions.map((t) => `<li>${escapeHtml(t.text)}</li>`).join("")}</ul>`
+    : "";
+
+  return `
+    <section class="exs-report-analysis">
+      <h2 class="exs-report-h2">বিশ্লেষণ</h2>
+      <div class="exs-report-rows">${rows.join("")}</div>
+      ${subjectBlock}
+      ${tips}
+    </section>`;
+}
+
+function reportHtml(attempt, analytics) {
   const s = attempt.student || {};
   const mistakes = normalizeReview(attempt.review);
   const typeLabel = attempt.examType === "practice" ? "Practice" : "Live";
   const generated = formatDateTime(new Date());
+  const a = analytics || buildCoreAnalytics(attempt);
+  const passed = a.tier.pass.passed;
 
   return `
     <div class="exs-report-watermark"><img src="${LOGO_SRC}" alt=""></div>
@@ -84,15 +138,17 @@ function reportHtml(attempt) {
 
     <section class="exs-report-summary">
       ${tile("স্কোর", `${formatScore(attempt.score)} / ${attempt.total}`)}
-      ${tile("শতকরা", `${attempt.percent}%`, attempt.percent >= 60 ? "is-good" : "is-bad")}
+      ${tile("শতকরা", `${attempt.percent}%`, passed ? "is-good" : "is-info")}
       ${tile("সঠিক", String(attempt.correctCount), "is-good")}
       ${tile("ভুল", String(attempt.wrongCount), "is-bad")}
-      ${tile("উত্তর দেওয়া হয়নি", String(attempt.unansweredCount), "is-warn")}
-      ${tile("সময় লেগেছে", formatDuration(attempt.timeTakenSeconds))}
+      ${tile("উত্তর দেওয়া হয়নি", String(attempt.unansweredCount), "is-neutral")}
+      ${tile("সময় লেগেছে (মি:সে)", formatClockText(attempt.timeTakenSeconds))}
     </section>
     ${attempt.negativeMarking > 0
       ? `<p class="exs-report-note">এই এক্সামে নেগেটিভ মার্কিং সক্রিয় ছিল — প্রতিটি ভুল উত্তরে ${escapeHtml(formatScore(attempt.negativeMarking))} নম্বর কাটা হয়েছে।</p>`
       : ""}
+
+    ${analysisHtml(a)}
 
     <section class="exs-report-mistakes">
       ${mistakes.length
@@ -114,13 +170,19 @@ function onAfterPrint() {
   if (mounted?.prevTitle != null) { document.title = mounted.prevTitle; mounted.prevTitle = null; }
 }
 
-export function mountReport(attempt) {
+export function mountReport(attempt, analytics = null) {
   unmountReport();
   const el = document.createElement("div");
   el.id = "exs-report";
   el.className = "exs-report";
   el.setAttribute("aria-hidden", "true");
-  el.innerHTML = reportHtml(attempt);
+  try {
+    el.innerHTML = reportHtml(attempt, analytics);
+  } catch (err) {
+    // The analysis block is a bonus: if anything in it ever fails, the plain report (summary + mistakes) must still exist.
+    console.error("PDF report: the analysis block failed, building the plain report:", err);
+    el.innerHTML = reportHtml(attempt, buildCoreAnalytics({ ...attempt, qStats: [] }));
+  }
   document.body.appendChild(el);
   document.body.classList.add("exs-has-report");
   mounted = { el, fileName: fileNameFor(attempt), prevTitle: null };

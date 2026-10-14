@@ -8,6 +8,7 @@ import { initProfilePage } from "./page-profile.js";
 import { initLoginPage } from "./page-login.js";
 import { initSignupPage } from "./page-signup.js";
 import { unmountReport } from "./exam-report.js";
+import { disposeResult } from "./exam-result.js";
 import { initHomePage } from "./page-home.js";
 import { initExamsPage } from "./page-exams.js";
 import { initSchedulePage } from "./page-schedule.js";
@@ -77,6 +78,8 @@ const router = new Router(
       runPageCleanups();
       // The PDF report only lives while the post-exam result screen is showing.
       unmountReport();
+      // …and so do the result screen's animation timers / theme listener.
+      disposeResult();
       // A modal or drawer that was open when the user pressed Back (or followed
       // a link) never gets to run its own close handler — without this the page
       // would stay scroll-locked ("overflow: hidden") on every screen after it.

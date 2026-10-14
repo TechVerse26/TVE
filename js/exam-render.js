@@ -3,7 +3,7 @@
 // No Firestore calls here (exam-data.js), no scoring/shuffle rules here
 // (exam-engine.js) — this file only turns fetched data into HTML.
 // ==========================================================================
-import { escapeHtml, formatScore, formatDuration, getExamAvailability, getExamBucket, confirmAction, toBnDigits } from "./utils.js";
+import { escapeHtml, formatScore, getExamAvailability, getExamBucket, toBnDigits } from "./utils.js";
 import { fetchAllExams, fetchResult, checkExamVisibility, getSiteStatus } from "./exam-data.js";
 import { startCountdowns } from "./exam-timer.js";
 import { computeStatus } from "./schedule-core.js";
@@ -11,10 +11,7 @@ import { serverNow } from "./server-time.js";
 import { getHomeFeed } from "./home-data.js";
 import { reminderIds } from "./reminders.js";
 import { examCardHtml, bindExamCardActions } from "./exam-card.js";
-import { state } from "./exam-engine.js";
-import { navigate, reloadRoute } from "./router.js";
-import { normalizeReview, reviewListHtml, reviewTtlHours } from "./exam-review.js";
-import { printReport } from "./exam-report.js";
+import { state, markQuestionShown } from "./exam-engine.js";
 
 
 /* ---------- Practice score history — a small pure-CSS sparkline ----------
@@ -391,6 +388,7 @@ function bindOptionClicks(container, onAfterLock) {
 
 export function renderQuestion(refs) {
   const q = state.questions[state.currentIndex];
+  markQuestionShown(q.id); // per-question screen time for the result's time analysis (never used for scoring)
   refs.progressFill.style.width = `${((state.currentIndex + 1) / state.questions.length) * 100}%`;
   refs.questionArea.innerHTML = `
     <div class="exs-question-card">
@@ -415,81 +413,6 @@ export function renderAllQuestions(refs) {
   bindOptionClicks(refs.questionArea, () => renderAllQuestions(refs));
 }
 
-/* ---------- Save status chip under the score ----------
-   The result is shown the instant the exam is submitted; saving to the
-   database happens in the background (see persistAttempt in exam.js), so the
-   student never stares at a frozen screen — and if saving fails they see it,
-   with a retry button, instead of silently losing the attempt. ---------- */
-export function updateSaveStatus(resultView, attempt) {
-  const el = resultView?.querySelector("#exs-save-status");
-  if (!el) return;
-  const st = attempt.saveState;
-  el.className = `exs-save-status is-${st}`;
-  if (st === "saving") {
-    el.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>ফলাফল সেভ হচ্ছে…</span>`;
-  } else if (st === "saved") {
-    el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>ফলাফল সেভ হয়েছে — My Activity-তে দেখতে পাবেন</span>`;
-  } else if (st === "blocked") {
-    el.innerHTML = `<i class="fa-solid fa-ban"></i><span>এই এক্সামের অ্যাটেম্পট সীমা পূর্ণ, তাই এই ফলাফল সেভ হয়নি</span>`;
-  } else {
-    el.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>ফলাফল সেভ করা যায়নি</span><button type="button" class="exs-save-retry">আবার চেষ্টা করুন</button>`;
-  }
-}
-
-/* ---------- Result screen — drawn from an immutable snapshot of the attempt
-   (built once in exam.js at submit time), never from the live exam `state`.
-   Reading `state` here was fragile: it is wiped whenever another exam route
-   starts, so a result drawn a moment late could come out empty and even
-   congratulate the student for "answering everything correctly". ---------- */
-export function renderResult(resultView, attempt, { onRetrySave } = {}) {
-  const { score, total, percent, examTitle, correctCount = 0, wrongCount = 0, unansweredCount = 0, negativeMarking = 0, timeTakenSeconds = 0 } = attempt;
-  const courseHref = `#/exam?course=${encodeURIComponent(attempt.courseId || "general")}`;
-
-  resultView.innerHTML = `
-    <div class="exs-result-hero">
-      <div class="exs-result-examname">${escapeHtml(examTitle)}</div>
-      <div class="exs-result-ring" style="--pct:${percent}"><b>${percent}%</b></div>
-      <h2>${percent >= 60 ? "চমৎকার! 🎉" : "আরেকটু চর্চা করলেই ভালো ফল হবে 💪"}</h2>
-      <p class="exs-muted exs-mt-8">আপনার স্কোর: <b>${formatScore(score)} / ${total}</b></p>
-      <div class="exs-result-badges">
-        <span class="exs-tag exs-tag--teal"><i class="fa-solid fa-check"></i> সঠিক: ${correctCount}</span>
-        <span class="exs-tag exs-tag--coral"><i class="fa-solid fa-xmark"></i> ভুল: ${wrongCount}</span>
-        <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-circle-minus"></i> উত্তর দেওয়া হয়নি: ${unansweredCount}</span>
-        <span class="exs-tag exs-tag--amber"><i class="fa-solid fa-stopwatch"></i> সময় লেগেছে: ${formatDuration(timeTakenSeconds)}</span>
-      </div>
-      ${negativeMarking > 0 ? `<p class="exs-muted exs-small exs-mt-8"><i class="fa-solid fa-circle-info"></i> এই এক্সামে নেগেটিভ মার্কিং সক্রিয় ছিল — প্রতিটি ভুল উত্তরে ${formatScore(negativeMarking)} নম্বর কাটা হয়েছে</p>` : ""}
-      <div id="exs-save-status" class="exs-save-status" role="status" aria-live="polite"></div>
-      <div class="exs-result-actions exs-no-print">
-        <a href="${courseHref}" class="exs-action-box" id="exs-course-link"><i class="fa-solid fa-list"></i><span>কোর্সের এক্সাম</span></a>
-        <button type="button" class="exs-action-box exs-action-box--primary" id="exs-retake"><i class="fa-solid fa-rotate-right"></i><span>আবার দিন</span></button>
-        <button type="button" class="exs-action-box exs-action-box--teal" id="exs-print-result"><i class="fa-solid fa-file-pdf"></i><span>PDF ডাউনলোড</span></button>
-      </div>
-      <p class="exs-result-note exs-no-print"><i class="fa-solid fa-circle-info"></i><span>"PDF ডাউনলোড"-এ চাপলে প্রিন্ট ডায়ালগ খুলবে — সেখানে <b>Save as PDF</b> বেছে নিন। PDF শুধু এই পেজ থেকেই পাওয়া যায়; পেজ ছেড়ে গেলে <b>My Activity</b>-তে শুধু ভুলগুলো দেখা যাবে (${toBnDigits(reviewTtlHours())} ঘণ্টা পর্যন্ত), PDF নয়।</span></p>
-    </div>
-    ${reviewListHtml(normalizeReview(attempt.review))}`;
-
-  updateSaveStatus(resultView, attempt);
-
-  // Leaving with a result that isn't stored yet would lose it — ask first.
-  async function leaveIfSure(go) {
-    if (attempt.saveState !== "saved" && attempt.saveState !== "blocked") {
-      const ok = await confirmAction(
-        "এই ফলাফল এখনো সেভ হয়নি। এখন চলে গেলে এটি হারিয়ে যেতে পারে।",
-        { title: "সেভ হয়নি", confirmLabel: "তবুও যাব", cancelLabel: "থাকি" }
-      );
-      if (!ok) return;
-    }
-    go();
-  }
-
-  resultView.querySelector("#exs-print-result")?.addEventListener("click", () => { printReport(); });
-  resultView.querySelector("#exs-retake")?.addEventListener("click", () => leaveIfSure(() => reloadRoute()));
-  resultView.querySelector("#exs-course-link")?.addEventListener("click", (e) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // "open in new tab" etc. — leave it to the browser
-    e.preventDefault();
-    leaveIfSure(() => navigate(courseHref));
-  });
-  resultView.querySelector("#exs-save-status")?.addEventListener("click", (e) => {
-    if (e.target.closest(".exs-save-retry")) onRetrySave?.();
-  });
-}
+/* ---------- Result screen + save-status chip ----------
+   Live in exam-result.js (the post-exam Result Experience). Re-exported so the rest of the app keeps importing them from here. */
+export { renderResult, updateSaveStatus, disposeResult } from "./exam-result.js";
