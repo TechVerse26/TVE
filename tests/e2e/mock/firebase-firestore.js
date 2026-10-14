@@ -38,6 +38,13 @@ if (!M.db) M.db = new Map(Object.entries(revive(M.seed || {})));
 M.reads = M.reads || [];
 M.writes = M.writes || [];
 M.deny = M.deny || [];
+// Fault injection for WRITES (tests change these at run time through page.evaluate):
+//   M.fail = [{ prefix, times, code, after }]  the next `times` writes under `prefix` throw `code` (default "unavailable");
+//                                              after:true → the write is applied FIRST and the error comes afterwards (a lost reply)
+//   M.hang = [{ prefix, times }]               the next `times` writes under `prefix` never answer (a dead connection)
+M.fail = M.fail || [];
+M.hang = M.hang || [];
+M.faults = M.faults || [];
 
 // Serialise the whole database (Timestamps as {__ts}) so a test can carry it into another browser session.
 const dumpValue = (v) => (v instanceof Timestamp ? { __ts: v.toMillis() } : Array.isArray(v) ? v.map(dumpValue) : isPlain(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, dumpValue(x)])) : v);
@@ -45,6 +52,19 @@ M.dump = () => Object.fromEntries([...M.db.entries()].map(([k, v]) => [k, dumpVa
 
 const denied = (path) => M.deny.some((p) => path === p || path.startsWith(p + "/"));
 const permissionError = () => Object.assign(new Error("Missing or insufficient permissions."), { code: "permission-denied" });
+const hitFault = (list, path) => list.find((x) => x.times > 0 && path.startsWith(x.prefix));
+async function gated(path, apply) {
+  const h = hitFault(M.hang, path);
+  if (h) { h.times--; M.faults.push({ kind: "hang", path }); return new Promise(() => {}); }
+  const f = hitFault(M.fail, path);
+  if (f) {
+    f.times--;
+    if (f.after) apply();
+    M.faults.push({ kind: f.after ? "fail-after" : "fail", path, code: f.code || "unavailable" });
+    throw Object.assign(new Error(`simulated ${f.code || "unavailable"}`), { code: f.code || "unavailable" });
+  }
+  apply();
+}
 const segs = (parts) => parts.flatMap((p) => String(p).split("/")).filter(Boolean);
 const newId = () => Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
 
@@ -122,8 +142,8 @@ export async function getDoc(ref) {
   M.reads.push(ref.path);
   return snapOf(ref.path, M.db.get(ref.path));
 }
-export async function setDoc(ref, data, opts) { if (denied(ref.path)) throw permissionError(); doSet(ref.path, data, opts); }
-export async function updateDoc(ref, data) { if (denied(ref.path)) throw permissionError(); doUpdate(ref.path, data); }
+export async function setDoc(ref, data, opts) { if (denied(ref.path)) throw permissionError(); return gated(ref.path, () => doSet(ref.path, data, opts)); }
+export async function updateDoc(ref, data) { if (denied(ref.path)) throw permissionError(); return gated(ref.path, () => doUpdate(ref.path, data)); }
 export async function deleteDoc(ref) { doDelete(ref.path); }
 export async function addDoc(col, data) { const path = `${col.path}/${newId()}`; doSet(path, data); return { type: "doc", path, id: idOf(path) }; }
 
@@ -138,13 +158,16 @@ export function writeBatch() {
   return b;
 }
 export async function runTransaction(db, fn) {
+  const ops = [];
   const tx = {
     get: async (r) => getDoc(r),
-    set: (r, d, o) => { doSet(r.path, d, o); return tx; },
-    update: (r, d) => { doUpdate(r.path, d); return tx; },
-    delete: (r) => { doDelete(r.path); return tx; },
+    set: (r, d, o) => { ops.push({ path: r.path, run: () => doSet(r.path, d, o) }); return tx; },
+    update: (r, d) => { ops.push({ path: r.path, run: () => doUpdate(r.path, d) }); return tx; },
+    delete: (r) => { ops.push({ path: r.path, run: () => doDelete(r.path) }); return tx; },
   };
-  return fn(tx);
+  const out = await fn(tx);   // like the real thing: nothing is written unless the callback finishes…
+  for (const op of ops) await gated(op.path, op.run);   // …and then the whole batch commits
+  return out;
 }
 
 /* ---------- queries ---------- */
