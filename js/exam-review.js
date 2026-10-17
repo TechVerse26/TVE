@@ -3,7 +3,7 @@
 //
 // Used by both:
 //   • the result screen shown right after an exam (exam-render.js), and
-//   • "My Activity" → an attempt's saved review (page-results.js),
+//   • "My Results" → an attempt's saved review (page-results.js),
 // so a mistake looks identical (same numbering, same wording, same
 // explanation box) whether you're looking at it seconds after submitting or
 // a day later. Nothing here reads global state or touches Firestore — it only
@@ -56,6 +56,6 @@ export function reviewListHtml(items) {
       </div>`;
   }
   return `
-    <p class="exs-muted exs-small exs-review-note"><i class="fa-solid fa-circle-info"></i><span>নিচে শুধু আপনার ভুল করা প্রশ্নগুলো দেখানো হচ্ছে। পেজ ছেড়ে গেলেও এগুলো <b>My Activity</b>-তে <b>${toBnDigits(reviewTtlHours())} ঘণ্টা</b> পর্যন্ত দেখা যাবে।</span></p>
+    <p class="exs-muted exs-small exs-review-note"><i class="fa-solid fa-circle-info"></i><span>নিচে শুধু আপনার ভুল করা প্রশ্নগুলো দেখানো হচ্ছে। পেজ ছেড়ে গেলেও এগুলো <b>My Results</b>-তে <b>${toBnDigits(reviewTtlHours())} ঘণ্টা</b> পর্যন্ত দেখা যাবে।</span></p>
     <div class="exs-review-list">${items.map(reviewItemHtml).join("")}</div>`;
 }

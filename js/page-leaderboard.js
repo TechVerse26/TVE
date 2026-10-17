@@ -11,7 +11,7 @@ import { loadStudentContext, buildStudentModel } from "./student-data.js";
 import { onPageLeave } from "./page-lifecycle.js";
 import { toMs } from "./schedule-core.js";
 import * as H from "./home-core.js";
-import { esc, emptyBlock, errorBlock, skeleton, onRetry, fmtDate, fmtTime, initials, pageHead } from "./home-ui.js";
+import { esc, emptyBlock, errorBlock, skeleton, onRetry, fmtDate, fmtTime, initials, pageHeadBack } from "./home-ui.js";
 
 let renderToken = 0;
 
@@ -23,7 +23,7 @@ export async function initLeaderboardPage(params, mount) {
   if (!user) { window.location.hash = "#/login"; return; }
 
   mount.innerHTML = `<div class="container page">
-    ${pageHead("Leaderboard", "লাইভ পরীক্ষায় প্রতিটি পরীক্ষার সেরা ফলাফলের গড় অনুযায়ী র‍্যাঙ্কিং।")}
+    ${pageHeadBack("Leaderboard", "লাইভ পরীক্ষায় প্রতিটি পরীক্ষার সেরা ফলাফলের গড় অনুযায়ী র‍্যাঙ্কিং।")}
     <div id="lb-body">${skeleton("card", 2)}</div>
   </div>`;
   const body = mount.querySelector("#lb-body");

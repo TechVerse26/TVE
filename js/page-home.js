@@ -22,7 +22,7 @@ import { dismissedNotices, dismissNotice, markRead, loadReadMap } from "./notify
 import { onPageLeave } from "./page-lifecycle.js";
 import { humanizeBn, passPercentFor } from "./schedule-core.js";
 import * as H from "./home-core.js";
-import { examCardHtml, scheduleRowHtml, bindExamCardActions, ctaFor, examSubline, examFacts, openExamDetails, remindButtonHtml, detailsButtonHtml } from "./exam-card.js";
+import { examCardHtml, scheduleRowHtml, bindExamCardActions, ctaFor, examSubline, examFacts, openExamDetails, remindButtonHtml, detailsButtonHtml, catStyle } from "./exam-card.js";
 import { perfCellsHtml, perfBarsHtml } from "./perf-ui.js";
 import {
   esc, fmtTime, fmtDate, fmtRange, tzLabel, dayHeading, sectionHead, emptyBlock, errorBlock, skeleton, ctaHtml, onRetry, statusBadge,
@@ -33,8 +33,8 @@ let lastForcedCatalogAt = 0;
 
 /* Section slots, in display order. `duo` slots sit side by side on wide screens. */
 const SLOTS = [
-  "hero", "alerts", "info", "live", "next", "quick", "notices", "performance",
-  { duo: ["results", "leaderboard"] }, "schedule", "featured", "categories", { duo: ["motivation", "guidelines"] },
+  "hero", "alerts", "info", "live", "categories", "next", "quick", "notices", "performance",
+  { duo: ["results", "leaderboard"] }, "schedule", "featured", "how", { duo: ["motivation", "guidelines"] },
 ];
 const TIMED = ["hero", "live", "next", "schedule", "featured"]; // repainted when a countdown reaches zero
 
@@ -54,12 +54,13 @@ const QUICK = [
    ========================================================================== */
 function publicLanding(mount) {
   mount.innerHTML = `
-    <div class="container page">
-      <section class="hm-hero hm-hero--public card card--highlight">
+    <div class="container page" id="hm-page">
+      <section class="hm-hero hm-hero--public">
         <div class="hm-hero-main">
           <p class="hm-greet">Tech Verse Exam</p>
           <h1 class="hm-hero-title">${esc(H.DEFAULT_CONTENT.heroTitle)}</h1>
-          <p class="hm-hero-line">লাইভ পরীক্ষা, প্র্যাকটিস, ফলাফল ও লিডারবোর্ড — সবকিছু এক জায়গায়। শুরু করতে লগইন করুন।</p>
+          <p class="hm-hero-sub">${esc(H.DEFAULT_CONTENT.heroSubtitle)}</p>
+          <ul class="hm-points"><li><i class="fa-solid fa-circle-check" aria-hidden="true"></i>Free Mock Tests</li><li><i class="fa-solid fa-circle-check" aria-hidden="true"></i>Random Questions</li><li><i class="fa-solid fa-circle-check" aria-hidden="true"></i>Instant Results</li></ul>
           <div class="hm-cta"><a class="btn btn-primary" href="#/login">Login</a><a class="btn btn-outline" href="#/signup">Sign up</a></div>
         </div>
       </section>
@@ -70,6 +71,7 @@ function publicLanding(mount) {
             .map(([i, t, d]) => `<div class="hm-qa hm-qa--static"><span class="hm-qa-icon"><i class="fa-solid ${i}" aria-hidden="true"></i></span><span><b>${t}</b><small>${d}</small></span></div>`).join("")}
         </div>
       </section>
+      ${howItWorksHtml()}
       <section class="section" aria-labelledby="h-pub-guide">
         ${sectionHead("h-pub-guide", "Exam Guidelines")}
         <div class="card"><ul class="hm-guides">${H.DEFAULT_GUIDELINES.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>
@@ -79,6 +81,31 @@ function publicLanding(mount) {
 
 const sectionOn = (m, key) => m.content.sections[key] !== false;
 const bn = toBnDigits;
+
+/* Student illustration for the hero (the reference uses a photo; this is a vector stand-in, decorative only). */
+const HERO_ART = `<div class="hm-hero-art" aria-hidden="true">
+  <span class="hm-hero-tag">Dream<br>Learn<br>Achieve</span>
+  <svg viewBox="0 0 180 214" focusable="false">
+    <path d="M22 214c0-42 18-64 56-72h28c38 8 56 30 56 72z" fill="#27489E"/>
+    <path d="M66 142c6 14 14 20 26 20s20-6 26-20" fill="none" stroke="#1B3478" stroke-width="5" stroke-linecap="round"/>
+    <path d="M52 152v62M132 152v62" stroke="#0E2161" stroke-width="9" stroke-linecap="round"/>
+    <rect x="80" y="116" width="24" height="30" rx="9" fill="#D79B73"/>
+    <ellipse cx="92" cy="86" rx="31" ry="36" fill="#EDB88F"/>
+    <ellipse cx="61" cy="90" rx="5" ry="8" fill="#DDA27A"/><ellipse cx="123" cy="90" rx="5" ry="8" fill="#DDA27A"/>
+    <path d="M60 80C57 48 77 34 97 36c21 1 35 16 31 44-4-13-12-21-25-23-14 6-29 9-43 23z" fill="#1A1A2E"/>
+    <circle cx="79" cy="93" r="3.2" fill="#1A1A2E"/><circle cx="105" cy="93" r="3.2" fill="#1A1A2E"/>
+    <path d="M72 85q7-5 14-1M98 84q7-4 14 1" fill="none" stroke="#1A1A2E" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M83 108q9 8 18 0" fill="none" stroke="#9A5A3C" stroke-width="2.6" stroke-linecap="round"/>
+    <rect x="62" y="170" width="68" height="46" rx="5" fill="#38BDF8"/><rect x="67" y="174" width="58" height="42" rx="3" fill="#EAF6FF"/><path d="M96 174v42" stroke="#9FD3F2" stroke-width="2"/>
+  </svg>
+</div>`;
+/* Last word(s) of the headline in the accent colour, like "Tomorrow" in the reference. Text stays escaped. */
+function hlTitle(t) {
+  const w = String(t || "").trim().split(/\s+/);
+  if (w.length < 2) return esc(t);
+  const n = w.length >= 4 ? 2 : 1;
+  return `${esc(w.slice(0, -n).join(" "))} <span class="hm-hl">${esc(w.slice(-n).join(" "))}</span>`;
+}
 
 /* ==========================================================================
    Sections — each returns an HTML string ("" = hidden)
@@ -104,22 +131,29 @@ function heroHtml(m, M) {
   const primaryHref = liveStartable.length === 1 ? `#/exam?id=${encodeURIComponent(liveStartable[0].exam.id)}` : liveStartable.length > 1 ? "#/exams?status=live" : "#/exams";
   const primaryLabel = hasAction ? c.ctaText : "View Exams";
 
-  return `<section class="hm-hero card card--highlight" aria-labelledby="h-hero">
+  const stat = (cls, icon, n, label) => `<li class="${cls}"><i class="fa-solid ${icon}" aria-hidden="true"></i><b>${n}</b><span>${label}</span></li>`;
+  return `<section class="hm-hero" aria-labelledby="h-hero">
     <div class="hm-hero-main">
-    <p class="hm-greet">${first ? `Welcome back, ${esc(first)} 👋` : "Welcome back 👋"}</p>
-    <h1 class="hm-hero-title" id="h-hero">${esc(c.heroTitle)}</h1>
-    <p class="hm-hero-line">${esc(line)}${today ? ` <span class="hm-hero-today">${esc(today)}</span>` : ""}</p>
-    ${c.heroSubtitle ? `<p class="hm-hero-sub">${esc(c.heroSubtitle)}</p>` : ""}
-    <div class="hm-cta">
-      <a class="btn btn-primary" href="${esc(primaryHref)}"><i class="fa-solid ${hasAction ? "fa-play" : "fa-file-pen"}" aria-hidden="true"></i> ${esc(primaryLabel)}</a>
-      <a class="btn btn-outline" href="#/schedule"><i class="fa-regular fa-calendar" aria-hidden="true"></i> View Schedule</a>
-    </div>
+      <div class="hm-hero-top">
+        <div class="hm-hero-copy">
+          <p class="hm-greet">${first ? `Hello, ${esc(first)} 👋` : "Hello, Dear Student 👋"}</p>
+          <h1 class="hm-hero-title" id="h-hero">${hlTitle(c.heroTitle)}</h1>
+        </div>
+        ${HERO_ART}
+      </div>
+      ${c.heroSubtitle ? `<p class="hm-hero-sub">${esc(c.heroSubtitle)}</p>` : ""}
+      <form class="hm-search" role="search" data-hm-search>
+        <button type="submit" class="hm-search-go" aria-label="Search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
+        <input type="search" data-hm-q placeholder="Search for an exam, course or topic…" aria-label="Search exams" autocomplete="off" enterkeyhint="search">
+      </form>
+      <p class="hm-hero-line"><i class="fa-regular fa-clock" aria-hidden="true"></i>${esc(line)}${today ? ` <span class="hm-hero-today">${esc(today)}</span>` : ""}</p>
+      <div class="hm-cta">
+        <a class="btn btn-primary" href="${esc(primaryHref)}"><i class="fa-solid ${hasAction ? "fa-play" : "fa-file-pen"}" aria-hidden="true"></i> ${esc(primaryLabel)}</a>
+        <a class="btn btn-outline" href="#/schedule"><i class="fa-regular fa-calendar" aria-hidden="true"></i> View Schedule</a>
+      </div>
     </div>
     <ul class="hm-stats" aria-label="আজকের পরীক্ষার অবস্থা">
-      <li class="${hn.live ? "is-live" : ""}"><b>${hn.live}</b><span>Live now</span></li>
-      <li><b>${hn.upcoming}</b><span>Upcoming</span></li>
-      <li><b>${hn.available}</b><span>Available</span></li>
-      <li><b>${hn.today}</b><span>Today for you</span></li>
+      ${stat(hn.live ? "is-live" : "", "fa-bolt", hn.live, "Live now")}${stat("", "fa-calendar-days", hn.upcoming, "Upcoming")}${stat("", "fa-file-pen", hn.available, "Available")}
     </ul>
   </section>`;
 }
@@ -314,8 +348,8 @@ function categoriesHtml(m) {
   const cats = H.categoryRollup(m.feed.taxonomy, visible);
   if (!subjects.length && !cats.length) return "";
   return `<section class="section" aria-labelledby="h-cats">
-    ${sectionHead("h-cats", "Subjects & Categories", { icon: "fa-layer-group", href: "#/exams", action: "Browse all" })}
-    ${subjects.length ? `<div class="hm-tiles">${subjects.slice(0, 8).map((s) => `<a class="hm-tile" href="#/exams?subject=${encodeURIComponent(s.id)}"><b>${esc(s.name)}</b><span>${s.count} exam${s.count > 1 ? "s" : ""}</span></a>`).join("")}</div>` : ""}
+    ${sectionHead("h-cats", "Popular Categories", { icon: "fa-layer-group", href: "#/categories", action: "View All" })}
+    ${subjects.length ? `<div class="hm-tiles">${subjects.slice(0, 8).map((s) => `<a class="hm-tile" href="#/categories?subject=${encodeURIComponent(s.id)}"><span class="hm-tile-ico" data-tone="${catStyle(s.name).tone}" aria-hidden="true"><i class="fa-solid ${catStyle(s.name).icon}"></i></span><b>${esc(s.name)}</b><span>${H.tagLine(H.subjectTags(m.feed.taxonomy, visible, s.id)) || `${s.count} exam${s.count > 1 ? "s" : ""}`}</span></a>`).join("")}</div>` : ""}
     ${cats.length ? `<div class="hm-chips" role="list">${cats.slice(0, 12).map((c) => `<a class="hm-chip" role="listitem" href="#/exams?category=${encodeURIComponent(c.id)}">${esc(c.name)} <em>${c.count}</em></a>`).join("")}</div>` : ""}
   </section>`;
 }
@@ -387,8 +421,21 @@ function guidelinesHtml(m) {
   </section>`;
 }
 
+/* "How it works" — three static steps (no data involved, so it can never show anything unverifiable). */
+const HOW_STEPS = [
+  ["Choose Your Exam", "Browse live and practice exams and pick the one you want to attempt."],
+  ["Start Test", "Begin when you are ready and answer within the time limit."],
+  ["Get Results", "See your score, correct answers and a detailed review right after you submit."],
+];
+function howItWorksHtml() {
+  return `<section class="section" aria-labelledby="h-how">
+    ${sectionHead("h-how", "How It Works", { icon: "fa-route" })}
+    <ol class="hm-steps">${HOW_STEPS.map(([t, d], i) => `<li class="hm-step"><span class="hm-step-n" aria-hidden="true">${i + 1}</span><b>${t}</b><p>${d}</p></li>`).join("")}</ol>
+  </section>`;
+}
+
 const RENDER = {
-  hero: heroHtml, alerts: alertsHtml, live: liveHtml, notices: noticesHtml, info: infoHtml, next: nextHtml,
+  how: howItWorksHtml, hero: heroHtml, alerts: alertsHtml, live: liveHtml, notices: noticesHtml, info: infoHtml, next: nextHtml,
   schedule: scheduleHtml, quick: quickHtml, featured: featuredHtml, categories: categoriesHtml,
   performance: performanceHtml, results: resultsHtml, leaderboard: leaderboardHtml, motivation: motivationHtml, guidelines: guidelinesHtml,
 };
@@ -440,7 +487,10 @@ export async function initHomePage(params, mount) {
         console.error(`home section "${n}" failed:`, err);
         html = errorBlock("home");
       }
+      const typed = n === "hero" ? el.querySelector("[data-hm-q]") : null;
+      const keep = typed ? { v: typed.value, f: document.activeElement === typed } : null;
       el.innerHTML = html;
+      if (keep) { const q = el.querySelector("[data-hm-q]"); if (q) { q.value = keep.v; if (keep.f) { q.focus(); q.setSelectionRange?.(keep.v.length, keep.v.length); } } }
       el.hidden = !html;
     }
     startCountdowns(root, { onReach: handleReach });
@@ -522,6 +572,14 @@ export async function initHomePage(params, mount) {
       card.remove();
       if (slot && !slot.querySelector(".nt")) { slot.innerHTML = ""; slot.hidden = true; }
     }
+  });
+
+  root.addEventListener("submit", (e) => {   // hero search → the existing All Exams search (#/exams?q=…)
+    const form = e.target.closest("[data-hm-search]");
+    if (!form) return;
+    e.preventDefault();
+    const q = form.querySelector("[data-hm-q]")?.value.trim() || "";
+    window.location.hash = q ? `#/exams?q=${encodeURIComponent(q)}` : "#/exams";
   });
 
   // ?open=<examId> (from a notification / reminder link) → show that exam's details once.

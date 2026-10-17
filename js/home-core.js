@@ -49,8 +49,8 @@ export const DEFAULT_MOTIVATIONS = Object.freeze([
 ]);
 
 export const DEFAULT_CONTENT = Object.freeze({
-  heroTitle: "প্রস্তুত তো? আজকের পরীক্ষা শুরু করুন।",
-  heroSubtitle: "",
+  heroTitle: "Prepare Smarter, Score Higher",
+  heroSubtitle: "Tech Verse Exam helps you practice with real exam patterns, random questions, detailed results and performance analysis.",
   ctaText: "Start Exam",
   info: "",
   banner: { enabled: false, title: "", text: "", linkText: "", link: "" },
@@ -72,7 +72,7 @@ export function normalizeContent(raw) {
   SECTION_KEYS.forEach((k) => { sections[k] = r.sections && typeof r.sections[k] === "boolean" ? r.sections[k] : true; });
   return {
     heroTitle: str(r.heroTitle, 120) || DEFAULT_CONTENT.heroTitle,
-    heroSubtitle: str(r.heroSubtitle, 220),
+    heroSubtitle: typeof r.heroSubtitle === "string" ? str(r.heroSubtitle, 220) : DEFAULT_CONTENT.heroSubtitle,   // an admin who cleared it keeps it cleared
     ctaText: str(r.ctaText, 30) || DEFAULT_CONTENT.ctaText,
     info: str(r.info, 400),
     banner: { enabled: b.enabled === true, title: str(b.title, 90), text: str(b.text, 240), linkText: str(b.linkText, 30), link: str(b.link, 300) },
@@ -465,3 +465,16 @@ export function greetingBn(now) {
   return "শুভ সন্ধ্যা";
 }
 
+
+/* ==========================================================================
+   Subject tags — the "Army • Navy • Air Force & More" line under a category tile / row
+   ========================================================================== */
+/** Top-level category names used by one subject's visible exams, most used first. */
+export function subjectTags(taxonomy, exams, subjectId, max = 3) {
+  const own = (exams || []).filter((e) => e.subjectId === subjectId);
+  const roll = categoryRollup(taxonomy, own);
+  const top = roll.filter((c) => !c.parentId);
+  const list = top.length ? top : roll;
+  return { names: list.slice(0, max).map((c) => c.name), more: list.length > max };
+}
+export const tagLine = ({ names, more }) => (names.length ? names.join(" • ") + (more ? " & More" : "") : "");

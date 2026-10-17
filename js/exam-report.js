@@ -6,7 +6,7 @@
 //                                       subject analysis has arrived, so the PDF carries the same analysis)
 //   unmountReport()                   — called the moment the student leaves it
 // so the PDF can be produced right after the exam and never again from
-// "My Activity" (which is view-only by design).
+// "My Results" (which is view-only by design).
 //
 // How the PDF is made: the browser's own print pipeline ("Save as PDF") —
 // no PDF library, so Bengali text is shaped perfectly, the file is tiny and

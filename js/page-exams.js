@@ -49,7 +49,7 @@ export async function initExamsPage(params, mount) {
   let panelOpen = null; // filter panel on phones: null = automatic (open when a filter is active), else the user's choice
 
   mount.innerHTML = `<div class="container page">
-    ${pageHead("Exams", "সব লাইভ ও প্র্যাকটিস পরীক্ষা — খুঁজুন, ফিল্টার করুন, শুরু করুন।", '<a class="btn btn-outline btn-sm" href="#/exam"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Browse by course</a>')}
+    ${pageHead("All Exams", "সব লাইভ ও প্র্যাকটিস পরীক্ষা — খুঁজুন, ফিল্টার করুন, শুরু করুন।", '<a class="btn btn-outline btn-sm" href="#/schedule"><i class="fa-regular fa-calendar-days" aria-hidden="true"></i> Schedule</a><a class="btn btn-outline btn-sm" href="#/exam"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Browse by course</a>')}
     <div class="section">
       <div id="ex-filters"></div>
       <p class="fl-count" id="ex-count" aria-live="polite"></p>
@@ -68,9 +68,14 @@ export async function initExamsPage(params, mount) {
     const active = FILTER_KEYS.filter((k) => f[k] && k !== "q" && !(k === "sort" && f[k] === "smart")).length;
     const wide = window.matchMedia("(min-width: 760px)").matches;
     const open = panelOpen !== null ? panelOpen : wide || active > 0;
+    const chips = subjects.length ? `<div class="fl-chips" role="group" aria-label="Filter by subject">
+        <button type="button" class="fl-chip${f.subject ? "" : " is-on"}" data-chip="" aria-pressed="${f.subject ? "false" : "true"}">All</button>
+        ${subjects.map((s) => `<button type="button" class="fl-chip${f.subject === s.id ? " is-on" : ""}" data-chip="${esc(s.id)}" aria-pressed="${f.subject === s.id ? "true" : "false"}">${esc(s.name)}</button>`).join("")}
+      </div>` : "";
     return `<form class="fl card" role="search" onsubmit="return false">
       <label class="fl-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
         <input type="search" id="fl-q" data-f="q" placeholder="Search exams, subjects, courses…" value="${esc(f.q)}" autocomplete="off" aria-label="Search exams"></label>
+      ${chips}
       <details class="fl-details"${open ? " open" : ""}>
       <summary class="fl-toggle"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filters${active ? ` <em>${active}</em>` : ""}<i class="fa-solid fa-chevron-down hm-caret" aria-hidden="true"></i></summary>
       <div class="fl-grid">
@@ -158,6 +163,8 @@ export async function initExamsPage(params, mount) {
     apply();
   });
   mount.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-chip]");
+    if (chip) { f.subject = chip.dataset.chip; apply(); return; }
     if (e.target.closest("#fl-clear") || e.target.closest("#fl-clear-2")) { f = readFilters(null); apply(); return; }
     if (e.target.closest("#ex-more")) { shown += PAGE_SIZE; paintList(); }
   });

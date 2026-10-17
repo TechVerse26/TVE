@@ -10,7 +10,7 @@ import { onPageLeave } from "./page-lifecycle.js";
 import { DAY } from "./schedule-core.js";
 import * as H from "./home-core.js";
 import { scheduleRowHtml, bindExamCardActions, openExamDetails } from "./exam-card.js";
-import { esc, emptyBlock, errorBlock, skeleton, onRetry, dayHeading, tzLabel, pageHead } from "./home-ui.js";
+import { esc, emptyBlock, errorBlock, skeleton, onRetry, dayHeading, tzLabel, pageHeadBack } from "./home-ui.js";
 
 let renderToken = 0;
 const TABS = [["upcoming", "Upcoming"], ["live", "Live now"], ["past", "Past"], ["all", "All"]];
@@ -29,7 +29,7 @@ export async function initSchedulePage(params, mount) {
   let category = params?.get?.("category") || "";
 
   mount.innerHTML = `<div class="container page">
-    ${pageHead("Schedule", `সময়সূচি আপনার ডিভাইসের স্থানীয় সময়ে দেখানো হচ্ছে (${tzLabel()})।`)}
+    ${pageHeadBack("Schedule", `সময়সূচি আপনার ডিভাইসের স্থানীয় সময়ে দেখানো হচ্ছে (${tzLabel()})।`)}
     <div id="sc-bar"></div>
     <div id="sc-body">${skeleton("card", 3)}</div>
   </div>`;

@@ -30,6 +30,20 @@ export function ctaFor({ exam, status }) {
 }
 
 /* ---------- shared bits of exam information ---------- */
+/* Icon + colour tone for a category / subject NAME (names come from the admin taxonomy; unknown names get a neutral icon). */
+const CAT_STYLES = [
+  [/defen[cs]e|army|navy|air ?force|সেনা|নৌ|বিমান|প্রতিরক্ষা/i, "fa-shield-halved", "green"],
+  [/quran|কুরআন|কোরআন|কুরান/i, "fa-book-quran", "purple"],
+  [/office|word|excel|powerpoint|computer|ict|কম্পিউটার/i, "fa-desktop", "blue"],
+  [/academic|class|school|university|ssc|hsc|একাডেমিক|শ্রেণি/i, "fa-graduation-cap", "orange"],
+  [/job|bcs|bank|govt|চাকরি|জব/i, "fa-briefcase", "red"],
+  [/general|gk|knowledge|সাধারণ|জিকে/i, "fa-lightbulb", "teal"],
+];
+export function catStyle(name = "") {
+  const hit = CAT_STYLES.find(([re]) => re.test(name));
+  return hit ? { icon: hit[1], tone: hit[2] } : { icon: "fa-layer-group", tone: "blue" };
+}
+
 export function examFacts(exam, { defaultPass = 60 } = {}) {
   const questions = getExamQuestionCount(exam);
   return {
@@ -95,14 +109,20 @@ export function examCardHtml(item, ctx, { featured = false, extra = "" } = {}) {
   const range = fmtRange(status.startsAt, status.endsAt, ctx.now);
   const attempt = attemptLine(item);
   const participants = Number(ctx.participants?.[exam.id]) || 0;
+  const style = catStyle(`${subjectNameOf(ctx.tax, exam.subjectId) || ""} ${exam.title || ""}`);
   return `<article class="card xc xc--${status.tone}${featured ? " xc--featured" : ""}" data-exam-id="${esc(exam.id)}" data-status="${status.key}">
-    <header class="xc-top">
-      ${statusBadge(status)}
-      <span class="xc-kind">${f.practice ? "Practice" : "Live exam"}</span>
-      ${exam.featured ? '<span class="xc-star" title="Featured exam"><i class="fa-solid fa-star" aria-hidden="true"></i></span>' : ""}
-    </header>
-    <h3 class="xc-title">${esc(exam.title || "Exam")}</h3>
-    ${sub ? `<p class="xc-sub">${esc(sub)}</p>` : ""}
+    <div class="xc-main">
+      <span class="xc-ico" data-tone="${style.tone}" aria-hidden="true"><i class="fa-solid ${style.icon}"></i></span>
+      <div class="xc-body">
+        <header class="xc-top">
+          ${statusBadge(status)}
+          <span class="xc-kind">${f.practice ? "Practice" : "Live exam"}</span>
+          ${exam.featured ? '<span class="xc-star" title="Featured exam"><i class="fa-solid fa-star" aria-hidden="true"></i></span>' : ""}
+        </header>
+        <h3 class="xc-title">${esc(exam.title || "Exam")}</h3>
+        ${sub ? `<p class="xc-sub">${esc(sub)}</p>` : ""}
+      </div>
+    </div>
     <dl class="xc-stats">
       <div><dt>Questions</dt><dd>${f.questions}</dd></div>
       <div><dt>Marks</dt><dd>${f.marks}</dd></div>

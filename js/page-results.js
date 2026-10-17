@@ -391,7 +391,7 @@ export async function initResultsPage(params, container) {
 
   container.innerHTML = `
     <div class="container page">
-      ${pageHead("My Activity", "আপনার সব পরীক্ষার অ্যাটেম্পট, স্কোর, তারিখ ও ভুলের রিভিউ এক জায়গায়।", '<a class="btn btn-outline btn-sm" href="#/performance"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Performance</a>')}
+      ${pageHead("My Results", "আপনার সব পরীক্ষার অ্যাটেম্পট, স্কোর, তারিখ ও ভুলের রিভিউ এক জায়গায়।", '<a class="btn btn-outline btn-sm" href="#/performance"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Performance</a>')}
       <div id="my-results-list">${skeleton("card", 3)}</div>
     </div>
     <div class="result-modal-overlay" id="result-modal">

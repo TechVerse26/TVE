@@ -390,9 +390,11 @@ export function renderQuestion(refs) {
   const q = state.questions[state.currentIndex];
   markQuestionShown(q.id); // per-question screen time for the result's time analysis (never used for scoring)
   refs.progressFill.style.width = `${((state.currentIndex + 1) / state.questions.length) * 100}%`;
+  const pct = Math.round(((state.currentIndex + 1) / state.questions.length) * 100);
   refs.questionArea.innerHTML = `
     <div class="exs-question-card">
       <div class="exs-q-index">প্রশ্ন ${state.currentIndex + 1} / ${state.questions.length}</div>
+      <div class="exs-q-track" aria-hidden="true"><div class="exs-q-fill" style="width:${pct}%"></div></div>
       <h2>${escapeHtml(q.text)}</h2>
       ${renderOptionsHtml(q)}
     </div>`;

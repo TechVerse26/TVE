@@ -1,7 +1,7 @@
 // ==========================================================================
 // page-performance.js — "My Performance" (#/performance): the home dashboard's summary, in full, plus a
 // per-exam table. Built from the student's own userStats summary (1 cached read) — no result documents are
-// downloaded here; the detailed answer review lives in My Activity (#/results).
+// downloaded here; the detailed answer review lives in My Results (#/results).
 // ==========================================================================
 import { waitForAuth } from "./utils.js";
 import { renderNav } from "./nav.js";
@@ -9,7 +9,7 @@ import { loadStudentContext, buildStudentModel } from "./student-data.js";
 import { passPercentFor } from "./schedule-core.js";
 import * as H from "./home-core.js";
 import { perfCellsHtml, perfBarsHtml } from "./perf-ui.js";
-import { esc, emptyBlock, errorBlock, skeleton, onRetry, fmtDate, pageHead } from "./home-ui.js";
+import { esc, emptyBlock, errorBlock, skeleton, onRetry, fmtDate, pageHeadBack } from "./home-ui.js";
 
 let renderToken = 0;
 
@@ -21,7 +21,7 @@ export async function initPerformancePage(params, mount) {
   if (!user) { window.location.hash = "#/login"; return; }
 
   mount.innerHTML = `<div class="container page">
-    ${pageHead("My Performance", "আপনার সব পরীক্ষার সারসংক্ষেপ — গড়, সেরা স্কোর, পাস রেট ও অবস্থান।", '<a class="btn btn-outline btn-sm" href="#/results"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> Detailed review</a>')}
+    ${pageHeadBack("My Performance", "আপনার সব পরীক্ষার সারসংক্ষেপ — গড়, সেরা স্কোর, পাস রেট ও অবস্থান।", '<a class="btn btn-outline btn-sm" href="#/results"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> Detailed review</a>')}
     <div id="pf-body">${skeleton("card", 2)}</div>
   </div>`;
   const body = mount.querySelector("#pf-body");

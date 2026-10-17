@@ -63,7 +63,7 @@ const TTL = {
   catalog: 5 * MIN,      // exam list + course names
   questions: 10 * MIN,   // a loaded question bank (retakes in the same visit are free)
   stats: 10 * MIN,       // my per-exam summary
-  myResults: 3 * MIN,    // my full result docs ("My Activity")
+  myResults: 3 * MIN,    // my full result docs ("My Results")
   percentile: 10 * MIN,  // anonymous rank pool
   course: 30 * MIN,      // a single course doc (fallback path only)
   admin: 5 * MIN,        // admin: users / results / exams collections
@@ -547,7 +547,7 @@ export function countAttempts(result) {
    rule exactly — a signed-in user can list only their own result documents.
 
    Cached for 3 minutes (and dropped the moment a new attempt is saved), so
-   the profile page, My Activity and the stats builder share ONE fetch
+   the profile page, My Results and the stats builder share ONE fetch
    instead of each re-reading every result document.
 
    Also does one small piece of self-cleanup on the way out: any attempt
@@ -556,7 +556,7 @@ export function countAttempts(result) {
    Function needed. The returned list is already pruned in memory, and the
    actual database clean-up runs in the background (a transaction per
    document, so it can never overwrite an attempt saved a moment earlier),
-   so opening "My Activity" never waits on it. ---------- */
+   so opening "My Results" never waits on it. ---------- */
 function pruneExpiredReviews(attempts) {
   let changed = false;
   const next = attempts.map((a) => {
@@ -599,8 +599,8 @@ export async function fetchMyResults(uid, opts) {
 }
 
 /**
- * A new attempt was just saved: put it into the cached "My Activity" list right away instead of
- * throwing the whole list away — otherwise the very next visit to My Activity would re-download
+ * A new attempt was just saved: put it into the cached "My Results" list right away instead of
+ * throwing the whole list away — otherwise the very next visit to My Results would re-download
  * every result document just to learn about the one that changed. If nothing is cached yet there is
  * nothing to patch and the first visit simply loads the list as usual.
  */
@@ -726,7 +726,7 @@ async function loadUserStats(uid) {
     if (d && d.v === STATS_VERSION && d.exams && typeof d.exams === "object") return { exams: { ...d.exams } };
   }
   // First visit since the upgrade (or a brand-new student): build it ONCE from their own result docs.
-  const results = await fetchMyResults(uid); // shared cache — My Activity reuses this same fetch
+  const results = await fetchMyResults(uid); // shared cache — My Results reuses this same fetch
   const exams = {};
   results.forEach((r) => { exams[examIdOfResult(r, uid)] = statsEntryFromResultDoc(r); });
   persistStats(uid, { exams, examsTaken: Object.keys(exams).length }, { replace: true }); // best-effort, not awaited

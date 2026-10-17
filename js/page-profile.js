@@ -2,8 +2,9 @@
 // page-profile.js — student profile, built from the SAME design system as every other page
 // (page header · card · badge · stat tile · field · btn). Nothing here has its own mini design language.
 //
-//   page header
-//   identity card ........ avatar · name · Admin/Verified badges · email · roll · phone · organisation · Edit
+//   PROFILE view (#/profile)  — navy identity header (photo/initial · name · email · badges · ⚙) · progress banner · roll/phone/organisation · stats · quick links · Log Out
+//   SETTINGS view (#/profile?view=settings) — Personal information (incl. roll Sync) · Password
+//   (the sections below are the same cards as before; they simply moved into Settings)
 //   stat grid ............ Enrolled Courses · Live exams attempted · Average score · Best score
 //   Personal information . Name · Email(read-only) · Phone · Roll(read-only + Sync) · Organisation
 //   Password ............. password users: 3 fields · Google users: a compact info card
@@ -17,9 +18,10 @@
 import { requireAuth, getUserProfile, escapeHtml, toast } from "./utils.js";
 import { fetchProfileStats } from "./exam-data.js";
 import { updateUserProfile, changePassword, logout } from "./auth.js";
-import { renderNav } from "./nav.js";
+import { renderNav, avatarInner } from "./nav.js";
 import { claimNextRoll } from "./roll.js";
-import { pageHead } from "./home-ui.js";
+import { pageHeadBack } from "./home-ui.js";
+import { WHATS_NEW } from "./whats-new-data.js";
 
 function initials(name) {
   return (name || "?").trim().charAt(0).toUpperCase();
@@ -68,7 +70,27 @@ const rollActionsMarkup = (roll) =>
 const rollDetailMarkup = (roll, { animate = false } = {}) =>
   roll
     ? `<span data-field="roll"${animate ? ' class="pfl-roll-pop"' : ""}>${escapeHtml(roll)}</span> <span class="badge badge-pass" id="pf-roll-status"><i class="fa-solid fa-check" aria-hidden="true"></i> Synced</span>`
-    : `<span data-field="roll" class="pfl-muted">Not synced</span>`;
+    : `<span data-field="roll" class="pfl-muted">Not synced</span> <a class="pfl-link" href="#/profile?view=settings">Sync in Settings</a>`;
+
+/* Quick links — real destinations only (the reference's Bookmarks / Help screens do not exist in this project). */
+const MENU = [
+  ["#/exams", "fa-file-pen", "blue", "My Exams", "Browse and start exams"],
+  ["#/exam", "fa-graduation-cap", "purple", "My Courses", "Course-wise exams"],
+  ["#/results", "fa-square-poll-vertical", "green", "My Results", "Check your performance"],
+  ["#/schedule", "fa-calendar-days", "blue", "Schedule", "Upcoming exams"],
+  ["#/performance", "fa-chart-line", "teal", "Performance", "Scores and progress"],
+  ["#/leaderboard", "fa-trophy", "orange", "Leaderboard", "See the top performers"],
+  ["#/notifications", "fa-bell", "red", "Notifications", "Stay updated"],
+  ...(WHATS_NEW.enabled && WHATS_NEW.items?.length ? [["#whatsnew", "fa-gift", "purple", "What's New", "See the latest updates"]] : []),
+  ["#/profile?view=settings", "fa-gear", "blue", "Settings", "Personal information & password"],
+];
+const menuItemHtml = ([href, icon, tone, title, sub]) => {
+  const inner = `<span class="pfl-menu-ico" data-tone="${tone}" aria-hidden="true"><i class="fa-solid ${icon}"></i></span><span class="pfl-menu-text"><b>${title}</b><small>${sub}</small></span><i class="fa-solid fa-chevron-right pfl-menu-go" aria-hidden="true"></i>`;
+  return href === "#whatsnew"
+    ? `<button type="button" class="pfl-menu-item" data-open-whatsnew>${inner}</button>`      // opens the popup — not a page
+    : `<a class="pfl-menu-item" href="${href}">${inner}</a>`;
+};
+const menuHtml = () => `<nav class="card pfl-menu" aria-label="Quick links">${MENU.map(menuItemHtml).join("")}</nav>`;
 
 export async function initProfilePage(params, container) {
   await renderNav("profile");
@@ -89,40 +111,12 @@ export async function initProfilePage(params, container) {
       <span class="stat-text"><b class="stat-value" data-stat="${key}">${value}</b><span class="stat-label">${label}</span></span>
     </div>`;
 
-  container.innerHTML = `
-    <div class="container page profile-page">
-      ${pageHead("Profile", "আপনার অ্যাকাউন্ট, রোল নম্বর ও পাসওয়ার্ড এখান থেকে পরিচালনা করুন।")}
+  const view = params?.get?.("view") === "settings" ? "settings" : "profile";
+  const avatar = avatarInner(profile.photoURL || user.photoURL || "", escapeHtml(initials(name || user.email)));
 
-      <!-- ===== Identity ===== -->
-      <section class="card card--highlight pfl-id" aria-label="Profile summary">
-        <div class="pfl-id-top">
-          <span class="user-avatar pfl-avatar" aria-hidden="true">${escapeHtml(initials(name || user.email))}</span>
-          <div class="pfl-id-main">
-            <h2 class="pfl-name" data-field="name">${escapeHtml(name || "No Name")}</h2>
-            <div class="pfl-badges">
-              ${profile.isAdmin ? '<span class="badge badge-teal"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Admin</span>' : ""}
-              ${isVerified ? '<span class="badge badge-pass"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Verified</span>' : ""}
-            </div>
-            <p class="pfl-email"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span class="pfl-ellipsis">${escapeHtml(user.email || "")}</span></p>
-          </div>
-          <button type="button" class="btn btn-secondary pfl-edit" id="pf-edit-jump"><i class="fa-solid fa-pen" aria-hidden="true"></i> Edit Profile</button>
-        </div>
-        <dl class="pfl-details">
-          <div class="pfl-detail"><dt><i class="fa-solid fa-id-card" aria-hidden="true"></i> Roll number</dt><dd id="pf-roll-row">${rollDetailMarkup(roll)}</dd></div>
-          <div class="pfl-detail"><dt><i class="fa-solid fa-phone" aria-hidden="true"></i> Phone</dt><dd><span data-field="phone"${profile.phone ? "" : ' class="pfl-muted"'}>${escapeHtml(profile.phone || "Not added")}</span></dd></div>
-          <div class="pfl-detail"><dt><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i> Organisation</dt><dd><span data-field="institution"${institution ? "" : ' class="pfl-muted"'}>${escapeHtml(institution || "Not added")}</span></dd></div>
-        </dl>
-      </section>
-
-      <!-- ===== Stats ===== -->
-      <div class="stat-grid stat-grid--4" id="profile-stats">
-        ${stat("fa-book-open", "courses", enrolledCount, "Enrolled Courses")}
-        ${stat("fa-satellite-dish", "live", 0, "Attempt Live Exam")}
-        ${stat("fa-chart-line", "avg", "0%", "Average Score")}
-        ${stat("fa-trophy", "best", "0%", "Best Score")}
-      </div>
-
-      <!-- ===== Account settings ===== -->
+  /* Settings: the editable parts live here (personal information incl. roll sync, password) */
+  const settingsHtml = `
+      ${pageHeadBack("Settings", "ব্যক্তিগত তথ্য ও পাসওয়ার্ড পরিচালনা করুন।")}
       <div class="pfl-grid" id="pf-edit-section">
         <section class="card" aria-labelledby="h-pf-info">
           <div class="card-head">
@@ -162,25 +156,63 @@ export async function initProfilePage(params, container) {
           </div>
         </section>`}
       </div>
+`;
 
-      <!-- ===== Sign out (account action — quiet, compact) ===== -->
-      <section class="card card--danger pfl-signout" aria-label="Sign out">
-        <div>
-          <h2 class="card-title">Sign out</h2>
-          <p class="card-sub">Sign out of this device. You will need your email and password (or Google) to sign in again.</p>
+  /* Profile (reference): navy identity header · progress banner · account details · stats · quick links · Log Out */
+  const profileHtml = `
+      <header class="page-head pfl-head">
+        <div class="pfl-head-id">
+          <span class="user-avatar pfl-avatar" aria-hidden="true">${avatar}</span>
+          <div class="pfl-id-main">
+            <h1 class="page-title pfl-name" data-field="name">${escapeHtml(name || "No Name")}</h1>
+            <p class="pfl-email"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span class="pfl-ellipsis">${escapeHtml(user.email || "")}</span></p>
+            <div class="pfl-badges">
+              ${profile.isAdmin ? '<span class="badge badge-teal"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Admin</span>' : ""}
+              ${isVerified ? '<span class="badge badge-pass"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Verified</span>' : ""}
+            </div>
+          </div>
         </div>
-        <button type="button" class="btn btn-danger" id="pf-logout"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sign Out</button>
+        <div class="page-actions"><a class="pfl-gear" href="#/profile?view=settings" aria-label="Settings" title="Settings"><i class="fa-solid fa-gear" aria-hidden="true"></i></a></div>
+      </header>
+
+      <section class="pfl-banner" aria-label="Keep going">
+        <div><b>Keep Going!</b><p data-banner>Practice more, achieve more.</p></div>
+        <i class="fa-solid fa-chart-line pfl-banner-ico" aria-hidden="true"></i>
       </section>
+
+      <section class="card pfl-id" aria-label="Account details">
+        <dl class="pfl-details">
+          <div class="pfl-detail"><dt><i class="fa-solid fa-id-card" aria-hidden="true"></i> Roll number</dt><dd id="pf-roll-row">${rollDetailMarkup(roll)}</dd></div>
+          <div class="pfl-detail"><dt><i class="fa-solid fa-phone" aria-hidden="true"></i> Phone</dt><dd><span data-field="phone"${profile.phone ? "" : ' class="pfl-muted"'}>${escapeHtml(profile.phone || "Not added")}</span></dd></div>
+          <div class="pfl-detail"><dt><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i> Organisation</dt><dd><span data-field="institution"${institution ? "" : ' class="pfl-muted"'}>${escapeHtml(institution || "Not added")}</span></dd></div>
+        </dl>
+      </section>
+
+      <div class="stat-grid stat-grid--4" id="profile-stats">
+        ${stat("fa-book-open", "courses", enrolledCount, "Enrolled Courses")}
+        ${stat("fa-satellite-dish", "live", 0, "Attempt Live Exam")}
+        ${stat("fa-chart-line", "avg", "0%", "Average Score")}
+        ${stat("fa-trophy", "best", "0%", "Best Score")}
+      </div>
+
+      ${menuHtml()}
+
+      <button type="button" class="pfl-logout" id="pf-logout"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Log Out</button>`;
+
+  container.innerHTML = `
+    <div class="container page profile-page" data-view="${view}">${view === "settings" ? settingsHtml : profileHtml}
     </div>`;
 
   /* ---------- Stats (best-effort — never blocks the rest of the page) ---------- */
   // One small summary document (userStats/{uid}) instead of downloading every result
   // document just to count and average them. Falls back to the old scan automatically.
-  fetchProfileStats(user.uid)
+  if (view === "profile") fetchProfileStats(user.uid)
     .then(({ total, liveCount, avg, best }) => {
       const liveNum = container.querySelector('[data-stat="live"]');
       if (liveNum) liveNum.textContent = liveCount; // live exams only — practice attempts have their own place
       if (!total) return;
+      const banner = container.querySelector("[data-banner]");
+      if (banner) banner.textContent = "Your progress is amazing. Practice more, achieve more.";
       container.querySelector('[data-stat="avg"]').textContent = `${avg}%`;
       container.querySelector('[data-stat="best"]').textContent = `${best}%`;
     })
@@ -242,7 +274,7 @@ export async function initProfilePage(params, container) {
   bindRollSync();
 
   /* ---------- Edit name/phone/institution (roll is never sent — read-only) ---------- */
-  container.querySelector("#profile-form").addEventListener("submit", async (e) => {
+  container.querySelector("#profile-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = container.querySelector("#pf-save");
     const newName = container.querySelector("#pf-name").value.trim();
@@ -287,13 +319,6 @@ export async function initProfilePage(params, container) {
     });
   }
 
-  /* ---------- Edit button: jump to + focus the info form ---------- */
-  container.querySelector("#pf-edit-jump").addEventListener("click", () => {
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    container.querySelector("#pf-edit-section").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    setTimeout(() => container.querySelector("#pf-name")?.focus({ preventScroll: true }), reduce ? 0 : 350);
-  });
-
   /* ---------- Logout ---------- */
-  container.querySelector("#pf-logout").addEventListener("click", () => logout());
+  container.querySelector("#pf-logout")?.addEventListener("click", () => logout());
 }

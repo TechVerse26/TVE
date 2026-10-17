@@ -9,7 +9,7 @@ export async function initLoginPage(params, container) {
   container.innerHTML = `
     <div class="container page auth-page">
       <div class="auth-card card card--highlight">
-        <div class="auth-logo"><img src="assets/logo.svg" alt="TVexam" width="204" height="46"></div>
+        <div class="auth-logo"><img src="assets/logo-on-navy.svg" alt="TVexam" width="204" height="46"></div>
         <h1><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i>Welcome Back</h1>
         <p class="auth-sub">Log in to the Exam Platform. Use your Tech Verse Course account to continue.</p>
         <form id="login-form" class="auth-form">

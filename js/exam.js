@@ -151,7 +151,7 @@ export async function initExamPage(params) {
   resultView.innerHTML = "";
 
   bindStaticControlsOnce();
-  await renderNav("exam");
+  await renderNav(params?.get?.("id") ? "exams" : "courses");
 
   state.currentUser = await requireAuth();
   if (myToken !== state.navToken) return cleanup;
@@ -338,7 +338,7 @@ async function submitExam({ auto = false } = {}) {
 
   // Drawing the result (and the PDF report) must never be able to stop the save
   // below — whatever goes wrong on screen, the attempt still gets stored and is
-  // still viewable in My Activity.
+  // still viewable in My Results.
   try {
     const view = renderResult(resultView, attempt, {
       onRetrySave: () => persistAttempt(attempt),
@@ -378,7 +378,7 @@ async function submitExam({ auto = false } = {}) {
    be randomized per attempt (buildQuestionPool), so the only reliable record
    of "what did attempt #N actually look like" is captured right now, at submit
    time. It feeds the result screen, the PDF report AND the saved review shown
-   later in My Activity — one source, so all three always agree.
+   later in My Results — one source, so all three always agree.
 
    Only WRONG (incl. unanswered) questions are kept in `review` — a correctly
    answered question never needs reviewing, and for a big exam this is what

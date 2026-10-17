@@ -10,7 +10,7 @@ export async function initSignupPage(params, container) {
   container.innerHTML = `
     <div class="container page auth-page">
       <div class="auth-card card card--highlight">
-        <div class="auth-logo"><img src="assets/logo.svg" alt="TVexam" width="204" height="46"></div>
+        <div class="auth-logo"><img src="assets/logo-on-navy.svg" alt="TVexam" width="204" height="46"></div>
         <h1><i class="fa-solid fa-user-plus" aria-hidden="true"></i>Continue Your Journey</h1>
         <p class="auth-sub">Use the same email address you used to enroll in the Tech Verse Course.</p>
         <form id="signup-form" class="auth-form">

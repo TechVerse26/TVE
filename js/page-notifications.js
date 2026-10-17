@@ -10,7 +10,7 @@ import { reminderCount, browserPermission, maybeAskBrowserPermission } from "./r
 import { onPageLeave } from "./page-lifecycle.js";
 import { serverNow } from "./server-time.js";
 import { toBnDigits } from "./schedule-core.js";
-import { esc, emptyBlock, errorBlock, skeleton, onRetry, fmtDate, fmtTime, pageHead } from "./home-ui.js";
+import { esc, emptyBlock, errorBlock, skeleton, onRetry, fmtDate, fmtTime, pageHeadBack } from "./home-ui.js";
 
 let renderToken = 0;
 const GROUPS = [
@@ -55,7 +55,7 @@ export async function initNotificationsPage(params, mount) {
   let group = "all";
 
   mount.innerHTML = `<div class="container page">
-    ${pageHead("Notifications", "নতুন পরীক্ষা, সময়সূচি পরিবর্তন, ঘোষণা ও ফলাফল — এক জায়গায়।", '<button type="button" class="btn btn-outline btn-sm" id="nf-markall"><i class="fa-solid fa-check-double" aria-hidden="true"></i> Mark all read</button>')}
+    ${pageHeadBack("Notifications", "নতুন পরীক্ষা, সময়সূচি পরিবর্তন, ঘোষণা ও ফলাফল — এক জায়গায়।", '<button type="button" class="btn btn-outline btn-sm" id="nf-markall"><i class="fa-solid fa-check-double" aria-hidden="true"></i> Mark all read</button>')}
     <div id="nf-tools"></div>
     <div id="nf-body">${skeleton("row", 4)}</div>
   </div>`;

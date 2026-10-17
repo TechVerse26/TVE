@@ -90,7 +90,7 @@ export function updateSaveStatus(resultView, attempt) {
   if (st === "saving") {
     el.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>ফলাফল সেভ হচ্ছে…</span>`;
   } else if (st === "saved") {
-    el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>ফলাফল সেভ হয়েছে — My Activity-তে দেখতে পাবেন</span>`;
+    el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>ফলাফল সেভ হয়েছে — My Results-তে দেখতে পাবেন</span>`;
   } else if (st === "blocked") {
     el.innerHTML = `<i class="fa-solid fa-ban"></i><span>এই এক্সামের অ্যাটেম্পট সীমা পূর্ণ, তাই এই ফলাফল সেভ হয়নি</span>`;
   } else {
@@ -152,6 +152,7 @@ function heroHtml(attempt, a) {
         <div class="rx-ring-text"><b ${countAttrs(m.percent, 0, "%")}>${m.percent}%</b><span>শতকরা</span></div>
       </div>
       <div class="rx-hero-body">
+        ${pass.passed ? '<span class="rx-trophy" aria-hidden="true"><i class="fa-solid fa-trophy"></i></span>' : ""}
         <h3 class="rx-tier" id="rx-tier-title" tabindex="-1">${E(tier.title)}</h3>
         <p class="rx-tier-msg">${E(tier.message)}</p>
         <p class="rx-score" aria-hidden="true">স্কোর <b ${countAttrs(m.score, scoreDec)}>${formatScoreText(m.score)}</b><span> / ${m.total}</span></p>
@@ -208,7 +209,8 @@ function statsHtml(a) {
 function actionsHtml(attempt, courseHref, mistakes) {
   return `
     <div class="rx-actions exs-no-print rx-in">
-      <button type="button" class="rx-btn rx-btn--primary" id="exs-retake"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>আবার দিন</span></button>
+      <button type="button" class="rx-btn rx-btn--primary" data-rx-act="detail"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span>বিস্তারিত ফলাফল দেখুন</span></button>
+      <button type="button" class="rx-btn rx-btn--outline" id="exs-retake"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>আবার দিন</span></button>
       <a href="${courseHref}" class="rx-btn rx-btn--outline" id="exs-course-link"><i class="fa-solid fa-list" aria-hidden="true"></i><span>কোর্সের এক্সাম</span></a>
       <button type="button" class="rx-btn rx-btn--outline" id="exs-print-result"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>PDF ডাউনলোড</span></button>
       ${mistakes > 0 ? `<button type="button" class="rx-btn rx-btn--ghost" data-rx-act="review"><i class="fa-solid fa-list-check" aria-hidden="true"></i><span>ভুলগুলো দেখুন (${bn(mistakes)})</span></button>` : ""}
@@ -490,7 +492,7 @@ function renderRich(resultView, attempt, hooks) {
         <section class="rx-card rx-in" id="rx-subjects">${subjectsInner(core)}</section>
         <section class="rx-card rx-in" id="rx-suggest">${suggestInner(core)}</section>
       </div>
-      <p class="exs-result-note exs-no-print"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>"PDF ডাউনলোড"-এ চাপলে প্রিন্ট ডায়ালগ খুলবে — সেখানে <b>Save as PDF</b> বেছে নিন। PDF শুধু এই পেজ থেকেই পাওয়া যায়; পেজ ছেড়ে গেলে <b>My Activity</b>-তে শুধু ভুলগুলো দেখা যাবে (${bn(reviewTtlHours())} ঘণ্টা পর্যন্ত), PDF নয়।</span></p>
+      <p class="exs-result-note exs-no-print"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>"PDF ডাউনলোড"-এ চাপলে প্রিন্ট ডায়ালগ খুলবে — সেখানে <b>Save as PDF</b> বেছে নিন। PDF শুধু এই পেজ থেকেই পাওয়া যায়; পেজ ছেড়ে গেলে <b>My Results</b>-তে শুধু ভুলগুলো দেখা যাবে (${bn(reviewTtlHours())} ঘণ্টা পর্যন্ত), PDF নয়।</span></p>
       <div id="rx-review" tabindex="-1">${reviewListHtml(review)}</div>
       <p class="sr-only" id="rx-live" role="status" aria-live="polite"></p>
     </div>`;
@@ -605,6 +607,10 @@ function bindCommonActions(resultView, root, { courseHref, leaveIfSure, onRetryS
   // "Show me the mistakes" buttons / links (also inside the suggestions that get refilled later) → one delegated listener.
   // Bound on `root` (re-created for every result screen), never on the long-lived resultView, so listeners cannot pile up.
   root.addEventListener("click", (e) => {
+    if (e.target.closest("[data-rx-act='detail']")) {      // → the first analysis card (time), where the detailed breakdown starts
+      const first = root.querySelector("#rx-time");
+      if (first) { first.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }); return; }
+    }
     if (!e.target.closest("[data-rx-act='review']")) return;
     const target = root.querySelector("#rx-review");
     if (!target) return;

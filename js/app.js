@@ -10,6 +10,8 @@ import { initSignupPage } from "./page-signup.js";
 import { unmountReport } from "./exam-report.js";
 import { disposeResult } from "./exam-result.js";
 import { initHomePage } from "./page-home.js";
+import { initCategoriesPage } from "./page-categories.js";
+import { initWhatsNew } from "./whats-new.js";
 import { initExamsPage } from "./page-exams.js";
 import { initSchedulePage } from "./page-schedule.js";
 import { initNotificationsPage } from "./page-notifications.js";
@@ -58,6 +60,7 @@ const router = new Router(
     home: genericRoute(initHomePage, "Home — Tech Verse Exam"),
     exam: examRoute,
     exams: genericRoute(initExamsPage, "All Exams — Tech Verse Exam"),
+    categories: genericRoute(initCategoriesPage, "Categories — Tech Verse Exam"),
     schedule: genericRoute(initSchedulePage, "Exam Schedule — Tech Verse Exam"),
     notifications: genericRoute(initNotificationsPage, "Notifications — Tech Verse Exam"),
     leaderboard: genericRoute(initLeaderboardPage, "Leaderboard — Tech Verse Exam"),
@@ -103,3 +106,6 @@ onAuthStateChanged(auth, (user) => {
 });
 
 router.start();
+
+// "What's new": once per release, never during login / signup / an exam (whats-new.js). The text lives in whats-new-data.js.
+initWhatsNew();

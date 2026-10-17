@@ -66,12 +66,15 @@ export function statusBadge(status) {
 }
 
 /** Standard page header: title + one-line description (+ optional action html on the right). */
-export function pageHead(title, desc = "", actionsHtml = "") {
-  return `<header class="page-head">
+export function pageHead(title, desc = "", actionsHtml = "", { back = false } = {}) {
+  return `<header class="page-head${back ? " page-head--back" : ""}">
+    ${back ? '<button type="button" class="page-back" data-back aria-label="Back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>' : ""}
     <div class="page-head-text"><h1 class="page-title">${esc(title)}</h1>${desc ? `<p class="page-desc">${esc(desc)}</p>` : ""}</div>
     ${actionsHtml ? `<div class="page-actions">${actionsHtml}</div>` : ""}
   </header>`;
 }
+
+export const pageHeadBack = (title, desc = "", actionsHtml = "") => pageHead(title, desc, actionsHtml, { back: true });
 
 export function sectionHead(id, title, { sub = "", href = "", action = "", icon = "" } = {}) {
   return `<div class="section-head">
