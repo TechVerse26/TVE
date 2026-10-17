@@ -30,7 +30,7 @@ with sync_playwright() as pw:
     page.wait_for_selector("#hm-root:not([hidden]) .hm-hero", timeout=8000)
     page.wait_for_timeout(300)
     txt = page.inner_text("#hm-root")
-    check("welcome + student name", "Welcome back, Abdullah" in txt)
+    check("greeting + student name", "Hello, Abdullah" in txt)
     check("admin hero title shown", "প্রস্তুত তো? আজকের পরীক্ষা শুরু করুন।" in txt)
     check("Live Now section lists the live exam", page.locator(".hm-live .lv-title").first.inner_text() == "বাংলাদেশ বিমান বাহিনী মডেল টেস্ট ০৫")
     check("live participants (128) shown", "128" in page.locator(".hm-live").inner_text())
@@ -246,7 +246,7 @@ with sync_playwright() as pw:
     ctx.close()
 
     # ------------------------------------------------------------------ 8. Profile (redesigned page, unchanged behaviour)
-    print("\n[8] Profile — identity card, stats, roll sync, save, password, Google variant, sign out")
+    print("\n[8] Profile — reference profile view · Settings (info + roll + password) · Google variant · Log Out")
     errors = []
     ctx = make_context(browser, VIEWPORTS["mobile"])
     install_clock(ctx)
@@ -254,26 +254,45 @@ with sync_playwright() as pw:
     go(page, "#/profile")
     page.wait_for_selector(".pfl-id", timeout=8000)
     page.wait_for_timeout(500)
-    check("profile: page header, identity card, 4 stat tiles, info + password forms",
-          page.locator("#generic-page-content h1.page-title").inner_text() == "Profile" and page.locator(".pfl-id").count() == 1
-          and page.locator("#profile-stats .stat-tile").count() == 4 and page.locator("#profile-form").count() == 1 and page.locator("#password-form").count() == 1)
+    check("profile: navy identity header, banner, details card, 4 stat tiles, quick-links menu, Log Out",
+          page.locator("#generic-page-content .pfl-head h1.page-title").inner_text() == "Abdullah Rahman" and page.locator(".pfl-id").count() == 1
+          and page.locator(".pfl-banner").count() == 1 and page.locator(".pfl-menu .pfl-menu-item").count() == 9
+          and page.locator("#profile-stats .stat-tile").count() == 4 and page.locator("#pf-logout").count() == 1)
+    menu = [t.strip().split("\n")[0] for t in page.locator(".pfl-menu .pfl-menu-item").all_inner_texts()]
+    check("profile: the menu has Schedule, What's New and Settings (real destinations only)", "Schedule" in menu and "What's New" in menu and "Settings" in menu and menu[-1] == "Settings", str(menu))
+    check("profile: the editing forms moved into Settings (none on this view)", page.locator("#profile-form").count() == 0 and page.locator("#password-form").count() == 0)
     check("profile: stats come from userStats (average is not the 0% placeholder)", page.locator('[data-stat="avg"]').inner_text() != "0%", page.locator('[data-stat="avg"]').inner_text())
-    check("profile: email and roll are read-only", page.locator("#pf-email").is_disabled() and page.locator("#pf-roll").is_disabled())
-    check("profile: uses the global dark card (no white / gradient surface)", page.evaluate("getComputedStyle(document.querySelector('.pfl-id')).backgroundColor") == "rgb(20, 21, 30)")
+    check("profile: banner follows the real data (the student has attempts)", "progress is amazing" in page.inner_text("[data-banner]"))
+    check("profile: uses the global white card surface (no one-off colour / gradient)", page.evaluate("getComputedStyle(document.querySelector('.pfl-id')).backgroundColor") == "rgb(255, 255, 255)")
     check("profile: no horizontal overflow at 390px", no_overflow(page))
     page.set_viewport_size({"width": 320, "height": 700}); page.wait_for_timeout(150)
     check("profile: no horizontal overflow at 320px", no_overflow(page))
     page.set_viewport_size({"width": 1366, "height": 850}); page.wait_for_timeout(150)
-    cols = page.evaluate("[getComputedStyle(document.querySelector('.pfl-grid')).gridTemplateColumns.split(' ').length, getComputedStyle(document.querySelector('.pfl-details')).gridTemplateColumns.split(' ').length]")
-    check("profile desktop: settings in 2 columns, details in 3, no overflow", cols == [2, 3] and no_overflow(page), str(cols))
+    cols = page.evaluate("getComputedStyle(document.querySelector('.pfl-details')).gridTemplateColumns.split(' ').length")
+    check("profile desktop: details in 3 columns, no overflow", cols == 3 and no_overflow(page), str(cols))
+    page.set_viewport_size({"width": 390, "height": 844}); page.wait_for_timeout(150)
+
+    page.click(".pfl-gear")
+    page.wait_for_selector("#profile-form", timeout=6000)
+    page.wait_for_timeout(300)
+    check("settings: reached from the gear — header “Settings”, one info form + one password form, no stats / menu",
+          page.locator("#generic-page-content .page-head .page-title").inner_text().strip() == "Settings" and page.locator("#profile-form").count() == 1 and page.locator("#password-form").count() == 1
+          and page.locator("#profile-stats").count() == 0 and page.locator(".pfl-menu").count() == 0)
+    check("settings: has a back arrow", page.locator(".page-head .page-back").count() == 1)
+    check("settings: email and roll are read-only", page.locator("#pf-email").is_disabled() and page.locator("#pf-roll").is_disabled())
+    check("settings: no horizontal overflow at 390px", no_overflow(page))
+    page.set_viewport_size({"width": 320, "height": 700}); page.wait_for_timeout(150)
+    check("settings: no horizontal overflow at 320px", no_overflow(page))
+    page.set_viewport_size({"width": 1366, "height": 850}); page.wait_for_timeout(150)
+    cols = page.evaluate("getComputedStyle(document.querySelector('.pfl-grid')).gridTemplateColumns.split(' ').length")
+    check("settings desktop: the two cards sit in 2 columns, no overflow", cols == 2 and no_overflow(page), str(cols))
     page.set_viewport_size({"width": 390, "height": 844}); page.wait_for_timeout(150)
 
     check("roll: Sync button sits inside the Roll field", page.locator("#pf-roll-field #pf-roll-sync").count() == 1)
     page.click("#pf-roll-sync")
     page.wait_for_selector("#pf-roll-copy", timeout=6000)
     roll = page.input_value("#pf-roll")
-    check("roll: Sync claims the next serial, shown in the field and the identity card",
-          re.fullmatch(r"\d{4,}", roll) is not None and roll in page.inner_text("#pf-roll-row") and page.locator("#pf-roll-status").count() == 1, roll)
+    check("roll: Sync claims the next serial and shows it in the field", re.fullmatch(r"\d{4,}", roll) is not None, roll)
     check("roll: Sync button replaced by Copy; counter advanced and the roll is stored on users/stu1",
           page.locator("#pf-roll-sync").count() == 0 and any(w.get("path") == "counters/students" for w in writes(page)) and user_doc(page).get("roll") == roll, str(user_doc(page)))
 
@@ -282,8 +301,6 @@ with sync_playwright() as pw:
     page.fill("#pf-institution", "Tech Verse Academy")
     page.click("#pf-save")
     page.wait_for_timeout(900)
-    card = page.inner_text(".pfl-id")
-    check("save: identity card shows the new name / phone / organisation at once", "Abdullah R. Khan" in card and "01712345678" in card and "Tech Verse Academy" in card, card[:160])
     check("save: top bar + drawer pick up the new name (no reload)",
           "Abdullah R. Khan" in (page.get_attribute(".nav-user-chip", "aria-label") or "") and "Abdullah R. Khan" in (page.text_content(".nav-drawer-user-name") or ""))
     stored = user_doc(page)
@@ -295,9 +312,15 @@ with sync_playwright() as pw:
     check("password: a mismatching confirmation is rejected", "Confirm password" in page.inner_text("#toast-root"), page.inner_text("#toast-root"))
     page.fill("#pw-confirm", "newpass1"); page.click("#pw-save"); page.wait_for_timeout(800)
     check("password: matching change succeeds and the form resets", "Your Password has been updated" in page.inner_text("#toast-root") and page.input_value("#pw-new") == "")
+
+    page.evaluate("location.hash = '#/profile'")
+    page.wait_for_selector(".pfl-menu", timeout=6000); page.wait_for_timeout(400)
+    card = page.inner_text(".pfl-head") + " " + page.inner_text(".pfl-id")
+    check("profile: shows the saved name / phone / organisation", "Abdullah R. Khan" in card and "01712345678" in card and "Tech Verse Academy" in card, card[:160])
+    check("profile: the synced roll is shown in the details card with its status", roll in page.inner_text("#pf-roll-row") and page.locator("#pf-roll-status").count() == 1)
     page.click("#pf-logout")
     page.wait_for_selector("#login-form", timeout=6000)
-    check("sign out: returns to the login page", "login" in page.evaluate("location.hash"))
+    check("log out: returns to the login page", "login" in page.evaluate("location.hash"))
     check("profile run: no JS errors", not errors, "; ".join(errors[:4]))
     ctx.close()
 
@@ -306,11 +329,11 @@ with sync_playwright() as pw:
     ctx.add_init_script("window.__MOCK__.user.providerData = [{providerId: 'google.com'}];")
     install_clock(ctx)
     page = new_page(ctx, errors)
-    go(page, "#/profile")
-    page.wait_for_selector(".pfl-id", timeout=8000)
-    check("profile (Google account): no password form, a calm info card instead",
+    go(page, "#/profile?view=settings")
+    page.wait_for_selector("#profile-form", timeout=8000)
+    check("settings (Google account): no password form, a calm info card instead",
           page.locator("#password-form").count() == 0 and "Google" in page.inner_text(".pfl-google") and page.locator(".pfl-google.card--danger").count() == 0)
-    check("profile (Google account): no JS errors", not errors, "; ".join(errors[:4]))
+    check("settings (Google account): no JS errors", not errors, "; ".join(errors[:4]))
     ctx.close()
 
     # ------------------------------------------------------------------ 9. Navigation structure (desktop · phone bar · drawer · bell)
@@ -322,10 +345,10 @@ with sync_playwright() as pw:
     go(page, "#/home")
     page.wait_for_selector("#bottom-nav", timeout=8000)
     labels = [t.strip() for t in page.locator("#bottom-nav .bn-item").all_inner_texts()]
-    check("phone bar: exactly Home · Exams · Schedule · Activity · Profile", labels == ["Home", "Exams", "Schedule", "Activity", "Profile"], str(labels))
-    check("phone top bar: logo + bell + menu, no desktop links, no profile chip",
-          page.locator("#nav-bell").is_visible() and page.locator("#nav-hamburger").is_visible() and not page.locator("#nav-links").is_visible() and not page.locator(".nav-user-chip").is_visible())
-    expect = {"#/home": "Home", "#/exams": "Exams", "#/schedule": "Schedule", "#/results": "Activity", "#/performance": "Activity", "#/leaderboard": "Activity", "#/profile": "Profile"}
+    check("phone bar: exactly Home · Exams · Courses · Results · Profile", labels == ["Home", "Exams", "Courses", "Results", "Profile"], str(labels))
+    check("phone top bar: brand + schedule + bell + avatar menu, no desktop links, no profile chip",
+          page.locator(".brand--lockup").is_visible() and page.locator(".nav-schedule").is_visible() and page.locator("#nav-bell").is_visible() and page.locator("#nav-hamburger").is_visible() and not page.locator("#nav-links").is_visible() and not page.locator(".nav-user-chip").is_visible())
+    expect = {"#/home": "Home", "#/exams": "Exams", "#/exam": "Courses", "#/categories": "Exams", "#/schedule": "Exams", "#/results": "Results", "#/performance": "Results", "#/leaderboard": "Results", "#/profile": "Profile"}
     for route, label in expect.items():
         page.evaluate(f"location.hash = '{route}'"); page.wait_for_timeout(900)
         act = [a.strip() for a in page.locator('#bottom-nav [aria-current="page"]').all_inner_texts()]
@@ -335,7 +358,7 @@ with sync_playwright() as pw:
 
     page.click("#nav-hamburger"); page.wait_for_timeout(450)
     items = [t.strip() for t in page.locator("#nav-drawer .nav-drawer-item").all_inner_texts()]
-    check("drawer: secondary links only — Leaderboard · My Performance · Notifications · Profile", items == ["Leaderboard", "My Performance", "Notifications", "Profile"], str(items))
+    check("drawer: secondary links only — Schedule · Leaderboard · My Performance · Notifications · Profile", items == ["Schedule", "Leaderboard", "My Performance", "Notifications", "Profile"], str(items))
     check("drawer: shows name + email and a Sign Out button, fits the screen",
           "Abdullah" in page.inner_text(".nav-drawer-user-name") and "stu@example.com" in page.inner_text(".nav-drawer-user-email") and page.locator("#nav-drawer-signout").is_visible() and no_overflow(page))
     check("drawer: the current page (Notifications) is marked", page.locator('#nav-drawer [aria-current="page"]').all_inner_texts()[0].strip() == "Notifications")
@@ -356,7 +379,7 @@ with sync_playwright() as pw:
     go(page, "#/schedule")
     page.wait_for_selector("#nav-links .nav-link", timeout=8000)
     links = [t.strip() for t in page.locator("#nav-links .nav-link").all_inner_texts()]
-    check("desktop nav: Home · Exams · Schedule · My Activity in the centre", links == ["Home", "Exams", "Schedule", "My Activity"], str(links))
+    check("desktop nav: Home · All Exams · Courses · Schedule · Results in the centre", links == ["Home", "All Exams", "Courses", "Schedule", "Results"], str(links))
     check("desktop nav: bell + profile on the right; no phone bar, no menu button",
           page.locator("#nav-bell").is_visible() and page.locator(".nav-user-chip").is_visible() and not page.locator("#bottom-nav").is_visible() and not page.locator("#nav-hamburger").is_visible())
     check("desktop nav: exactly one active link (Schedule)", [a.strip() for a in page.locator('#nav-links [aria-current="page"]').all_inner_texts()] == ["Schedule"])
@@ -376,6 +399,117 @@ with sync_playwright() as pw:
     page.set_viewport_size({"width": 390, "height": 844}); page.wait_for_timeout(300)
     page.click("#nav-hamburger"); page.wait_for_timeout(450)
     check("admin: the drawer lists Admin Panel on a phone", "Admin Panel" in page.inner_text("#nav-drawer"))
+    ctx.close()
+
+    # ------------------------------------------------------------------ 10. Categories + header shortcuts + hero search (reference screens)
+    print("\n[10] Categories — All Categories, search, subject page; Schedule shortcut; hero search")
+    errors = []
+    ctx = make_context(browser, VIEWPORTS["mobile"])
+    install_clock(ctx)
+    page = new_page(ctx, errors)
+    go(page, "#/categories")
+    page.wait_for_selector(".cg-row", timeout=8000)
+    page.wait_for_timeout(400)
+    texts = page.locator(".cg-row").all_inner_texts()
+    check("categories: one row per subject with visible exams, each showing its exam count", len(texts) >= 5 and all(re.search(r"\d+ Exams?", t) for t in texts), str(len(texts)))
+    check("categories: back arrow + search box, nothing wider than the screen", page.locator(".page-head .page-back").count() == 1 and page.locator("#cg-q").count() == 1 and no_overflow(page))
+    page.fill("#cg-q", "zzzz-no-such-category"); page.wait_for_timeout(250)
+    check("categories: search hides every row and shows the empty note", page.locator(".cg-row:visible").count() == 0 and page.locator("#cg-empty").is_visible())
+    page.fill("#cg-q", ""); page.wait_for_timeout(250)
+    check("categories: clearing the search brings every row back", page.locator(".cg-row:visible").count() == len(texts))
+    page.set_viewport_size({"width": 320, "height": 700}); page.wait_for_timeout(150)
+    check("categories: no horizontal overflow at 320px", no_overflow(page))
+    page.set_viewport_size({"width": 390, "height": 844}); page.wait_for_timeout(150)
+    page.locator(".cg-row").first.click()
+    page.wait_for_selector(".cg-banner", timeout=6000)
+    page.wait_for_timeout(300)
+    start = page.locator(".cg-start").first
+    check("subject page: banner + a “Start Exam” row that leads to the pre-filtered All Exams list",
+          page.locator(".cg-banner").count() == 1 and page.locator(".cg-item").count() >= 1 and (start.get_attribute("href") or "").startswith("#/exams?"), str(start.get_attribute("href")))
+    check("subject page: only the Exams tab is lit", [a.strip() for a in page.locator('#bottom-nav [aria-current="page"]').all_inner_texts()] == ["Exams"])
+    start.click()
+    page.wait_for_selector(".xc", timeout=8000)
+    check("subject page → All Exams: opens already filtered (fewer cards than the full list)", 0 < page.locator(".xc").count() < 9, str(page.locator(".xc").count()))
+    go(page, "#/exams")
+    page.wait_for_selector(".xc", timeout=8000)
+    check("All Exams: the header carries a Schedule shortcut (Schedule stays one tap away)", page.locator('.page-head a[href="#/schedule"]').count() == 1)
+    check("All Exams: every exam card has its category icon tile", page.locator(".xc .xc-ico").count() == page.locator(".xc").count())
+    page.click(".nav-schedule")
+    page.wait_for_timeout(700)
+    check("top bar: the calendar shortcut opens Schedule on a phone", "schedule" in page.evaluate("location.hash"))
+    go(page, "#/home")
+    page.wait_for_selector("#hm-root:not([hidden]) .hm-hero", timeout=8000)
+    page.fill("[data-hm-q]", "model test"); page.press("[data-hm-q]", "Enter"); page.wait_for_timeout(700)
+    check("hero search: Enter opens All Exams with that search applied", "#/exams?q=model%20test" in page.evaluate("location.hash") and page.input_value("#fl-q") == "model test", page.evaluate("location.hash"))
+    check("categories run: no JS errors", not errors, "; ".join(errors[:4]))
+    ctx.close()
+
+    # ------------------------------------------------------------------ 11. What's New popup
+    print("\n[11] What's New popup — once per release, never over login / exam, re-openable from Profile")
+    errors = []
+    ctx = make_context(browser, VIEWPORTS["mobile"], whatsnew_seen=False)
+    install_clock(ctx)
+    page = new_page(ctx, errors)
+    ver = whatsnew_version()
+    go(page, "#/home")
+    page.wait_for_selector(".wn-sheet", timeout=9000)
+    page.wait_for_timeout(300)
+    check("what's new: appears on the first visit of a release", page.locator(".wn-sheet").is_visible())
+    check("what's new: a real modal dialog with a title, a lead line and 5+ updates",
+          page.get_attribute(".wn-sheet", "role") == "dialog" and page.get_attribute(".wn-sheet", "aria-modal") == "true"
+          and page.locator("#wn-title").inner_text().strip() != "" and page.locator(".wn-item").count() >= 5, str(page.locator(".wn-item").count()))
+    check("what's new: the OK button has the focus and the page behind is inert",
+          page.evaluate("document.activeElement.id") == "wn-ok" and page.evaluate("document.getElementById('page-generic').inert === true"))
+    check("what's new: fits a phone (nothing wider than the screen, the button is on screen)",
+          no_overflow(page) and page.evaluate("document.getElementById('wn-ok').getBoundingClientRect().bottom <= window.innerHeight"))
+    for _ in range(14): page.keyboard.press("Tab")
+    check("what's new: Tab stays inside the dialog (focus trap)", page.evaluate("!!document.activeElement.closest('.wn-sheet')"))
+    page.keyboard.press("Escape"); page.wait_for_timeout(250)
+    check("what's new: Escape closes it, remembers the release and un-locks the page",
+          page.locator(".wn-overlay").count() == 0 and page.evaluate("localStorage.getItem('tvexam.whatsnew')") == ver
+          and page.evaluate("document.getElementById('page-generic').inert === false") and page.evaluate("document.body.style.overflow") == "")
+    go(page, "#/home"); page.wait_for_timeout(2600)
+    check("what's new: not shown again for the same release", page.locator(".wn-overlay").count() == 0)
+
+    page.evaluate("localStorage.removeItem('tvexam.whatsnew')")
+    go(page, "#/exam?id=live1"); page.wait_for_timeout(2600)
+    check("what's new: never over an exam", page.locator(".wn-overlay").count() == 0)
+    page.evaluate("location.hash = '#/home'")
+    page.wait_for_selector(".wn-sheet", timeout=9000)
+    check("what's new: shows on the next safe page instead", page.locator(".wn-sheet").is_visible())
+    page.click("#wn-ok"); page.wait_for_timeout(250)
+    check("what's new: the OK button closes it and remembers the release", page.locator(".wn-overlay").count() == 0 and page.evaluate("localStorage.getItem('tvexam.whatsnew')") == ver)
+
+    # a visitor who is not signed in: not over the login / signup forms, but on the landing page like everyone else
+    ctx2 = make_context(browser, VIEWPORTS["mobile"], user=None, whatsnew_seen=False)
+    install_clock(ctx2)
+    page2 = new_page(ctx2, errors)
+    go(page2, "#/login"); page2.wait_for_selector("#login-form", timeout=8000); page2.wait_for_timeout(2600)
+    check("what's new: never over the login form", page2.locator(".wn-overlay").count() == 0)
+    go(page2, "#/signup"); page2.wait_for_timeout(2600)
+    check("what's new: never over the signup form", page2.locator(".wn-overlay").count() == 0)
+    page2.evaluate("location.hash = '#/home'")
+    page2.wait_for_selector(".wn-sheet", timeout=9000)
+    check("what's new: visitors who are not signed in see it on the landing page", page2.locator(".wn-sheet").is_visible() and page2.locator(".hm-hero--public").count() == 1)
+    ctx2.close()
+
+    page.evaluate("localStorage.setItem('tvexam.whatsnew', 'an-older-release')")
+    page.reload()                                   # the next visit after a new release
+    page.wait_for_selector(".wn-sheet", timeout=9000)
+    check("what's new: a newer release is announced again", page.locator(".wn-sheet").is_visible())
+    page.click(".wn-close"); page.wait_for_timeout(250)
+
+    page.evaluate("location.hash = '#/profile'")
+    page.wait_for_selector("[data-open-whatsnew]", timeout=8000)
+    page.click("[data-open-whatsnew]")
+    page.wait_for_selector(".wn-sheet", timeout=4000)
+    check("what's new: can be re-opened any time from Profile → What's New", page.locator(".wn-sheet").is_visible())
+    page.click(".wn-overlay", position={"x": 5, "y": 5}); page.wait_for_timeout(250)
+    check("what's new: a tap on the backdrop closes it", page.locator(".wn-overlay").count() == 0)
+    page.set_viewport_size({"width": 320, "height": 640}); page.wait_for_timeout(150)
+    page.click("[data-open-whatsnew]"); page.wait_for_selector(".wn-sheet", timeout=4000); page.wait_for_timeout(450)   # let the slide-up finish
+    check("what's new: fits a 320px phone too", no_overflow(page) and page.evaluate("document.getElementById('wn-ok').getBoundingClientRect().bottom <= window.innerHeight"))
+    check("what's new run: no JS errors", not errors, "; ".join(errors[:4]))
     ctx.close()
 
     browser.close()

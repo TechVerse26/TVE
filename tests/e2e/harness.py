@@ -1,5 +1,5 @@
 """Shared end-to-end harness: static server, in-memory Firebase SDK, fake clock, check()/assert helpers."""
-import json, os, subprocess, sys, time, datetime, email.utils, socketserver, threading, http.server
+import json, os, re, subprocess, sys, time, datetime, email.utils, socketserver, threading, http.server
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -42,7 +42,11 @@ def check(name, cond, detail=""):
     print(("  ✓ " if cond else "  ✗ ") + name + ("" if cond else f"   ← {detail}"))
 
 
-def make_context(browser, viewport, skew_ms=0, seed=None, user="stu1", deny=None):
+def whatsnew_version():
+    return re.search(r'version:\s*"([^"]+)"', open(os.path.join(ROOT, "js", "whats-new-data.js"), encoding="utf-8").read()).group(1)
+
+
+def make_context(browser, viewport, skew_ms=0, seed=None, user="stu1", deny=None, whatsnew_seen=True):
     global T0
     T0 = time.time()      # every scenario starts its own "server clock" at NOW
     advance[0] = 0
@@ -50,6 +54,8 @@ def make_context(browser, viewport, skew_ms=0, seed=None, user="stu1", deny=None
     device_skew[0] = skew_ms
     seed = seed if seed is not None else fixtures.build(NOW)
     mock_user = {"uid": user, "email": "stu@example.com", "displayName": "Abdullah Rahman", "providerData": [{"providerId": "password"}], "emailVerified": True} if user else None
+    if whatsnew_seen:     # the "What's new" popup would sit on top of every scenario — mark the current release as read
+        ctx.add_init_script(f"try {{ localStorage.setItem('tvexam.whatsnew', {json.dumps(whatsnew_version())}); }} catch (e) {{}}")
     ctx.add_init_script(f"window.__MOCK__ = {{ seed: {json.dumps(seed)}, user: {json.dumps(mock_user)}, deny: {json.dumps(deny or [])} }};")
 
     def handler(route, request):

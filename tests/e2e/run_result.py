@@ -273,7 +273,7 @@ with sync_playwright() as pw:
     check("kicker + sr-only summary carry the same numbers", has(V["kicker"], "পরীক্ষা সফলভাবে জমা হয়েছে") and has(V["srSummary"], "সঠিক ২, ভুল ১"), V["srSummary"])
     check("live region announces the submission", V["live"] == "পরীক্ষা সফলভাবে জমা হয়েছে", V["live"])
     check("focus moved to the tier heading after the overlay", V["focus"] == "rx-tier-title", V["focus"])
-    check("actions: retake · course · PDF · mistakes", V["actions"][0].endswith("আবার দিন") and any("PDF" in a for a in V["actions"]) and any("কোর্স" in a for a in V["actions"]) and any("ভুলগুলো দেখুন (১)" in a for a in V["actions"]), str(V["actions"]))
+    check("actions: detailed result · retake · course · PDF · mistakes", V["actions"][0].endswith("বিস্তারিত ফলাফল দেখুন") and any(a.endswith("আবার দিন") for a in V["actions"]) and any("PDF" in a for a in V["actions"]) and any("কোর্স" in a for a in V["actions"]) and any("ভুলগুলো দেখুন (১)" in a for a in V["actions"]), str(V["actions"]))
     check("action buttons are at least 44 px tall on a phone", V["btnMinH"] >= 44, str(V["btnMinH"]))
     check("attempt chip reads '#১' without a gap", "অ্যাটেম্পট #১" in V["meta"], repr(V["meta"]))
     check("review list shows the wrong question and its right answer", has(V["review"], "Which is a fruit?", "Apple"), V["review"][:200])
