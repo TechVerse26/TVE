@@ -1,5 +1,5 @@
 /* ==========================================================================
-   My Activity (#/results) — summary cards, progress charts, one row per exam, attempt-history sheet.
+   My Results (#/results) — summary cards, progress charts, one row per exam, attempt-history sheet.
    Same system as everywhere else: .card · .badge · stat tiles · hairline borders · one accent.
    Charts are pure CSS (bar height = --pct); gridlines are one repeating gradient.
    ========================================================================== */
@@ -126,7 +126,7 @@
 .rm-viewonly i { margin-top: 3px; color: var(--accent-soft); flex-shrink: 0; }
 
 @media print {
-  /* "My Activity" is VIEW-ONLY: the mistakes shown there must not be printable / saveable as a PDF.
+  /* "My Results" is VIEW-ONLY: the mistakes shown there must not be printable / saveable as a PDF.
      The PDF report exists only on the result screen right after an exam (exam-report.js). */
   .result-modal-overlay, .rm-review-panel { display: none !important; }
 }

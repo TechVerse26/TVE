@@ -15,3 +15,13 @@
 .auth-switch { margin-top: var(--sp-5); text-align: center; font-size: var(--fs-md); color: var(--text-muted); }
 .auth-switch a { display: inline-block; padding: var(--sp-1) 2px; color: var(--accent-soft); font-weight: 700; }
 .auth-switch a:hover { text-decoration: underline; }
+
+/* ---------- navy header zone (logo + title + one line), white form body ---------- */
+.auth-card { padding: 0; overflow: hidden; box-shadow: 0 10px 30px rgba(10, 27, 77, 0.10); }
+.auth-card > .auth-logo { margin: 0; padding: var(--sp-6) var(--sp-5) var(--sp-4); justify-content: flex-start; background: var(--navy); }
+.auth-card > h1 { margin: 0; padding: 0 var(--sp-5) var(--sp-2); background: var(--navy); color: #fff; }
+.auth-card > h1 i { color: #9DC0FF; }
+.auth-card > .auth-sub { margin: 0 0 var(--sp-5); padding: 0 var(--sp-5) var(--sp-6); background: var(--navy); color: var(--on-navy-muted); }
+.auth-card > :not(.auth-logo):not(h1):not(.auth-sub) { margin-inline: var(--sp-5); }
+.auth-card > .auth-switch { margin-bottom: var(--sp-5); }
+.auth-card > button, .auth-card > a.btn { display: flex; width: calc(100% - 2 * var(--sp-5)); }   /* full width inside the side margins, never wider than the card */

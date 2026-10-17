@@ -10,37 +10,41 @@
      11 Modal · toast · table (shared with the admin panel — keep those selectors)
      12 Navigation: top bar · notification panel · drawer · bottom bar
    ========================================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@600;700&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600&display=swap');
 
 /* ==========================================================================
    1. Tokens
    ========================================================================== */
 :root {
   /* surfaces & text */
-  --bg: #0B0C12;
-  --bg-elevated: #14151E;
-  --bg-elevated-2: #1B1D29;
-  --text-primary: #F2F1F8;
-  --text-muted: #9B98B8;
-  --border: rgba(230, 225, 255, 0.12);
-  --border-strong: rgba(230, 225, 255, 0.22);
+  --bg: #F3F6FC;
+  --bg-elevated: #FFFFFF;
+  --bg-elevated-2: #EBF1FB;
+  --text-primary: #0B1B3F;
+  --navy: #0A1B4D;          /* deep navy: top bar + hero */
+  --navy-2: #12307F;
+  --on-navy: #FFFFFF;
+  --on-navy-muted: #C3D0EE;
+  --text-muted: #566884;
+  --border: rgba(15, 40, 100, 0.10);
+  --border-strong: rgba(15, 40, 100, 0.20);
 
   /* ONE accent + four semantic colours */
-  --accent: #6C5CE7;
-  --accent-soft: #8B7CFF;
-  --accent-teal: #1F9E8C;
-  --accent-coral: #E15F52;
-  --accent-green: #22A862;
-  --accent-amber: #E8A33D;
-  --green-text: #3FC283;   /* readable on its own tint */
-  --teal-text: #35B8A5;
+  --accent: #1558E0;          /* royal / cobalt blue */
+  --accent-soft: #1558E0;
+  --accent-teal: #0E8F80;
+  --accent-coral: #D63A3A;
+  --accent-green: #14A05B;
+  --accent-amber: #A86200;
+  --green-text: #0F7F47;   /* readable on its own tint */
+  --teal-text: #0B7A6E;
 
   /* tints (badge / highlight backgrounds) */
-  --tint-accent: rgba(108, 92, 231, 0.16);
-  --tint-coral: rgba(225, 95, 82, 0.14);
-  --tint-amber: rgba(232, 163, 61, 0.14);
-  --tint-green: rgba(34, 168, 98, 0.14);
-  --tint-teal: rgba(31, 158, 140, 0.14);
+  --tint-accent: rgba(21, 88, 224, 0.10);
+  --tint-coral: rgba(214, 58, 58, 0.10);
+  --tint-amber: rgba(217, 130, 0, 0.12);
+  --tint-green: rgba(20, 160, 91, 0.11);
+  --tint-teal: rgba(14, 143, 128, 0.11);
 
   /* spacing scale — use ONLY these */
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
@@ -48,12 +52,12 @@
 
   /* radius scale */
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 
   /* typography */
-  --font-display: 'Noto Serif Bengali', Georgia, serif;
-  --font-body: 'Hind Siliguri', 'Segoe UI', sans-serif;
+  --font-display: 'Inter', 'Hind Siliguri', 'Segoe UI', sans-serif;
+  --font-body: 'Inter', 'Hind Siliguri', 'Segoe UI', sans-serif;
   --font-utility: 'Noto Sans Bengali', 'Hind Siliguri', sans-serif;
   --fs-xs: 0.75rem;     /* badge, metadata label            12px */
   --fs-sm: 0.8125rem;   /* metadata                          13px */
@@ -164,7 +168,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 .btn-icon.btn-sm { width: 36px; }
 .site-body .btn-icon.btn-sm { width: 40px; }
 .btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: #5B4BD6; }
+.btn-primary:hover { background: #0F47B8; }
 .btn-secondary { background: var(--bg-elevated-2); border-color: var(--border-strong); color: var(--text-primary); }
 .btn-secondary:hover { border-color: var(--accent-soft); }
 .btn-outline { background: transparent; border-color: var(--border-strong); color: var(--text-primary); }
@@ -184,12 +188,12 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 /* ==========================================================================
    5. Cards — one background, one border, one radius, one padding
    ========================================================================== */
-.card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-4); min-width: 0; }
+.card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-4); min-width: 0; box-shadow: 0 1px 2px rgba(15, 40, 100, 0.05); }
 @media (min-width: 600px) { .card { padding: var(--sp-5); } }
 .card--flush { padding: 0; overflow: hidden; }
 .card--interactive { transition: border-color var(--t-fast); }
 .card--interactive:hover { border-color: var(--accent-soft); }
-.card--highlight { border-color: rgba(139, 124, 255, 0.4); box-shadow: inset 0 3px 0 var(--accent); }
+.card--highlight { border-color: rgba(21, 88, 224, 0.28); }
 .card--danger { border-color: rgba(225, 95, 82, 0.45); }
 .card--success { border-color: rgba(34, 168, 98, 0.45); }
 .card--warning { border-color: rgba(232, 163, 61, 0.5); }
@@ -224,7 +228,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 .badge i { font-size: 0.9em; }
 .badge-live, .badge-coral, .badge-fail { color: var(--accent-coral); background: var(--tint-coral); border-color: rgba(225, 95, 82, 0.42); }
 .badge-soon, .badge-amber { color: var(--accent-amber); background: var(--tint-amber); border-color: rgba(232, 163, 61, 0.42); }
-.badge-upcoming, .badge-accent { color: var(--accent-soft); background: var(--tint-accent); border-color: rgba(139, 124, 255, 0.42); }
+.badge-upcoming, .badge-accent { color: var(--accent-soft); background: var(--tint-accent); border-color: rgba(21, 88, 224, 0.42); }
 .badge-open, .badge-green, .badge-pass { color: var(--green-text); background: var(--tint-green); border-color: rgba(34, 168, 98, 0.45); }
 .badge-done, .badge-teal { color: var(--teal-text); background: var(--tint-teal); border-color: rgba(31, 158, 140, 0.45); }
 .badge-closed, .badge-muted { color: var(--text-muted); background: var(--bg-elevated-2); border-color: var(--border-strong); }
@@ -276,7 +280,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 .exs-mt-8 { margin-top: var(--sp-2); }
 
 .ui-skeleton { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); }
-.ui-skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent); animation: sk-shimmer 1.4s infinite; }
+.ui-skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent); animation: sk-shimmer 1.4s infinite; }
 @keyframes sk-shimmer { to { transform: translateX(100%); } }
 .ui-skeleton--hero { height: 220px; }
 .ui-skeleton--card { height: 150px; margin-top: var(--sp-4); }
@@ -323,7 +327,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 /* ==========================================================================
    11. Modal · toast · table  (the admin panel uses these — selectors kept)
    ========================================================================== */
-.modal-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(6, 6, 12, 0.72); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: var(--sp-7) var(--sp-4); }
+.modal-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(8, 20, 60, 0.72); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: var(--sp-7) var(--sp-4); }
 .modal-box { width: 100%; max-width: 640px; margin: auto; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-4); }
 .modal-close-btn { font-size: 1.1rem; color: var(--text-muted); }
@@ -363,7 +367,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 
 /* ==========================================================================
    12. Navigation
-   12a  Top bar      desktop: logo | Home Exams Schedule My Activity | bell · admin · profile
+   12a  Top bar      desktop: logo | Home Exams Schedule My Results | bell · admin · profile
                      phone:   logo | bell · menu
    ========================================================================== */
 .topnav {
@@ -385,7 +389,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
   transition: background var(--t-fast), color var(--t-fast);
 }
 .nav-link:hover { color: var(--text-primary); background: var(--bg-elevated-2); }
-.nav-link[aria-current="page"] { color: var(--accent-soft); background: var(--tint-accent); border-color: rgba(139, 124, 255, 0.3); }
+.nav-link[aria-current="page"] { color: var(--accent-soft); background: var(--tint-accent); border-color: rgba(21, 88, 224, 0.3); }
 
 /* square icon buttons: bell + menu */
 .nav-icon-btn {
@@ -394,7 +398,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
   color: var(--text-muted); font-size: 1rem; transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
 }
 .nav-icon-btn:hover, .nav-icon-btn[aria-expanded="true"] { color: var(--text-primary); border-color: var(--accent-soft); background: var(--bg-elevated-2); }
-.nav-icon-btn.is-active { color: var(--accent-soft); border-color: rgba(139, 124, 255, 0.5); background: var(--tint-accent); }
+.nav-icon-btn.is-active { color: var(--accent-soft); border-color: rgba(21, 88, 224, 0.5); background: var(--tint-accent); }
 .nav-bell-wrap { position: relative; }
 .nav-bell-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
@@ -411,7 +415,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
   transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
 }
 .nav-user-chip:hover { color: var(--text-primary); border-color: var(--accent-soft); }
-.nav-user-chip[aria-current="page"] { color: var(--accent-soft); border-color: rgba(139, 124, 255, 0.5); background: var(--tint-accent); }
+.nav-user-chip[aria-current="page"] { color: var(--accent-soft); border-color: rgba(21, 88, 224, 0.5); background: var(--tint-accent); }
 .nav-user-chip .user-avatar { --av: 28px; }
 .nav-user-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
@@ -428,7 +432,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
   width: min(380px, calc(100vw - 2 * var(--gutter))); max-height: min(70vh, 560px);
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 28px rgba(10, 27, 77, 0.16);
 }
 .bell-head { flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
 .bell-head b { font-family: var(--font-display); font-size: var(--fs-lg); margin-inline-end: auto; }
@@ -453,7 +457,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 .bell-foot:hover { background: var(--bg-elevated-2); }
 
 /* 12c  Drawer — secondary navigation + account (Home/Exams/Schedule/Activity/Profile live in the bottom bar) */
-.nav-drawer-backdrop { display: none; position: fixed; inset: 0; z-index: 70; background: rgba(6, 6, 14, 0.65); opacity: 0; transition: opacity 0.22s; }
+.nav-drawer-backdrop { display: none; position: fixed; inset: 0; z-index: 70; background: rgba(8, 20, 60, 0.65); opacity: 0; transition: opacity 0.22s; }
 .nav-drawer-backdrop.open { display: block; opacity: 1; }
 .nav-drawer {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 75; width: min(320px, 88vw);
@@ -482,7 +486,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 .nav-drawer-item:hover { background: var(--bg-elevated-2); }
 .nav-drawer-item-icon { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--bg-elevated-2); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem; }
 .nav-drawer-item-arrow { margin-inline-start: auto; font-size: 0.7rem; color: var(--text-muted); }
-.nav-drawer-item[aria-current="page"] { color: var(--accent-soft); background: var(--tint-accent); border-color: rgba(139, 124, 255, 0.3); }
+.nav-drawer-item[aria-current="page"] { color: var(--accent-soft); background: var(--tint-accent); border-color: rgba(21, 88, 224, 0.3); }
 .nav-drawer-item[aria-current="page"] .nav-drawer-item-icon { color: var(--accent-soft); border-color: transparent; background: transparent; }
 .nav-drawer-footer { flex: none; padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); }
 
@@ -537,3 +541,101 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ==========================================================================
+   13. Tech Verse skin — navy top bar + white bottom bar (tokens re-scoped, so every nav rule above adapts)
+   ========================================================================== */
+.topnav {
+  --text-primary: var(--on-navy); --text-muted: var(--on-navy-muted);
+  --bg-elevated: var(--navy); --bg-elevated-2: rgba(255, 255, 255, 0.10);
+  --border: rgba(255, 255, 255, 0.14); --border-strong: rgba(255, 255, 255, 0.26);
+  --accent-soft: #FFFFFF; --tint-accent: rgba(255, 255, 255, 0.14);
+  background: var(--navy); color: var(--on-navy); border-bottom: 0;
+}
+.topnav .nav-link[aria-current="page"], .topnav .nav-user-chip[aria-current="page"], .topnav .nav-icon-btn.is-active { border-color: rgba(255, 255, 255, 0.3); }
+.topnav .nav-bell-badge { border-color: var(--navy); }
+.topnav .nav-signup { background: #fff; color: var(--navy); }
+.topnav .nav-signup:hover { background: #EAF1FF; }
+.bell-panel {   /* the dropdown is light even though the bar it hangs from is navy */
+  --text-primary: #0B1B3F; --text-muted: #566884; --bg-elevated: #FFFFFF; --bg-elevated-2: #EBF1FB;
+  --border: rgba(15, 40, 100, 0.10); --border-strong: rgba(15, 40, 100, 0.20); --accent-soft: #1558E0; --tint-accent: rgba(21, 88, 224, 0.10);
+  color: var(--text-primary);
+}
+@media (max-width: 900px) {
+  .nav-search, .nav-signup { display: none; }
+  .bottom-nav { box-shadow: 0 -4px 16px rgba(10, 27, 77, 0.07); }
+  .bn-item[aria-current="page"] { color: var(--accent); }
+  .bn-item[aria-current="page"]::before { background: var(--accent); }
+}
+
+/* ==========================================================================
+   14. Category / menu colour tones (data-tone) + the navy page-header band on every student page
+   ========================================================================== */
+[data-tone="green"] { --tone: #14A05B; } [data-tone="purple"] { --tone: #7B3FC4; } [data-tone="blue"] { --tone: #1558E0; }
+[data-tone="orange"] { --tone: #E88A00; } [data-tone="red"] { --tone: #D63A4A; } [data-tone="teal"] { --tone: #0E9C86; }
+
+.site-body .page-head {
+  --text-primary: #fff; --text-muted: var(--on-navy-muted); --border-strong: rgba(255, 255, 255, 0.38);
+  --bg-elevated-2: rgba(255, 255, 255, 0.12); --accent-soft: #fff;
+  align-items: center; color: #fff;
+  padding: var(--sp-5) calc(var(--gutter) + env(safe-area-inset-right, 0px)) var(--sp-6) calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  margin: calc(-1 * var(--sp-5)) calc(-1 * (var(--gutter) + env(safe-area-inset-right, 0px))) var(--sp-1) calc(-1 * (var(--gutter) + env(safe-area-inset-left, 0px)));
+  background: linear-gradient(165deg, var(--navy) 0%, var(--navy-2) 100%); border-radius: 0 0 28px 28px;
+}
+.site-body .page-head .btn-primary { background: #fff; color: var(--navy); }
+.site-body .page-head .btn-primary:hover { background: #EAF1FF; }
+.site-body .page-head .btn-outline { color: #fff; }
+.site-body .page-head .btn-outline:hover { background: rgba(255, 255, 255, 0.12); }
+@media (min-width: 901px) {
+  .site-body .page-head { margin: 0; padding: var(--sp-6) var(--sp-7); border-radius: 24px; }
+}
+
+/* ==========================================================================
+   15. Header system from the reference: brand lockup, avatar menu button, compact page header + white "sheet"
+   ========================================================================== */
+.brand--lockup { gap: 10px; }
+.brand-mark { flex: none; display: block; width: 38px; height: 38px; border-radius: 11px; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-text b { font-size: 1.12rem; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
+.brand-text em { font-style: normal; color: #38BDF8; }
+.brand-text small { font-size: 0.68rem; font-weight: 500; color: var(--on-navy-muted); }
+.user-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.nav-menu-btn--avatar { width: 40px; height: 40px; padding: 0; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.35); border-radius: 50%; background: transparent; }
+.nav-menu-btn--avatar .user-avatar { width: 100%; height: 100%; border-radius: 50%; font-size: 0.95rem; }
+@media (min-width: 901px) { .nav-schedule { display: none; } }
+
+.page-back { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: transparent; color: #fff; font-size: 1.1rem; }
+.page-back:hover { background: rgba(255, 255, 255, 0.12); }
+@media (max-width: 700px) {
+  /* phones: the reference's compact navy header — [←] Title [actions] — with the page sliding up over it as a white sheet */
+  .site-body .page-head { position: relative; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); padding-top: var(--sp-3); padding-bottom: 40px; border-radius: 0; margin-bottom: -10px; }
+  .site-body .page-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 24px; background: var(--bg); border-radius: 24px 24px 0 0; }
+  .site-body .page-head .page-head-text { flex: 1 1 auto; min-width: 7rem; }
+  .site-body .page-head .page-actions { margin-inline-start: auto; }
+  .site-body .page-head .page-title { font-size: 1.3rem; }
+  .site-body .page-head .page-desc { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* still read by screen readers */
+}
+
+/* ==========================================================================
+   16. "What's new" popup (whats-new.js) — bottom sheet on phones, centred card ≥701px
+   ========================================================================== */
+.wn-overlay { position: fixed; inset: 0; z-index: 210; display: grid; align-items: end; justify-items: center; background: rgba(8, 20, 60, 0.55); }
+.wn-sheet { width: min(100%, 460px); max-height: min(88vh, 720px); display: flex; flex-direction: column; overflow: hidden; background: var(--bg-elevated); border-radius: 24px 24px 0 0; box-shadow: 0 -8px 32px rgba(8, 20, 60, 0.28); animation: wn-up 0.28s ease-out; }
+.wn-head { position: relative; flex: none; padding: 22px 56px 20px 20px; color: #fff; background: linear-gradient(165deg, var(--navy) 0%, var(--navy-2) 100%); }
+.wn-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; }
+.wn-head h2 { margin: 10px 0 4px; font-size: 1.3rem; line-height: 1.3; color: #fff; }
+.wn-head p { font-size: var(--fs-md); color: var(--on-navy-muted); }
+.wn-date { display: block; margin-top: 8px; font-size: var(--fs-xs); color: var(--on-navy-muted); }
+.wn-close { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: transparent; color: #fff; font-size: 1.1rem; }
+.wn-close:hover { background: rgba(255, 255, 255, 0.14); }
+.wn-list { flex: 1; min-height: 0; margin: 0; padding: 6px 16px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.wn-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 2px; }
+.wn-item + .wn-item { border-top: 1px solid var(--border); }
+.wn-ico { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--tone, var(--accent)); color: #fff; }
+.wn-item b { display: block; font-size: var(--fs-base); }
+.wn-item p { margin-top: 2px; font-size: var(--fs-md); color: var(--text-muted); }
+.wn-foot { flex: none; padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--bg-elevated); }
+.wn-foot .btn { width: 100%; min-height: 48px; }
+@keyframes wn-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (min-width: 701px) { .wn-overlay { align-items: center; padding: 24px; } .wn-sheet { border-radius: 24px; } }
+@media (prefers-reduced-motion: reduce) { .wn-sheet { animation: none; } }

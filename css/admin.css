@@ -6,7 +6,7 @@
 :root {
   --sidebar-w: 248px;
   --topbar-h: 56px;
-  --tint-accent: rgba(108, 92, 231, 0.14);
+  --tint-accent: rgba(21, 88, 224, 0.14);
   --tint-teal: rgba(31, 158, 140, 0.16);
   --tint-coral: rgba(225, 95, 82, 0.16);
   --tint-amber: rgba(232, 163, 61, 0.16);
@@ -154,7 +154,7 @@
 .tbl th, .tbl td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.88rem; vertical-align: middle; }
 .tbl th { color: var(--text-muted); font-weight: 700; font-size: 0.78rem; background: var(--bg-elevated-2); white-space: nowrap; }
 .tbl tbody tr:last-child td { border-bottom: 0; }
-.tbl tbody tr:hover td { background: rgba(230, 225, 255, 0.035); }
+.tbl tbody tr:hover td { background: rgba(21, 88, 224, 0.05); }
 .tbl tbody tr.sel td { background: var(--tint-accent); }
 .tbl .c-sel { width: 40px; padding-right: 0; }
 .tbl .c-sel input, .tbl-host input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
@@ -193,7 +193,7 @@ body.compact .tbl th, body.compact .tbl td { padding: 6px 12px; }
 /* ---------- Drawer ---------- */
 body.drawer-open { overflow: hidden; }
 .drawer-wrap { position: fixed; inset: 0; z-index: 90; }
-.drawer-backdrop { position: absolute; inset: 0; background: rgba(6, 6, 12, 0.62); opacity: 0; transition: opacity .18s; }
+.drawer-backdrop { position: absolute; inset: 0; background: rgba(8, 20, 60, 0.62); opacity: 0; transition: opacity .18s; }
 .drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(var(--dw, 560px), 100%); background: var(--bg-elevated); border-left: 1px solid var(--border-strong); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .2s ease; }
 .drawer-wrap.in .drawer { transform: none; } .drawer-wrap.in .drawer-backdrop { opacity: 1; }
 .drawer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
@@ -288,7 +288,7 @@ body.drawer-open { overflow: hidden; }
 }
 
 /* ---------- Question Bank picker (stacks above the exam editor modal) ---------- */
-.picker-overlay { position: fixed; inset: 0; z-index: 110; background: rgba(6, 6, 12, 0.72); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.picker-overlay { position: fixed; inset: 0; z-index: 110; background: rgba(8, 20, 60, 0.72); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .picker { width: 100%; max-width: 860px; max-height: min(88vh, 780px); display: flex; flex-direction: column; background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; }
 .picker-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .picker-head h2 { font-size: 1.05rem; }
@@ -402,13 +402,13 @@ body.drawer-open { overflow: hidden; }
 
 .pr-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-28deg); opacity: 0.06; pointer-events: none; z-index: 0; }
 .pr-watermark img { width: 420px; }
-.pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #6C5CE7; padding-bottom: 14px; margin-bottom: 20px; position: relative; z-index: 1; }
+.pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #1558E0; padding-bottom: 14px; margin-bottom: 20px; position: relative; z-index: 1; }
 .pr-logo { height: 42px; width: auto; flex-shrink: 0; }
 .pr-header h1 { font-size: 1.25rem; color: #1C1D26; margin-bottom: 3px; }
 .pr-header p { font-size: 0.82rem; color: #666A80; }
 .pr-table { width: 100%; border-collapse: collapse; position: relative; z-index: 1; }
 .pr-table th, .pr-table td { border: 1px solid #D8D9E4; padding: 8px 10px; text-align: left; font-size: 0.82rem; }
-.pr-table th { background: #F1EFFF; color: #4A3FB0; font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.4px; }
+.pr-table th { background: #EAF1FF; color: #12418F; font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.4px; }
 .pr-table tbody tr:nth-child(even) { background: #FAFAFD; }
 .pr-table .pr-rank, .pr-table .pr-num { font-weight: 700; text-align: center; }
 .pr-footer { margin-top: 16px; font-size: 0.72rem; color: #9497AB; text-align: center; position: relative; z-index: 1; }
@@ -476,3 +476,10 @@ tr.row-muted td { opacity: 0.62; }
 .qw-col ol { margin: 0; padding-inline-start: 20px; display: grid; gap: 8px; font-size: 0.84rem; }
 .qw-col li { padding-inline-start: 2px; }
 .qw-col li b { display: block; margin-top: 2px; font-size: 0.76rem; color: var(--text-muted); font-weight: 600; }
+
+/* ---------- Tech Verse skin: navy top bar (tokens re-scoped so every rule above adapts) ---------- */
+.admin-topbar {
+  --text-primary: #fff; --text-muted: var(--on-navy-muted); --bg-elevated: var(--navy); --bg-elevated-2: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.14); --border-strong: rgba(255, 255, 255, 0.26); --accent-soft: #fff; --tint-accent: rgba(255, 255, 255, 0.16);
+  background: var(--navy); color: #fff; border-bottom: 0;
+}

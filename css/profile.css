@@ -55,3 +55,36 @@
   .pfl-signout { flex-direction: row; align-items: center; justify-content: space-between; }
   .pfl-signout .btn { width: auto; flex: none; }
 }
+
+/* ---------- navy identity header (reference: avatar + name on navy) ---------- */
+.pfl-head { gap: var(--sp-3) var(--sp-4); }
+.pfl-head-id { display: flex; align-items: center; gap: var(--sp-4); min-width: 0; flex: 1 1 260px; }
+.pfl-head .pfl-avatar { --av: 64px; flex: none; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); }
+.pfl-head .pfl-name { margin: 0; font-size: 1.35rem; line-height: 1.3; color: #fff; }
+.pfl-head .pfl-email { color: var(--on-navy-muted); }
+.pfl-id { gap: 0; }
+/* ---------- quick-links menu (reference: My Exams / My Courses / My Results …) ---------- */
+.pfl-menu { padding: 0; overflow: hidden; }
+.pfl-menu-item { display: flex; align-items: center; gap: var(--sp-3); min-height: 64px; padding: var(--sp-3) var(--sp-4); color: inherit; }
+.pfl-menu-item + .pfl-menu-item { border-top: 1px solid var(--border); }
+.pfl-menu-item:hover { background: var(--bg-elevated-2); }
+.pfl-menu-ico { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--tone, var(--accent)); color: #fff; }
+.pfl-menu-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pfl-menu-text b { font-size: var(--fs-base); }
+.pfl-menu-text small { font-size: var(--fs-sm); color: var(--text-muted); }
+.pfl-menu-go { flex: none; color: var(--text-muted); font-size: 0.8rem; }
+.pfl-signout { background: var(--tint-coral); border-color: rgba(214, 58, 58, 0.25); }
+.pfl-head .badge { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.22); color: #fff; }
+
+/* ---------- reference: gear in the header, blue progress banner, Log Out ---------- */
+.pfl-gear { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 1.15rem; }
+.pfl-gear:hover { background: rgba(255, 255, 255, 0.14); }
+.pfl-banner { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-5); border-radius: var(--radius-lg); color: #fff; background: linear-gradient(135deg, var(--accent) 0%, #2F7BFF 100%); }
+.pfl-banner b { display: block; margin-bottom: 4px; font-size: 1.25rem; font-weight: 800; }
+.pfl-banner p { max-width: 30ch; font-size: var(--fs-md); color: rgba(255, 255, 255, 0.92); }
+.pfl-banner-ico { flex: none; font-size: 3rem; color: rgba(255, 255, 255, 0.35); }
+.pfl-logout { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); width: 100%; min-height: 52px; border: 1px solid rgba(214, 58, 58, 0.3); border-radius: var(--radius-md); background: var(--tint-coral); color: var(--accent-coral); font-size: var(--fs-base); font-weight: 700; cursor: pointer; }
+.pfl-logout:hover { background: rgba(214, 58, 58, 0.16); }
+.profile-page[data-view="settings"] .pfl-grid { margin-top: 0; }
+
+button.pfl-menu-item { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }

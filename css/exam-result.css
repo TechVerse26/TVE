@@ -35,27 +35,45 @@
   --rx-green-bg: rgba(69, 216, 148, 0.13);
   --rx-red-bg: rgba(255, 143, 134, 0.13);
   --rx-neutral-bg: rgba(138, 156, 196, 0.14);
+  --rx-hd-bg: #0A1B4D;                       /* navy header strip */
+  --rx-hd-text: #FFFFFF;
+  --rx-hd-kicker: #7FE0B0;
+  --rx-hd-chip-bg: rgba(255, 255, 255, 0.12);
+  --rx-hd-chip-border: rgba(255, 255, 255, 0.22);
+  --rx-hd-chip-text: #E4ECFF;
+  --rx-hd-btn-border: rgba(255, 255, 255, 0.28);
+  --rx-trophy: #F2B33D;
+  --rx-trophy-bg: rgba(242, 179, 61, 0.16);
 }
 .rx[data-theme="light"] {
-  --rx-bg: #F2F5FB;
+  --rx-bg: #F3F6FC;
   --rx-surface: #FFFFFF;
-  --rx-surface-2: #E8EEF9;
-  --rx-border: #CCD7EC;
+  --rx-surface-2: #EBF1FB;
+  --rx-border: #D3DEF2;
   --rx-text: #0B1B3F;
   --rx-muted: #4A5B84;
-  --rx-cobalt: #0A47B8;
-  --rx-cobalt-solid: #0047AB;
-  --rx-cobalt-hover: #003A8C;
+  --rx-cobalt: #0F47B8;
+  --rx-cobalt-solid: #1558E0;
+  --rx-cobalt-hover: #0F47B8;
   --rx-on-cobalt: #FFFFFF;
   --rx-green: #0F7A3E;
-  --rx-green-solid: #15803D;
+  --rx-green-solid: #14A05B;
   --rx-red: #B42318;
-  --rx-red-solid: #C62828;
+  --rx-red-solid: #D63A3A;
   --rx-neutral: #6B7BA3;
-  --rx-cobalt-bg: rgba(0, 71, 171, 0.09);
+  --rx-cobalt-bg: rgba(21, 88, 224, 0.10);
   --rx-green-bg: rgba(21, 128, 61, 0.10);
   --rx-red-bg: rgba(198, 40, 40, 0.09);
   --rx-neutral-bg: rgba(74, 91, 132, 0.10);
+  --rx-hd-bg: #0A1B4D;                       /* navy header strip */
+  --rx-hd-text: #FFFFFF;
+  --rx-hd-kicker: #7FE0B0;
+  --rx-hd-chip-bg: rgba(255, 255, 255, 0.12);
+  --rx-hd-chip-border: rgba(255, 255, 255, 0.22);
+  --rx-hd-chip-text: #E4ECFF;
+  --rx-hd-btn-border: rgba(255, 255, 255, 0.28);
+  --rx-trophy: #D08A00;
+  --rx-trophy-bg: rgba(224, 161, 0, 0.16);
 }
 
 /* ---------- Shell ---------- */
@@ -312,7 +330,7 @@
 .rx-empty i { flex: none; width: 18px; margin-top: 4px; text-align: center; color: var(--rx-cobalt); }
 .rx-loading { display: flex; align-items: center; gap: 8px; color: var(--rx-muted); font-size: var(--fs-md); }
 
-/* ---------- Shared pieces re-themed inside the result (My Activity keeps its own look) ---------- */
+/* ---------- Shared pieces re-themed inside the result (My Results keeps its own look) ---------- */
 .rx .exs-muted { color: var(--rx-muted); }
 .rx .exs-result-note { display: flex; align-items: flex-start; gap: 8px; padding: 0 2px; color: var(--rx-muted); font-size: var(--fs-sm); line-height: 1.6; }
 .rx .exs-result-note i { flex: none; margin-top: 4px; color: var(--rx-cobalt); }
@@ -368,8 +386,8 @@
    ========================================================================== */
 @media print {
   .rx, .rx[data-theme] {
-    --rx-bg: #fff; --rx-surface: #fff; --rx-surface-2: #F1F4FA; --rx-border: #CCD7EC; --rx-text: #0B1B3F; --rx-muted: #4A5B84;
-    --rx-cobalt: #0047AB; --rx-cobalt-solid: #0047AB; --rx-green: #0F7A3E; --rx-green-solid: #15803D; --rx-red: #B42318; --rx-red-solid: #C62828;
+    --rx-bg: #fff; --rx-surface: #fff; --rx-surface-2: #F1F4FA; --rx-border: #D3DEF2; --rx-text: #0B1B3F; --rx-muted: #4A5B84;
+    --rx-cobalt: #0047AB; --rx-cobalt-solid: #1558E0; --rx-green: #0F7A3E; --rx-green-solid: #14A05B; --rx-red: #B42318; --rx-red-solid: #D63A3A;
     --rx-neutral: #6B7BA3; --rx-cobalt-bg: #E6EEFB; --rx-green-bg: #E6F4EC; --rx-red-bg: #FBEAE8; --rx-neutral-bg: #EEF1F7;
     border: 0; padding: 0;
   }
@@ -377,3 +395,14 @@
   .rx-stage, .rx-theme, .rx-actions { display: none !important; }
   .rx-card, .rx-stat, .rx .exs-review-item { break-inside: avoid; page-break-inside: avoid; }
 }
+
+/* ---------- Tech Verse skin: navy header strip (both themes) + trophy — colours only via the tokens above ---------- */
+.rx-top { align-items: center; margin: -14px -14px 0; padding: 18px 14px 20px; background: var(--rx-hd-bg); color: var(--rx-hd-text); border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0; }
+@media (min-width: 640px) { .rx-top { margin: -22px -22px 0; padding: 22px; } }
+@media (max-width: 380px) { .rx-top { margin: -10px -10px 0; padding: 16px 10px 18px; } }
+.rx-top .rx-kicker { color: var(--rx-hd-kicker); }
+.rx-top .rx-exam { color: var(--rx-hd-text); }
+.rx-top .rx-chip, .rx-top .rx-chip--cobalt { background: var(--rx-hd-chip-bg); border-color: var(--rx-hd-chip-border); color: var(--rx-hd-chip-text); }
+.rx-top .rx-theme { background: var(--rx-hd-chip-bg); border-color: var(--rx-hd-btn-border); color: var(--rx-hd-text); }
+.rx-top .rx-theme:hover { color: var(--rx-hd-text); border-color: var(--rx-hd-text); }
+.rx-trophy { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--rx-trophy-bg); color: var(--rx-trophy); font-size: 1.6rem; }
