@@ -76,7 +76,7 @@ export function initials(name) {
   if (!parts.length) return "?";
   return (parts.length === 1 ? parts[0].slice(0, 1) : parts[0].slice(0, 1) + parts[parts.length - 1].slice(0, 1)).toUpperCase();
 }
-const AVATAR_COLORS = ["#6C5CE7", "#1F9E8C", "#D0524A", "#C98A2B", "#3E7BD6", "#A8489A"];
+const AVATAR_COLORS = ["#1558E0", "#1F9E8C", "#D0524A", "#C98A2B", "#3E7BD6", "#A8489A"];
 export function avatar(name, size = 34) {
   let h = 0;
   for (const ch of String(name || "?")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
