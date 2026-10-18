@@ -46,11 +46,11 @@ def whatsnew_version():
     return re.search(r'version:\s*"([^"]+)"', open(os.path.join(ROOT, "js", "whats-new-data.js"), encoding="utf-8").read()).group(1)
 
 
-def make_context(browser, viewport, skew_ms=0, seed=None, user="stu1", deny=None, whatsnew_seen=True):
+def make_context(browser, viewport, skew_ms=0, seed=None, user="stu1", deny=None, whatsnew_seen=True, **ctx_kw):
     global T0
     T0 = time.time()      # every scenario starts its own "server clock" at NOW
     advance[0] = 0
-    ctx = browser.new_context(viewport=viewport, timezone_id="Asia/Dhaka", locale="en-US", device_scale_factor=1)
+    ctx = browser.new_context(viewport=viewport, timezone_id="Asia/Dhaka", locale="en-US", device_scale_factor=1, **ctx_kw)  # ctx_kw: e.g. has_touch / is_mobile
     device_skew[0] = skew_ms
     seed = seed if seed is not None else fixtures.build(NOW)
     mock_user = {"uid": user, "email": "stu@example.com", "displayName": "Abdullah Rahman", "providerData": [{"providerId": "password"}], "emailVerified": True} if user else None
