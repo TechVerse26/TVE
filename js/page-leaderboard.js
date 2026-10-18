@@ -68,9 +68,7 @@ export async function initLeaderboardPage(params, mount) {
       const sub = [rollText(t.roll), t.total ? `${numText(t.score)}/${numText(t.total)}` : ""].filter(Boolean).join(" · ");
       return `<li class="lb-row lb-row--${t.rank <= 3 ? t.rank : "n"}${mine ? " is-me" : ""}"><span class="lb-rank">${t.rank}</span><span class="lb-avatar" aria-hidden="true">${avatarHtml(t.photo, t.name)}</span><span class="lb-name">${esc(t.name)}${mine ? youBadge : ""}${sub ? `<small>${sub}</small>` : ""}</span><b class="lb-pct">${t.percent}%</b></li>`;
     }).join("")}</ol></div>
-      <p class="lbp-note"><b>${esc(board.title)}</b>${board.count ? ` — ${board.count} Participants
-` : ""} Each participant’s best attempt is counted.
-</p>`;
+      <p class="lbp-note"><b>${esc(board.title)}</b>${board.count ? ` — ${board.count} জন অংশ নিয়েছেন।` : ""} প্রত্যেকের সেরা অ্যাটেম্পট ধরা হয়েছে — আগে বেশি স্কোর, সমান হলে কম সময়।</p>`;
   }
   body.addEventListener("click", (e) => {
     const chip = e.target.closest?.("[data-lb-exam]");
@@ -97,12 +95,10 @@ export async function initLeaderboardPage(params, mount) {
     myRoll = String(M.profile?.roll || "");
     const updated = toMs(M.pct?.updatedAt);
 
-    if (!M.pct && !perf?.liveTaken) { body.innerHTML = emptyBlock("fa-trophy", "The leaderboard isn't ready yet. Your rank will appear here once you take the live exam.", '<a class="btn btn-outline btn-sm" href="#/exams?type=live">View Live Exams
-</a>'); return; }
+    if (!M.pct && !perf?.liveTaken) { body.innerHTML = emptyBlock("fa-trophy", "লিডারবোর্ড এখনো প্রস্তুত হয়নি। লাইভ পরীক্ষা দিলে এখানে আপনার অবস্থান দেখা যাবে।", '<a class="btn btn-outline btn-sm" href="#/exams?type=live">লাইভ পরীক্ষা দেখুন</a>'); return; }
 
     const me = perf?.ownLiveAvg === null || perf?.ownLiveAvg === undefined
-      ? `<div class="lbp-me lbp-me--empty card"><i class="fa-regular fa-circle-question" aria-hidden="true"></i><div><b>You haven't ranked yet.</b><p>Take at least one live exam to appear on the leaderboard.
-      </p></div></div>`
+      ? `<div class="lbp-me lbp-me--empty card"><i class="fa-regular fa-circle-question" aria-hidden="true"></i><div><b>আপনার র‍্যাঙ্ক এখনো নেই</b><p>র‍্যাঙ্কিংয়ে আসতে অন্তত একটি লাইভ পরীক্ষা দিন।</p></div></div>`
       : `<div class="lbp-me card card--highlight"><div class="lbp-rank"><span>Your rank</span><b>${rk ? `#${rk.rank}` : "—"}</b>${rk ? `<small>of ${rk.total}</small>` : ""}</div>
           <div class="lbp-meta"><div><span>Your average</span><b>${perf.ownLiveAvg}%</b></div><div><span>Live exams</span><b>${perf.liveTaken}</b></div>${rk ? `<div><span>Top</span><b>${Math.max(1, Math.round((rk.rank / rk.total) * 100))}%</b></div>` : ""}</div></div>`;
     body.innerHTML = `${me}
@@ -115,10 +111,8 @@ export async function initLeaderboardPage(params, mount) {
           const sub = [rollText(t.roll), `${t.exams} live exam${t.exams === 1 ? "" : "s"}`].filter(Boolean).join(" · ");
           return `<li class="lb-row lb-row--${t.rank <= 3 ? t.rank : "n"}${mine ? " is-me" : ""}"><span class="lb-rank">${t.rank}</span><span class="lb-avatar" aria-hidden="true">${avatarHtml(t.photo, t.name)}</span><span class="lb-name">${esc(t.name)}${mine ? youBadge : ""}<small>${sub}</small></span><b class="lb-pct">${t.percent}%</b></li>`;
         }).join("")}</ol></div>`
-          : emptyBlock("fa-ranking-star", "The leaderboard hasn’t been published yet.
-")}
-        <p class="lbp-note">${updated ? `Last updated ${esc(fmtDate(updated))}, ${esc(fmtTime(updated))}. ` : ""}Results are updated regularly by the admin. Recent results may take time to appear.
-        </p>
+          : emptyBlock("fa-ranking-star", "টপ পারফর্মারদের তালিকা এখনো প্রকাশ করা হয়নি।")}
+        <p class="lbp-note">${updated ? `Last updated ${esc(fmtDate(updated))}, ${esc(fmtTime(updated))}. ` : ""}তালিকাটি অ্যাডমিন নিয়মিত হালনাগাদ করেন, তাই সাম্প্রতিক পরীক্ষার ফল যুক্ত হতে কিছু সময় লাগতে পারে।</p>
       </section>
       ${boards.length ? `<section class="section" aria-labelledby="h-exam">
         <div class="section-head"><div class="section-head-text"><h2 class="section-title" id="h-exam"><i class="fa-solid fa-medal" aria-hidden="true"></i>Exam-wise Leaders</h2></div></div>
