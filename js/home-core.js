@@ -9,7 +9,7 @@
 //   homeFeed/main                 admin-managed home content, published notices, category names,
 //                                 participant counts, default pass %         (see home-data.js)
 //   userStats/{uid}.exams{}       the student's own result summary
-//   leaderboard/publicStats       anonymous percents + top performers
+//   leaderboard/publicStats       anonymous percents + top performers (+ name/roll/photo) + exam-wise leaders
 // ==========================================================================
 import {
   toMs, startOfDay, addDays, endOfDay, dayDiff, DAY, passPercentFor, isListed, isExamVisibleTo, decorateExam,
@@ -426,6 +426,27 @@ export function recentResultRows(stats, { examsById = {}, defaultPass = 60, limi
     .slice(0, limit);
 }
 
+/* ---------- Leaderboard identity: name · roll · photo ----------
+   Roll + photo travel with a name ONLY when the admin's privacy choice is "Full names". "First name + initial" and
+   "hidden" never publish them, so a list stays exactly as private as the admin chose. */
+
+/** A photo is used only when it is a plain https URL of a sane length (same rule as the nav avatar); anything else → initials. */
+export function safePhotoUrl(url) {
+  const u = String(url ?? "").trim();
+  return u.length > 0 && u.length <= 400 && /^https:\/\/[^\s"'<>\\]+$/.test(u) ? u : "";
+}
+
+/** The extra fields (roll `r`, photo `ph`) a published row carries — empty unless names are public in full. */
+function publicIdentity(person, mode) {
+  if (mode !== "full") return {};
+  const out = {};
+  const roll = String(person?.roll ?? "").trim().slice(0, 20);
+  const photo = safePhotoUrl(person?.photoURL);
+  if (roll) out.r = roll;
+  if (photo) out.ph = photo;
+  return out;
+}
+
 /** Top performers list → what the student sees, honouring the admin's name-privacy choice. */
 export function topPerformers(publicStats, mode = "full", limit = 5) {
   const top = Array.isArray(publicStats?.top) ? publicStats.top : [];
@@ -434,6 +455,8 @@ export function topPerformers(publicStats, mode = "full", limit = 5) {
     name: mode === "hidden" ? `Student ${i + 1}` : mode === "first" ? shortName(t.n) : String(t.n || "Student"),
     percent: Number(t.p) || 0,
     exams: Number(t.e) || 0,
+    roll: mode === "full" ? String(t.r || "") : "",
+    photo: mode === "full" ? safePhotoUrl(t.ph) : "",
   }));
 }
 
@@ -450,7 +473,95 @@ export function buildTopList(rankedRows, size = 10, mode = "full") {
     n: (mode === "first" ? shortName(r.displayName) : String(r.displayName || "Student")).slice(0, 60),
     p: Math.round(Number(r.avgPercent) || 0),
     e: Number(r.examsTaken) || 0,
+    ...publicIdentity(r, mode),
   }));
+}
+
+/* ==========================================================================
+   Exam-wise leaders — one ranked list per live exam (leaderboard/publicStats.exams)
+   ========================================================================== */
+const attemptView = (a) => {
+  const sec = Number(a?.timeTakenSeconds);
+  return { percent: Number(a?.percent) || 0, score: Number(a?.score) || 0, total: Number(a?.total) || 0, seconds: sec > 0 ? sec : Infinity };
+};
+/** Strictly better: higher % → higher score → faster. */
+const attemptBeats = (a, b) => (a.percent !== b.percent ? a.percent > b.percent : a.score !== b.score ? a.score > b.score : a.seconds < b.seconds);
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+/** The single best attempt stored in one result document (a retake can only help). Falls back to the document's own score when there is no history. */
+export function bestAttemptOf(result) {
+  const pool = [...(Array.isArray(result?.attempts) ? result.attempts : []), result].map(attemptView);
+  return pool.reduce((best, cur) => (attemptBeats(cur, best) ? cur : best));
+}
+
+/**
+ * Leaders of every live exam, ready to publish as leaderboard/publicStats.exams:
+ *   [{ id, t: exam title, c: students who took it, top: [{ n: name, r?: roll, ph?: photo, p: best %, s: score, o: out of }] }]
+ * Newest exam first. One row per student per exam (their best attempt); practice exams never count — the same rule as the
+ * overall leaderboard. Order: higher % → higher score → faster time → finished earlier → name.
+ * `mode` is the admin's privacy choice: "hidden" publishes nothing, "first" shortens names and drops roll + photo.
+ * The result is kept under `maxBytes` (the whole document must stay far below Firestore's 1 MB) by dropping the OLDEST exams first.
+ */
+export function buildExamLeaders(results, usersById = {}, { mode = "full", size = 10, maxExams = 40, maxBytes = 300 * 1024 } = {}) {
+  if (mode === "hidden") return [];
+  const groups = new Map();
+  for (const r of results || []) {
+    if (!r || r.examType === "practice" || !r.examId || !r.uid) continue;
+    const at = toMs(r.submittedAt) || 0;
+    let g = groups.get(r.examId);
+    if (!g) groups.set(r.examId, (g = { id: String(r.examId), title: "", titleAt: -1, at: 0, rows: new Map() }));
+    if (r.examTitle && at >= g.titleAt) { g.title = String(r.examTitle); g.titleAt = at; } // the newest title wins if an exam was renamed
+    if (at > g.at) g.at = at;
+    const row = { ...bestAttemptOf(r), uid: r.uid, at };
+    const prev = g.rows.get(r.uid);
+    if (!prev || attemptBeats(row, prev)) g.rows.set(r.uid, row);
+  }
+  const nameOf = (u) => String(u?.displayName || "").trim() || "Student";
+  const exams = [...groups.values()]
+    .sort((a, b) => b.at - a.at || a.title.localeCompare(b.title, "bn"))
+    .slice(0, maxExams)
+    .map((g) => {
+      const people = [...g.rows.values()].map((row) => ({ row, u: usersById[row.uid] || {} }));
+      people.sort((a, b) => (attemptBeats(a.row, b.row) ? -1 : attemptBeats(b.row, a.row) ? 1 : 0)
+        || a.row.at - b.row.at || nameOf(a.u).localeCompare(nameOf(b.u), "bn"));
+      return {
+        id: g.id,
+        t: (g.title || g.id).slice(0, 120),
+        c: people.length,
+        top: people.slice(0, size).map(({ row, u }) => ({
+          n: (mode === "first" ? shortName(nameOf(u)) : nameOf(u)).slice(0, 60),
+          p: Math.round(row.percent),
+          s: round2(row.score),
+          o: round2(row.total),
+          ...publicIdentity(u, mode),
+        })),
+      };
+    });
+  const bytes = (v) => new TextEncoder().encode(JSON.stringify(v)).length;
+  while (exams.length > 1 && bytes(exams) > maxBytes) exams.pop();
+  return exams;
+}
+
+/** publicStats.exams → what the leaderboard page draws. The privacy choice is applied again at READ time (belt and braces). */
+export function examLeadersFrom(publicStats, mode = "full", limit = 10) {
+  if (mode === "hidden") return [];
+  const list = Array.isArray(publicStats?.exams) ? publicStats.exams : [];
+  return list
+    .map((x) => ({
+      id: String(x?.id || ""),
+      title: String(x?.t || "Exam"),
+      count: Number(x?.c) || 0,
+      top: (Array.isArray(x?.top) ? x.top : []).slice(0, limit).map((t, i) => ({
+        rank: i + 1,
+        name: mode === "first" ? shortName(t?.n) : String(t?.n || "Student"),
+        percent: Number(t?.p) || 0,
+        score: Number(t?.s) || 0,
+        total: Number(t?.o) || 0,
+        roll: mode === "full" ? String(t?.r || "") : "",
+        photo: mode === "full" ? safePhotoUrl(t?.ph) : "",
+      })),
+    }))
+    .filter((x) => x.id && x.top.length);
 }
 
 /* ==========================================================================

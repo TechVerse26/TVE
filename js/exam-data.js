@@ -1002,14 +1002,17 @@ export async function saveResult(payload) {
          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
      }
 ---------- */
-export async function publishPercentileStats(percents, top = null) {
+export async function publishPercentileStats(percents, top = null, exams = null) {
   const body = {
     percents: percents.map((p) => Math.round(Number(p) || 0)),
     updatedAt: serverTimestamp(),
   };
-  // Optional "Top performers" preview for the home page: [{ n: display name, p: avg %, e: exams }] (≤ 10).
-  // Names are shortened / hidden at publish time according to Admin → Homepage → leaderboard privacy.
+  // Optional "Top performers" preview for the home page: [{ n: display name, p: avg %, e: exams, r?: roll, ph?: photo }] (≤ 10).
+  // Names (and roll / photo) are shortened / hidden at publish time according to Admin → Homepage → leaderboard privacy.
   if (Array.isArray(top)) body.top = top.slice(0, 10);
+  // Optional exam-wise leaders for the Leaderboard page: [{ id, t: title, c: students, top: [{ n, r?, ph?, p, s, o }] }] (≤ 40 exams).
+  // They ride in this same document on purpose — the student site already reads it, so this costs no extra Firestore read.
+  if (Array.isArray(exams)) body.exams = exams.slice(0, 40);
   await setDoc(doc(db, "leaderboard", "publicStats"), body);
   cache.del("percentile");
 }

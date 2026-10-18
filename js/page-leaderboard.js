@@ -4,6 +4,11 @@
 // Source: leaderboard/publicStats (1 read, cached) = anonymous percents of everyone + the top list the admin
 // publishes whenever the Leaderboard tab is opened. The full ranked list stays admin-only by design.
 // Ranking rule (same as the admin Leaderboard): average of the BEST result in each live exam.
+//
+// Each row shows the student's name, their roll under it, and their photo (initials when there is none). Under the
+// overall list sits "Exam-wise Leaders": the same kind of list for every live exam (best attempt in that exam).
+// Roll + photo appear only while Admin → Homepage → leaderboard names is "Full names"; the other two choices keep
+// them private, exactly like the names. Everything comes from the same document — no extra Firestore read.
 // ==========================================================================
 import { waitForAuth } from "./utils.js";
 import { renderNav } from "./nav.js";
@@ -14,6 +19,23 @@ import * as H from "./home-core.js";
 import { esc, emptyBlock, errorBlock, skeleton, onRetry, fmtDate, fmtTime, initials, pageHeadBack } from "./home-ui.js";
 
 let renderToken = 0;
+
+/** Photo when the student has one (https only — see H.safePhotoUrl), otherwise the initials this list always showed. */
+const avatarHtml = (photo, name) => {
+  const letters = esc(initials(name));
+  return photo ? `<img src="${esc(photo)}" alt="" data-fb="${letters}" referrerpolicy="no-referrer" loading="lazy" decoding="async">` : letters;
+};
+const rollText = (roll) => (roll ? `Roll ${esc(roll)}` : "");
+const numText = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ""));
+/** Shorten a long exam title for its chip (by whole characters, so Bengali letters are never cut in half). */
+function clip(text, max) {
+  const str = String(text);
+  const parts = typeof Intl !== "undefined" && Intl.Segmenter
+    ? Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(str), (x) => x.segment)
+    : Array.from(str);
+  return parts.length > max ? `${parts.slice(0, max - 1).join("")}…` : str;
+}
+const youBadge = ' <span class="badge badge-accent lb-you">You</span>';
 
 export async function initLeaderboardPage(params, mount) {
   const my = ++renderToken;
@@ -28,6 +50,38 @@ export async function initLeaderboardPage(params, mount) {
   </div>`;
   const body = mount.querySelector("#lb-body");
 
+  // Exam-wise Leaders state: which exam's list is open. Tapping a chip only repaints that list (no re-fetch).
+  let boards = [];
+  let selected = "";
+  let myRoll = "";
+  function paintExam() {
+    const board = boards.find((b) => b.id === selected) || boards[0];
+    const view = body.querySelector("#lb-exam-view");
+    if (!board || !view) return;
+    body.querySelectorAll("[data-lb-exam]").forEach((chip) => {
+      const on = chip.dataset.lbExam === board.id;
+      chip.classList.toggle("is-on", on);
+      chip.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    view.innerHTML = `<div class="list-card"><ol class="lb-list lb-list--big">${board.top.map((t) => {
+      const mine = !!myRoll && t.roll === myRoll; // roll is unique per student, so this is exact
+      const sub = [rollText(t.roll), t.total ? `${numText(t.score)}/${numText(t.total)}` : ""].filter(Boolean).join(" · ");
+      return `<li class="lb-row lb-row--${t.rank <= 3 ? t.rank : "n"}${mine ? " is-me" : ""}"><span class="lb-rank">${t.rank}</span><span class="lb-avatar" aria-hidden="true">${avatarHtml(t.photo, t.name)}</span><span class="lb-name">${esc(t.name)}${mine ? youBadge : ""}${sub ? `<small>${sub}</small>` : ""}</span><b class="lb-pct">${t.percent}%</b></li>`;
+    }).join("")}</ol></div>
+      <p class="lbp-note"><b>${esc(board.title)}</b>${board.count ? ` — ${board.count} জন অংশ নিয়েছেন।` : ""} প্রত্যেকের সেরা অ্যাটেম্পট ধরা হয়েছে — আগে বেশি স্কোর, সমান হলে কম সময়।</p>`;
+  }
+  body.addEventListener("click", (e) => {
+    const chip = e.target.closest?.("[data-lb-exam]");
+    if (!chip) return;
+    selected = chip.dataset.lbExam;
+    paintExam();
+  });
+  // A photo that fails to load (deleted / blocked) quietly becomes the initials again.
+  body.addEventListener("error", (e) => {
+    const img = e.target;
+    if (img?.tagName === "IMG" && img.closest(".lb-avatar")) img.replaceWith(document.createTextNode(img.dataset.fb || "?"));
+  }, true);
+
   async function load(force) {
     const M = await loadStudentContext(user, { force, rank: true });
     if (my !== renderToken) return;
@@ -36,6 +90,9 @@ export async function initLeaderboardPage(params, mount) {
     const perf = M.stats ? H.performanceFromStats(M.stats, { examsById: m.examsById, defaultPass: m.feed.passPercent }) : null;
     const rk = H.rankOf(M.pct?.percents, perf?.ownLiveAvg);
     const top = H.topPerformers(M.pct, m.content.leaderboardNames, 10);
+    boards = H.examLeadersFrom(M.pct, m.content.leaderboardNames, 10);
+    if (!boards.some((b) => b.id === selected)) selected = boards[0]?.id || ""; // newest exam first by default
+    myRoll = String(M.profile?.roll || "");
     const updated = toMs(M.pct?.updatedAt);
 
     if (!M.pct && !perf?.liveTaken) { body.innerHTML = emptyBlock("fa-trophy", "লিডারবোর্ড এখনো প্রস্তুত হয়নি। লাইভ পরীক্ষা দিলে এখানে আপনার অবস্থান দেখা যাবে।", '<a class="btn btn-outline btn-sm" href="#/exams?type=live">লাইভ পরীক্ষা দেখুন</a>'); return; }
@@ -48,12 +105,21 @@ export async function initLeaderboardPage(params, mount) {
       <section class="section" aria-labelledby="h-top">
         <div class="section-head"><div class="section-head-text"><h2 class="section-title" id="h-top"><i class="fa-solid fa-trophy" aria-hidden="true"></i>Top Performers</h2></div></div>
         ${top.length ? `<div class="list-card"><ol class="lb-list lb-list--big">${top.map((t) => {
-          const mine = !!rk && perf?.ownLiveAvg === t.percent && rk.rank === t.rank && top.filter((x) => x.percent === t.percent).length === 1; // only when it is unambiguously me
-          return `<li class="lb-row lb-row--${t.rank <= 3 ? t.rank : "n"}${mine ? " is-me" : ""}"><span class="lb-rank">${t.rank}</span><span class="lb-avatar" aria-hidden="true">${esc(initials(t.name))}</span><span class="lb-name">${esc(t.name)}${mine ? ' <span class="badge badge-accent lb-you">You</span>' : ""}<small>${t.exams} live exam${t.exams === 1 ? "" : "s"}</small></span><b class="lb-pct">${t.percent}%</b></li>`;
+          // With a roll on the row the match is exact; without one, only when it is unambiguously me.
+          const mine = myRoll && t.roll ? t.roll === myRoll
+            : !!rk && perf?.ownLiveAvg === t.percent && rk.rank === t.rank && top.filter((x) => x.percent === t.percent).length === 1;
+          const sub = [rollText(t.roll), `${t.exams} live exam${t.exams === 1 ? "" : "s"}`].filter(Boolean).join(" · ");
+          return `<li class="lb-row lb-row--${t.rank <= 3 ? t.rank : "n"}${mine ? " is-me" : ""}"><span class="lb-rank">${t.rank}</span><span class="lb-avatar" aria-hidden="true">${avatarHtml(t.photo, t.name)}</span><span class="lb-name">${esc(t.name)}${mine ? youBadge : ""}<small>${sub}</small></span><b class="lb-pct">${t.percent}%</b></li>`;
         }).join("")}</ol></div>`
           : emptyBlock("fa-ranking-star", "টপ পারফর্মারদের তালিকা এখনো প্রকাশ করা হয়নি।")}
         <p class="lbp-note">${updated ? `Last updated ${esc(fmtDate(updated))}, ${esc(fmtTime(updated))}. ` : ""}তালিকাটি অ্যাডমিন নিয়মিত হালনাগাদ করেন, তাই সাম্প্রতিক পরীক্ষার ফল যুক্ত হতে কিছু সময় লাগতে পারে।</p>
-      </section>`;
+      </section>
+      ${boards.length ? `<section class="section" aria-labelledby="h-exam">
+        <div class="section-head"><div class="section-head-text"><h2 class="section-title" id="h-exam"><i class="fa-solid fa-medal" aria-hidden="true"></i>Exam-wise Leaders</h2></div></div>
+        <div class="fl-chips" role="group" aria-label="Choose an exam">${boards.map((b) => `<button type="button" class="fl-chip${b.id === selected ? " is-on" : ""}" data-lb-exam="${esc(b.id)}" aria-pressed="${b.id === selected ? "true" : "false"}" title="${esc(b.title)}">${esc(clip(b.title, 28))}</button>`).join("")}</div>
+        <div id="lb-exam-view" class="lb-exam-view" aria-live="polite"></div>
+      </section>` : ""}`;
+    paintExam();
   }
 
   try { await load(false); } catch { body.innerHTML = errorBlock("lb"); }
