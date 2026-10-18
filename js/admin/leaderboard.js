@@ -18,7 +18,7 @@
 import { escapeHtml, toast, formatScore, formatDateTime } from "../utils.js";
 import { fetchAllResultsAdmin, fetchAllUsersAdmin, publishPercentileStats, countAttempts } from "../exam-data.js";
 import { getHomeFeed } from "../home-data.js";
-import { buildTopList } from "../home-core.js";
+import { buildTopList, buildExamLeaders } from "../home-core.js";
 
 let leaderboard = []; // ranked: [{ uid, displayName, email, results[], examsTaken, totalAttempts, avgPercent, bestPercent }]
 
@@ -59,6 +59,8 @@ function buildLeaderboard(users, results) {
       uid,
       displayName: u.displayName || "নাম নেই",
       email: u.email || uid,
+      roll: u.roll || "",
+      photoURL: u.photoURL || "",
       results: userResults.slice().sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)),
       examsTaken,
       totalAttempts: userResults.reduce((sum, r) => sum + countAttempts(r), 0), // real attempts, shown on the leaderboard
@@ -170,15 +172,17 @@ export async function loadLeaderboard(opts) {
     // card still works from whatever was last published if this fails.
     // Skipped when the numbers are identical to what this page already published (saves a write).
     const percents = leaderboard.map((row) => row.avgPercent);
-    // The home page's "Top Performers" preview rides along in the same document (names follow Admin → Homepage → privacy).
+    // The home page's "Top Performers" preview rides along in the same document (names, roll and photo follow Admin → Homepage → privacy).
     const mode = (await getHomeFeed().catch(() => null))?.content?.leaderboardNames || "full";
     const top = buildTopList(
       leaderboard.filter((r) => r.examsTaken > 0).map((r) => ({ ...r, displayName: r.displayName === "নাম নেই" ? "Student" : r.displayName })), 10, mode,
     );
-    const signature = `${percents.join(",")}|${mode}|${JSON.stringify(top)}`;
+    // The Leaderboard page's "Exam-wise Leaders" (one ranked list per live exam) rides in the same document.
+    const examLeaders = buildExamLeaders(results, Object.fromEntries(users.map((u) => [u.id, u])), { mode });
+    const signature = `${percents.join(",")}|${mode}|${JSON.stringify(top)}|${JSON.stringify(examLeaders)}`;
     if (signature !== lastPublishedPercents) {
       lastPublishedPercents = signature;
-      publishPercentileStats(percents, top).catch(() => { lastPublishedPercents = ""; });
+      publishPercentileStats(percents, top, examLeaders).catch(() => { lastPublishedPercents = ""; });
     }
   } catch {
     if (tbody) tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state"><p>লোড করা যায়নি</p></div></td></tr>`;
