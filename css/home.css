@@ -322,6 +322,7 @@ a.hm-qa:hover { border-color: var(--accent-soft); }
 .lb-row--2 .lb-rank { background: #C5C7D4; color: #12131A; }
 .lb-row--3 .lb-rank { background: #C58A5A; color: #1A0F07; }
 .lb-avatar { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-size: var(--fs-sm); font-weight: 700; }
+.lb-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; } /* a student's photo fills the same tile the initials sit in */
 .lb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .lb-name small { display: block; font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
 .lb-pct { font-variant-numeric: tabular-nums; }
@@ -349,6 +350,7 @@ a.hm-qa:hover { border-color: var(--accent-soft); }
 .lbp-meta { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-6); }
 .lbp-meta b { font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
 .lbp-note { margin-top: var(--sp-3); font-size: var(--fs-sm); color: var(--text-muted); }
+.lb-exam-view { margin-top: var(--sp-3); }
 
 /* ==========================================================================
    11 · Motivation + guidelines — low priority, compact
