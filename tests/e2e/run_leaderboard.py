@@ -2,7 +2,7 @@
    and the admin's privacy choice still decides what is published — all against the in-memory Firestore.
    python3 tests/e2e/run_leaderboard.py [--shots]
 """
-import sys, os, base64
+import sys, os, base64, re
 sys.path.insert(0, os.path.dirname(__file__))
 from harness import *
 import harness as H
@@ -30,13 +30,13 @@ def result(uid, exam_id, title, attempts, at, typ="live"):
             "attemptNumber": len(attempts), "attempts": attempts, "timeTakenSeconds": last["timeTakenSeconds"], "submittedAt": fixtures.ts(at)}
 
 
-def admin_seed(mode=None):
+def admin_seed(mode=None, exam_title=None):
     seed = fixtures.build_admin(NOW)
     seed["users/stuA"].update(roll="0001", photoURL=GOOD_PHOTO)                  # Rahim Uddin
     seed["users/stuB"].update(roll="0002")                                       # Karim Hossain — no photo
     seed["users/stuC"].update(roll="0003", photoURL=BROKEN_PHOTO)                # Nusrat Jahan — photo that will not load
     seed["users/stu1"].update(roll="0007")                                       # the student who looks at the page: Abdullah Rahman
-    title = "বাংলাদেশ বিমান বাহিনী মডেল টেস্ট ০৫"
+    title = exam_title or "বাংলাদেশ বিমান বাহিনী মডেল টেস্ট ০৫"
     seed["results/stuA_live1"] = result("stuA", "live1", title, [attempt(55, 300, 5), attempt(90, 320, 2)], NOW - 2 * HR)   # best = 2nd attempt
     seed["results/stuB_live1"] = result("stuB", "live1", title, [attempt(40, 280, 3)], NOW - 3 * HR)
     seed["results/stuC_live1"] = result("stuC", "live1", title, [attempt(70, 300, 4)], NOW - 4 * HR)
@@ -53,10 +53,10 @@ def photo_routes(ctx):
     ctx.route("https://lh3.googleusercontent.com/**", lambda route, req: route.fulfill(status=200, content_type="image/png", body=PNG))
 
 
-def admin_publishes(browser, mode=None):
+def admin_publishes(browser, mode=None, exam_title=None):
     """Open the admin Leaderboard tab (that is what publishes the student-facing lists) and return the resulting database."""
     errors = []
-    ctx = make_context(browser, VIEWPORTS["desktop"], seed=admin_seed(mode), user="adm1")
+    ctx = make_context(browser, VIEWPORTS["desktop"], seed=admin_seed(mode, exam_title), user="adm1")
     install_clock(ctx)
     photo_routes(ctx)
     page = new_page(ctx, errors)
@@ -126,7 +126,7 @@ with sync_playwright() as pw:
     check("leader row: name, roll + score under it, 'You' by roll", erows.nth(0).locator(".lb-name small").inner_text().strip() == "Roll 0007 · 10/10" and erows.nth(0).locator(".lb-you").count() == 1)
     check("rank badges: gold / silver / bronze on top 3", [erows.nth(i).get_attribute("class") for i in range(3)] == ["lb-row lb-row--1 is-me", "lb-row lb-row--2", "lb-row lb-row--3"], str([erows.nth(i).get_attribute("class") for i in range(3)]))
     check("Rahim: photo + Roll 0001 · 9/10 (his best attempt)", erows.nth(1).locator(".lb-avatar img").count() == 1 and erows.nth(1).locator(".lb-name small").inner_text().strip() == "Roll 0001 · 9/10")
-    check("note names the exam and the head-count", "বাংলাদেশ বিমান বাহিনী মডেল টেস্ট ০৫" in ev.inner_text() and "4 জন" in ev.inner_text(), ev.inner_text())
+    check("note names the exam and the head-count", "বাংলাদেশ বিমান বাহিনী মডেল টেস্ট ০৫" in ev.inner_text() and "4 students took part" in ev.inner_text(), ev.inner_text())
     chips.nth(1).click()
     page.wait_for_timeout(250)
     check("tapping another chip swaps the list (2 rows: 80%, 60%)", ev.locator(".lb-row").count() == 2 and ev.locator(".lb-pct").all_inner_texts() == ["80%", "60%"], ev.inner_text())
@@ -191,6 +191,84 @@ with sync_playwright() as pw:
           and page.locator(".lb-name small").first.inner_text().strip() == "5 live exams" and "Exam-wise" not in page.inner_text("#lb-body"), page.inner_text("#lb-body")[:200])
     check("old document: no JS errors", not errors, "; ".join(errors[:3]))
     ctx.close()
+
+
+    # ------------------------------------------------------------------ G. Every word of the page is English
+    print("\n[G] The page's own text is English in every state (exam titles and names stay exactly as admins / students typed them)")
+    BN = re.compile(r"[\u0980-\u09FF]")
+
+    def open_page(seed, wait="#lb-body .lb-row, #lb-body .ui-state, #lb-body .lbp-me"):
+        errs = []
+        c = make_context(browser, VIEWPORTS["mobile"], seed=seed, user="stu1")
+        install_clock(c)
+        pg = new_page(c, errs)
+        go(pg, "#/leaderboard")
+        pg.wait_for_selector(wait, timeout=9000)
+        pg.wait_for_timeout(500)
+        return c, pg, errs
+
+    def content(pg):
+        return pg.inner_text("#generic-page-content")
+
+    def bengali(text):
+        return "".join(BN.findall(text))[:40]
+
+    # G1 · normal page with data (English exam title)
+    db_en, errs_a = admin_publishes(browser, exam_title="Air Force Model Test 05")
+    c, pg, e1 = open_page(db_en, wait="#lb-exam-view .lb-row")
+    t = content(pg)
+    check("G1 data page: no Bengali characters anywhere in the page content", not BN.search(t), bengali(t))
+    check("G1 description + exam-wise note + refresh note are English", all(s in t for s in (
+        "Ranked by the average of each student's best result in every live exam.",
+        "Air Force Model Test 05 \u2014 4 students took part. Each student's best attempt counts: higher score first, then faster time.",
+        "The list is updated regularly by the admin, so recent exam results may take a little while to appear.")), t[-460:])
+    check("G1 the labels that were already English are untouched", all(s in t for s in ("Your rank", "Your average", "Live exams", "Top Performers", "Exam-wise Leaders", "You", "Last updated")))
+    check("G1 no JS errors", not errs_a and not e1, "; ".join((errs_a + e1)[:3]))
+    c.close()
+
+    # G2 · the student has no live exam yet, the list exists → "no rank yet" card
+    seed = fixtures.build(NOW)
+    seed["userStats/stu1"]["exams"] = {}
+    c, pg, e2 = open_page(seed)
+    t = content(pg)
+    check("G2 'no rank yet' card is English", "You don't have a rank yet" in t and "Take at least one live exam to get ranked." in t and not BN.search(t), t[:300])
+    check("G2 no JS errors", not e2, "; ".join(e2[:3]))
+    c.close()
+
+    # G3 · the admin has not published the top list
+    seed = fixtures.build(NOW)
+    seed["leaderboard/publicStats"]["top"] = []
+    c, pg, e3 = open_page(seed)
+    t = content(pg)
+    check("G3 empty top list message is English", "The top performers list hasn't been published yet." in t and not BN.search(t), t[:300])
+    check("G3 no JS errors", not e3, "; ".join(e3[:3]))
+    c.close()
+
+    # G4 · nothing at all yet
+    seed = fixtures.build(NOW)
+    seed.pop("leaderboard/publicStats")
+    seed["userStats/stu1"]["exams"] = {}
+    c, pg, e4 = open_page(seed)
+    t = content(pg)
+    check("G4 'not ready yet' state + button are English", "The leaderboard isn't ready yet. Take a live exam and your position will appear here." in t and pg.locator("#lb-body .ui-state a").inner_text().strip() == "View live exams" and not BN.search(t), t[:300])
+    check("G4 button still goes to the live exams", pg.locator("#lb-body .ui-state a").get_attribute("href") == "#/exams?type=live")
+    check("G4 no JS errors", not e4, "; ".join(e4[:3]))
+    c.close()
+
+    # G5 · the page cannot load (corrupt top list) → error block, English text and button, and it retries
+    seed = fixtures.build(NOW)
+    seed["leaderboard/publicStats"]["top"] = [None]
+    c, pg, e5 = open_page(seed, wait="#lb-body .ui-state--error")
+    t = content(pg)
+    check("G5 error block text + 'Try again' button are English", "Couldn't load the leaderboard. Please try again." in t and pg.locator("#lb-body [data-retry]").inner_text().strip() == "Try again" and not BN.search(t), t[:300])
+    pg.click("#lb-body [data-retry]")
+    pg.wait_for_selector("#lb-body .ui-state--error", timeout=6000)
+    check("G5 retry works and stays English", "Try again" in content(pg) and not BN.search(content(pg)))
+    # the shared helper keeps its original Bengali wording for every other page (only this page passes its own English text)
+    dflt = pg.evaluate("import('/js/home-ui.js').then((m) => [m.errorBlock('x'), m.errorBlock('x', 'Oops', 'Retry now')])")
+    check("shared errorBlock default unchanged for other pages; custom text/label supported", "আবার চেষ্টা করুন" in dflt[0] and "তথ্য লোড করা যায়নি" in dflt[0] and "Oops" in dflt[1] and "Retry now" in dflt[1] and "আবার চেষ্টা করুন" not in dflt[1])
+    check("G5 no JS errors", not e5, "; ".join(e5[:3]))
+    c.close()
 
     browser.close()
 
