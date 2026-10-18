@@ -100,7 +100,7 @@ Firestore rules বদলাতে হয় না।
 | `#/exams` | All Exams — সার্চ + ফিল্টার (Type, Status, Subject, Category, Difficulty, Date), URL-এ ফিল্টার সংরক্ষিত | `js/page-exams.js` |
 | `#/schedule` | Exam Schedule — Upcoming / Live / Past, দিন অনুযায়ী গ্রুপ | `js/page-schedule.js` |
 | `#/notifications` | নোটিফিকেশন সেন্টার (নাভবারের 🔔-র পূর্ণ রূপ) | `js/page-notifications.js` |
-| `#/leaderboard`, `#/performance` | নিজের র‍্যাঙ্ক + Top 10; পূর্ণ পারফরম্যান্স | `js/page-leaderboard.js`, `js/page-performance.js` |
+| `#/leaderboard`, `#/performance` | নিজের র‍্যাঙ্ক + Top 10 (নাম, নামের নিচে রোল, ফটো) + পরীক্ষাভিত্তিক লিডার (Exam-wise Leaders); পূর্ণ পারফরম্যান্স | `js/page-leaderboard.js`, `js/page-performance.js` |
 
 পুরোনো `#/exam` (কোর্স → Upcoming/Live/Practice) আর পরীক্ষা নেওয়ার ফ্লো যেমন ছিল তেমনই; শুধু কার্ডগুলো এখন একই স্মার্ট কার্ড (`js/exam-card.js`)।
 ফোনে নিচে ৫-আইটেমের বটম বার (পরীক্ষা চলার সময় লুকানো থাকে, যাতে ভুলে ট্যাপ না পড়ে)।
@@ -119,7 +119,7 @@ Firestore rules বদলাতে হয় না।
 | `homeFeed/main` (নতুন, ১টা ডকুমেন্ট) | `content` (হোমপেজের লেখা/সেকশন সুইচ), `notices` (প্রকাশিত নোটিশের ছোট কপি), `taxonomy` (বিষয়/ক্যাটাগরির **নাম**), `participants`, `passPercent` | অ্যাডমিন (প্রতিটি ফিল্ড আলাদাভাবে — একটা বদলালে অন্যগুলো ছোঁয়া হয় না) | হ্যাঁ — ৫ মিনিট ক্যাশে ১ রিড |
 | `notices/{id}` (নতুন) | অ্যাডমিনের নোটিশ তালিকা | Super Admin / Manager | না (শুধু অ্যাডমিন) |
 | `examSessions/{uid}_{examId}` (নতুন) | `starts` কাউন্টার — এক্সাম শুরু পিছু ১টা লেখা | শিক্ষার্থী (শুধু নিজেরটা, ১ করে বাড়ানো) | নিজেরটা |
-| `leaderboard/publicStats` | নতুন ঐচ্ছিক `top` (নাম + %) | অ্যাডমিন (Leaderboard খুললে) | হ্যাঁ |
+| `leaderboard/publicStats` | নতুন ঐচ্ছিক `top` (নাম + % ; "Full names" মোডে রোল `r` ও ফটো `ph`) এবং `exams` (প্রতিটি লাইভ পরীক্ষার টপ ১০: `id`, `t` শিরোনাম, `c` অংশগ্রহণকারী, `top[]` = নাম/রোল/ফটো/%/স্কোর; সেরা অ্যাটেম্পট ধরে, প্র্যাকটিস বাদ, সর্বোচ্চ ৪০টা সাম্প্রতিক পরীক্ষা) — একই ডকুমেন্টে, তাই **বাড়তি রিড নেই** ও rules অপরিবর্তিত। "First name + initial" মোডে নাম ছোট হয় আর রোল/ফটো যায় না; "Hide names" মোডে `top` ও `exams` ফাঁকা | অ্যাডমিন (Leaderboard খুললে) | হ্যাঁ |
 | `userStats/{uid}.exams[id].b` | সেরা অ্যাটেম্পটের % (ঐচ্ছিক; না থাকলে `p`) | শিক্ষার্থী | নিজেরটা |
 
 `notifications` কালেকশন (কোর্স সাইটের ব্রডকাস্ট) **অপরিবর্তিত** — নোটিশ আলাদা স্তর, তাই কোনো সংঘর্ষ নেই।
