@@ -258,6 +258,96 @@ test("top performers honour the privacy mode", () => {
   assert.equal(H.shortName("Rahim U."), "Rahim U.");        // idempotent
 });
 
+test("name · roll · photo travel with a name only in \"full\" mode", () => {
+  const rows = [{ displayName: "Rahim Uddin", avgPercent: 90, examsTaken: 2, roll: "0012", photoURL: "https://lh3.googleusercontent.com/a/x=s96-c" }];
+  const full = H.buildTopList(rows, 5, "full")[0];
+  assert.deepEqual([full.n, full.r, full.ph], ["Rahim Uddin", "0012", "https://lh3.googleusercontent.com/a/x=s96-c"]);
+  const first = H.buildTopList(rows, 5, "first")[0];
+  assert.equal(first.n, "Rahim U."); assert.ok(!("r" in first) && !("ph" in first));   // privacy-minded modes never leak them
+  assert.deepEqual(H.buildTopList(rows, 5, "hidden"), []);
+  // a student without a roll / photo simply has no such fields (the row falls back to initials)
+  const bare = H.buildTopList([{ displayName: "Karim", avgPercent: 80, examsTaken: 1 }], 5, "full")[0];
+  assert.deepEqual(Object.keys(bare).sort(), ["e", "n", "p"]);
+  // read side: same rule again, and a published URL that is not plain https is never used
+  const pub = { top: [{ n: "Rahim Uddin", p: 90, e: 2, r: "0012", ph: "https://x.com/a.png" }, { n: "Evil", p: 80, e: 1, r: "0013", ph: "javascript:alert(1)" }] };
+  const f = H.topPerformers(pub, "full");
+  assert.deepEqual([f[0].roll, f[0].photo, f[1].roll, f[1].photo], ["0012", "https://x.com/a.png", "0013", ""]);
+  assert.deepEqual([H.topPerformers(pub, "first")[0].roll, H.topPerformers(pub, "first")[0].photo], ["", ""]);
+  assert.deepEqual([H.topPerformers(pub, "hidden")[0].roll, H.topPerformers(pub, "hidden")[0].photo], ["", ""]);
+});
+
+test("safePhotoUrl accepts plain https only", () => {
+  assert.equal(H.safePhotoUrl("https://lh3.googleusercontent.com/a/x=s96-c"), "https://lh3.googleusercontent.com/a/x=s96-c");
+  for (const bad of ["http://x.com/a.png", "javascript:alert(1)", "data:image/png;base64,AAAA", "https://x.com/a b", 'https://x.com/a"onerror=1', "https://x.com/" + "a".repeat(500), "", null, undefined]) {
+    assert.equal(H.safePhotoUrl(bad), "", String(bad).slice(0, 30));
+  }
+});
+
+test("bestAttemptOf: best attempt wins, ties → higher score → faster", () => {
+  const att = (percent, score, t) => ({ percent, score, total: 10, timeTakenSeconds: t });
+  assert.deepEqual(H.bestAttemptOf({ percent: 55, score: 5, total: 10, attempts: [att(40, 4, 300), att(90, 9, 320), att(55, 5, 200)] }), { percent: 90, score: 9, total: 10, seconds: 320 });
+  assert.equal(H.bestAttemptOf({ attempts: [att(80, 8, 400), att(80, 8, 250)] }).seconds, 250);                       // same score → faster
+  assert.equal(H.bestAttemptOf({ attempts: [att(80, 7.5, 100), att(80, 8, 400)] }).score, 8);                         // same % → higher score
+  assert.deepEqual(H.bestAttemptOf({ percent: 70, score: 7, total: 10 }), { percent: 70, score: 7, total: 10, seconds: Infinity }); // no history → the document itself
+});
+
+const lbResult = (uid, examId, examTitle, attempts, at, extra = {}) => ({
+  uid, examId, examTitle, examType: "live", percent: attempts.at(-1).percent, score: attempts.at(-1).score, total: attempts.at(-1).total,
+  attempts, submittedAt: ts(at), ...extra,
+});
+const lbAttempt = (percent, score, t = 300) => ({ percent, score, total: 10, timeTakenSeconds: t });
+
+test("buildExamLeaders: one list per live exam, best attempt per student, newest exam first", () => {
+  const users = {
+    a: { displayName: "Rahim Uddin", roll: "0001", photoURL: "https://x.com/a.png" },
+    b: { displayName: "Karim Hossain", roll: "0002" },
+    c: { displayName: "Nusrat Jahan", roll: "0003", photoURL: "https://x.com/c.png" },
+  };
+  const results = [
+    lbResult("a", "e1", "Model Test 1", [lbAttempt(55, 5), lbAttempt(90, 9, 320), lbAttempt(60, 6)], T0 - 5000),   // best is the 2nd attempt, not the latest
+    lbResult("b", "e1", "Model Test 1", [lbAttempt(40, 4)], T0 - 4000),
+    lbResult("c", "e1", "Model Test 1", [lbAttempt(90, 9, 250)], T0 - 3000),                        // ties a on % and score, but faster
+    lbResult("a", "e2", "Model Test 2", [lbAttempt(80, 8)], T0 - 1000),
+    lbResult("a", "p1", "Practice Set", [lbAttempt(100, 10)], T0, { examType: "practice" }),       // practice never counts
+  ];
+  const ex = H.buildExamLeaders(results, users, { mode: "full" });
+  assert.deepEqual(ex.map((x) => x.id), ["e2", "e1"]);                                    // newest activity first; practice excluded
+  assert.deepEqual(ex[1].top.map((t) => t.n), ["Nusrat Jahan", "Rahim Uddin", "Karim Hossain"]);   // faster of the two 90s leads
+  assert.equal(ex[1].c, 3);
+  assert.deepEqual(ex[1].top[0], { n: "Nusrat Jahan", p: 90, s: 9, o: 10, r: "0003", ph: "https://x.com/c.png" });
+  assert.deepEqual(ex[1].top[2], { n: "Karim Hossain", p: 40, s: 4, o: 10, r: "0002" });          // no photo → no ph field
+  assert.equal(ex[0].t, "Model Test 2");
+});
+
+test("buildExamLeaders honours the privacy mode, the size cap and the byte budget", () => {
+  const users = { a: { displayName: "Rahim Uddin", roll: "0001", photoURL: "https://x.com/a.png" }, b: { displayName: "Karim" } };
+  const results = [lbResult("a", "e1", "T1", [lbAttempt(90, 9)], T0), lbResult("b", "e1", "T1", [lbAttempt(70, 7)], T0)];
+  const first = H.buildExamLeaders(results, users, { mode: "first" });
+  assert.equal(first[0].top[0].n, "Rahim U."); assert.ok(!("r" in first[0].top[0]) && !("ph" in first[0].top[0]));
+  assert.deepEqual(H.buildExamLeaders(results, users, { mode: "hidden" }), []);
+  assert.equal(H.buildExamLeaders(results, users, { size: 1 })[0].top.length, 1);
+  assert.equal(H.buildExamLeaders(results, users, { size: 1 })[0].c, 2);                  // the head-count still covers everyone
+  // 30 exams, tiny budget → the OLDEST exams are dropped first, never the newest
+  const many = Array.from({ length: 30 }, (_, i) => lbResult("a", `x${i}`, `Exam ${i}`, [lbAttempt(80, 8)], T0 - i * 1000));
+  const slim = H.buildExamLeaders(many, users, { maxBytes: 1500 });
+  assert.ok(slim.length >= 1 && slim.length < 30 && slim[0].id === "x0");
+  assert.equal(H.buildExamLeaders(many, users, { maxExams: 5 }).length, 5);
+  // junk is skipped, a missing user still gets a row
+  assert.deepEqual(H.buildExamLeaders([null, { examId: "z" }, lbResult("ghost", "e9", "T9", [lbAttempt(50, 5)], T0)], {}, {})[0].top[0].n, "Student");
+});
+
+test("examLeadersFrom: read side re-applies the privacy mode and drops empty exams", () => {
+  const pub = { exams: [{ id: "e1", t: "Model Test 1", c: 7, top: [{ n: "Rahim Uddin", p: 90, s: 9, o: 10, r: "0001", ph: "https://x.com/a.png" }] }, { id: "e2", t: "Empty", c: 0, top: [] }, { t: "no id", top: [{ n: "x" }] }] };
+  const full = H.examLeadersFrom(pub, "full");
+  assert.equal(full.length, 1);
+  assert.deepEqual(full[0].top[0], { rank: 1, name: "Rahim Uddin", percent: 90, score: 9, total: 10, roll: "0001", photo: "https://x.com/a.png" });
+  assert.equal(full[0].count, 7);
+  const first = H.examLeadersFrom(pub, "first")[0].top[0];
+  assert.deepEqual([first.name, first.roll, first.photo], ["Rahim U.", "", ""]);
+  assert.deepEqual(H.examLeadersFrom(pub, "hidden"), []);
+  assert.deepEqual(H.examLeadersFrom({}, "full"), []);                                    // an older document without exams → nothing to show
+});
+
 test("taxonomy rollups", () => {
   const tax = H.normalizeTaxonomy({ subjects: [{ id: "s1", name: "English" }, { id: "s2", name: "Math" }], categories: [{ id: "k1", name: "Model", parentId: null }, { id: "k2", name: "Set A", parentId: "k1" }] });
   const exams = [{ subjectId: "s1", categoryId: "k2" }, { subjectId: "s1" }];
