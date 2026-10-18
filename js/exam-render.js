@@ -12,6 +12,7 @@ import { getHomeFeed } from "./home-data.js";
 import { reminderIds } from "./reminders.js";
 import { examCardHtml, bindExamCardActions } from "./exam-card.js";
 import { state, markQuestionShown } from "./exam-engine.js";
+import { cgText } from "./copy-guard.js";
 
 
 /* ---------- Practice score history — a small pure-CSS sparkline ----------
@@ -367,7 +368,7 @@ function renderOptionsHtml(q) {
       ${q.options.map((opt, i) => `
         <div class="exs-option ${state.answers[q.id] === i ? "is-selected" : ""} ${isLocked ? "is-disabled" : ""}" data-qid="${q.id}" data-i="${i}">
           <span class="exs-option-letter">${String.fromCharCode(65 + i)}</span>
-          <span class="exs-option-text">${escapeHtml(opt)}</span>
+          <span class="exs-option-text">${cgText(opt)}</span>
           ${state.answers[q.id] === i && isLocked ? '<i class="fa-solid fa-lock exs-option-lock"></i>' : ""}
         </div>`).join("")}
     </div>
@@ -395,7 +396,7 @@ export function renderQuestion(refs) {
     <div class="exs-question-card">
       <div class="exs-q-index">প্রশ্ন ${state.currentIndex + 1} / ${state.questions.length}</div>
       <div class="exs-q-track" aria-hidden="true"><div class="exs-q-fill" style="width:${pct}%"></div></div>
-      <h2>${escapeHtml(q.text)}</h2>
+      <h2>${cgText(q.text)}</h2>
       ${renderOptionsHtml(q)}
     </div>`;
   bindOptionClicks(refs.questionArea, () => renderQuestion(refs));
@@ -409,7 +410,7 @@ export function renderAllQuestions(refs) {
   refs.questionArea.innerHTML = state.questions.map((q, i) => `
     <div class="exs-question-card exs-mb">
       <div class="exs-q-index">Question ${i + 1} / ${state.questions.length}</div>
-      <h2>${escapeHtml(q.text)}</h2>
+      <h2>${cgText(q.text)}</h2>
       ${renderOptionsHtml(q)}
     </div>`).join("");
   bindOptionClicks(refs.questionArea, () => renderAllQuestions(refs));

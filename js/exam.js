@@ -16,6 +16,7 @@ import { mountReport, unmountReport, isReportMounted } from "./exam-report.js";
 import { getHomeFeed, peekHomeFeed } from "./home-data.js";
 import { passPercentFor } from "./schedule-core.js";
 import { entryFromAttempt, pickPrevious } from "./exam-analytics.js";
+import { bindCopyGuard } from "./copy-guard.js";
 
 let listView, verifyView, takeView, resultView, refs;
 
@@ -101,6 +102,8 @@ let controlsBound = false;
 function bindStaticControlsOnce() {
   if (controlsBound) return;
   controlsBound = true;
+
+  bindCopyGuard(document.getElementById("question-area")); // question text can't be selected / copied / dragged (js/copy-guard.js)
 
   document.getElementById("q-prev")?.addEventListener("click", () => {
     if (state.currentIndex > 0) { state.currentIndex--; renderQuestion(refs); }
