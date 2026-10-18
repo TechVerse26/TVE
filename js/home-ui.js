@@ -89,9 +89,9 @@ export function sectionHead(id, title, { sub = "", href = "", action = "", icon 
 export const emptyBlock = (icon, text, extra = "") =>
   `<div class="ui-state"><i class="fa-regular ${icon}" aria-hidden="true"></i><p>${esc(text)}</p>${extra}</div>`;
 
-export const errorBlock = (retryKey = "all", text = "তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।") =>
+export const errorBlock = (retryKey = "all", text = "তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।", retryLabel = "আবার চেষ্টা করুন") =>
   `<div class="ui-state ui-state--error" role="alert"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><p>${esc(text)}</p>
-    <button type="button" class="btn btn-outline btn-sm" data-retry="${esc(retryKey)}"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> আবার চেষ্টা করুন</button></div>`;
+    <button type="button" class="btn btn-outline btn-sm" data-retry="${esc(retryKey)}"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> ${esc(retryLabel)}</button></div>`;
 
 /** Skeleton placeholder shown while a section loads (no layout jump when the real content arrives). */
 export const skeleton = (kind = "card", n = 1) =>
