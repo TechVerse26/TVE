@@ -6,12 +6,13 @@ import { auth, db } from "./firebase-config.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   GoogleAuthProvider, signInWithPopup, updateProfile,
-  EmailAuthProvider, reauthenticateWithCredential, updatePassword,
+  EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { toast, consumePostLoginRedirect, invalidateUserProfile } from "./utils.js";
 import * as cache from "./cache.js";
 import { navigate } from "./router.js";
+import { isContinueUrlProblem, buildContinueUrl } from "./auth-reset-core.js";
 
 async function ensureUserDoc(user, extra = {}) {
   const ref = doc(db, "users", user.uid);
@@ -113,5 +114,32 @@ export async function changePassword(user, currentPassword, newPassword) {
       ? "Current password is incorrect"
       : mapAuthError(err.code), "error");
     return false;
+  }
+}
+
+/* ---------- "Forgot password?" (login page) ----------
+   Sends Firebase's own reset mail — the SAME mail and reset page the course site uses, since both sites share one
+   Firebase project. Resolves { ok, code } and never throws: the panel turns `code` into a message with resetOutcome()
+   (auth-reset-core.js), which also decides what an unknown email looks like (exactly like a known one).
+     • auth.languageCode = "bn" for the duration of the call → the mail is Bengali where Firebase has a template for it;
+       the previous language is always put back (the Google popup etc. must not be affected).
+     • the mail's "continue" button leads back to this site's login. If this domain is not in Firebase's authorized
+       domains the request is refused with a continue-URL error → it is sent again without the continue link. ---------- */
+export async function sendPasswordReset(email) {
+  const previousLanguage = auth.languageCode;
+  auth.languageCode = "bn";
+  try {
+    const url = buildContinueUrl({ protocol: window.location.protocol, origin: window.location.origin, pathname: window.location.pathname });
+    try {
+      await sendPasswordResetEmail(auth, email, url ? { url, handleCodeInApp: false } : undefined);
+    } catch (err) {
+      if (!url || !isContinueUrlProblem(err?.code)) throw err;
+      await sendPasswordResetEmail(auth, email);
+    }
+    return { ok: true, code: "" };
+  } catch (err) {
+    return { ok: false, code: err?.code || "unknown" };
+  } finally {
+    auth.languageCode = previousLanguage;
   }
 }

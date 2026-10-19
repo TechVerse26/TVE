@@ -6,7 +6,7 @@
 // ==========================================================================
 import { requireAuth, toast, getUserProfile, getExamQuestionCount, confirmAction, closeModal, toBnDigits } from "./utils.js";
 import { navigate } from "./router.js";
-import { state, resetSessionState, buildQuestionPool, scoreExam, stopQuestionClock } from "./exam-engine.js";
+import { state, resetSessionState, buildQuestionPool, scoreExam, stopQuestionClock, restoreQuestionTimes } from "./exam-engine.js";
 import { fetchQuestions, saveResult, recordExamStart, fetchUserStats, getExamCatalog } from "./exam-data.js";
 import { runVerification, renderRulesGate, recheckWindow, failScreen } from "./exam-guard.js";
 import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult, updateSaveStatus, renderExamLoading, disposeResult } from "./exam-render.js";
@@ -17,6 +17,8 @@ import { getHomeFeed, peekHomeFeed } from "./home-data.js";
 import { passPercentFor } from "./schedule-core.js";
 import { entryFromAttempt, pickPrevious } from "./exam-analytics.js";
 import { bindCopyGuard } from "./copy-guard.js";
+import { checkSavedAttempt, beginSession, attachSession, stopAutosave, markSessionSubmitted, finishSession } from "./exam-session.js";
+import { clockLabel } from "./exam-session-core.js";
 
 let listView, verifyView, takeView, resultView, refs;
 
@@ -121,6 +123,7 @@ function bindStaticControlsOnce() {
 export async function initExamPage(params) {
   const myToken = ++state.navToken;
   stopExamTimer();
+  stopAutosave();       // an attempt that was running on the previous screen stays SAVED (exam-session.js) — it just isn't auto-saved from here on
   unmountReport();      // the PDF report only exists while a result screen is showing
   disarmUnloadGuard();  // whatever was in progress is being replaced
   disposeResult();      // a previous result screen's timers / animation frames stop here
@@ -181,6 +184,13 @@ async function runExamEntry(examId, myToken) {
   listView.classList.add("hidden");
   verifyView.classList.remove("hidden");
 
+  // An unfinished attempt of THIS exam on this device (refresh, closed app, dead battery …)? Offer to carry on — the clock never stopped.
+  const saved = await checkSavedAttempt(verifyView, examId, { uid: state.currentUser?.uid, isCurrent: () => myToken === state.navToken });
+  if (myToken !== state.navToken || saved.action === "away") return;
+  if (saved.action === "resume") { resumeAttempt(saved, myToken); return; }
+  if (saved.action === "submit") { await submitRecovered(saved.plan); return; }
+  // "fresh": nothing saved (or the student chose to start over) → the normal entry below
+
   const verdict = await runVerification(verifyView, examId, myToken);
   if (myToken !== state.navToken) return;
   if (!verdict.ok) return;
@@ -239,15 +249,63 @@ async function beginAttempt(exam, myToken) {
   state.lockedQuestions = new Set();
   state.currentIndex = 0;
   state.secondsLeft = (exam.duration || 10) * 60;
+  state.attemptId = makeAttemptId(); // kept with the saved copy of this attempt, so the final save can never store it twice
   state.submitted = false;
   state.submitting = false;
+  showTakeScreen(myToken);
+}
+
+/* ---------- Carrying on with an attempt that was saved on this device (exam-session.js) ---------- */
+
+/** Puts a saved attempt (exam-session-core.js → toRestorePlan) back into the shared exam state. */
+function applyRestorePlan(plan) {
+  state.exam = plan.exam;
+  state.questions = plan.questions;
+  state.examLayout = plan.layout;
+  state.answers = { ...plan.answers };
+  state.lockedQuestions = new Set(plan.locked);
+  state.currentIndex = plan.index;
+  state.secondsLeft = plan.secondsLeft;
+  state.attemptId = plan.attemptId;
+  state.attemptsSoFar = plan.attemptsSoFar;
+  state.submitted = false;
+  state.submitting = false;
+  restoreQuestionTimes(plan.times);
+}
+
+/** Time is left: back to the question screen, same questions, same answers, the clock where it really is. No Firestore read, no new "start". */
+function resumeAttempt({ plan, session }, myToken) {
+  applyRestorePlan(plan);
+  showTakeScreen(myToken, { resumedSession: session });
+  toast(`আগের উত্তরগুলো ফিরিয়ে আনা হয়েছে — বাকি সময় ${clockLabel(plan.secondsLeft)}`, "success");
+}
+
+/** The time ran out while the student was away (or the result was never stored): submit exactly what was saved, then the normal result + save path. */
+async function submitRecovered(plan) {
+  applyRestorePlan(plan);
+  verifyView.classList.add("hidden");
+  verifyView.innerHTML = "";
+  await submitExam({ auto: true });
+}
+
+/** The question screen — the same for a new attempt and a resumed one (state is already filled in). */
+function showTakeScreen(myToken, { resumedSession = null } = {}) {
+  const exam = state.exam;
   // The student's history as it is RIGHT NOW (before this attempt) — fetched quietly while they answer.
   attemptCtx = null;
   attemptCtxPromise = captureAttemptContext(state.examId)
     .then((ctx) => { if (myToken === state.navToken) attemptCtx = ctx; return ctx; })
     .catch(() => null);
   armUnloadGuard();
-  recordExamStart(state.currentUser?.uid, state.examId); // one tiny write per start (admin analytics: abandoned attempts)
+  if (resumedSession) {
+    attachSession(resumedSession); // keep saving the same attempt
+  } else {
+    recordExamStart(state.currentUser?.uid, state.examId); // one tiny write per start (admin analytics: abandoned attempts) — a resume is not a new start
+    beginSession({
+      uid: state.currentUser?.uid, examId: state.examId, attemptId: state.attemptId, durationSec: state.secondsLeft,
+      attemptsSoFar: state.attemptsSoFar, layout: state.examLayout, exam, questions: state.questions,
+    }); // saved from the very first moment (localStorage only: 0 Firestore reads / writes)
+  }
   document.body.classList.add("exam-taking");             // hides the phone bottom bar so nothing is tapped by accident
 
   verifyView.classList.add("hidden");
@@ -325,6 +383,9 @@ async function submitExam({ auto = false } = {}) {
   document.body.classList.remove("exam-taking");
   stopExamTimer();
   closeModal();
+  // The saved copy stays — flagged "submitted" — until the result is really stored (persistAttempt → finishSession). If the
+  // connection is gone at this very moment and the app gets closed, the answers are still on the device and can be stored later.
+  markSessionSubmitted({ uid: state.currentUser?.uid, examId: state.examId, attemptId: state.attemptId, leftSec: state.secondsLeft, auto });
   const questionTimes = stopQuestionClock(); // per-question screen time (result analytics only)
 
   const attempt = buildAttemptSnapshot(state.exam, scoreExam(state.exam), { auto, questionTimes });
@@ -414,7 +475,7 @@ function buildAttemptSnapshot(exam, breakdown, { auto = false, questionTimes = {
   });
 
   return {
-    attemptId: makeAttemptId(),
+    attemptId: state.attemptId || makeAttemptId(), // minted when the attempt started (and saved with it) → a re-save after a crash is the SAME attempt
     uid: user.uid,
     examId: state.examId,
     examTitle: exam?.title || document.getElementById("exam-take-title").textContent,
@@ -512,6 +573,7 @@ async function persistAttempt(attempt) {
       const saved = await withTimeout(saveResult(saveResultPayload(attempt)), SAVE_TIMEOUT_MS);
       attempt.saving = false;
       attempt.saveState = "saved";
+      finishSession(attempt.uid, attempt.examId, attempt.attemptId); // safely in Firestore → the copy on this device is no longer needed
       // If the stored attempt number differs from the one we guessed at the
       // start (e.g. another tab finished an attempt meanwhile), fix the PDF too.
       if (saved?.attemptNumber && saved.attemptNumber !== attempt.attemptNumber) {
@@ -534,6 +596,7 @@ async function persistAttempt(attempt) {
   attempt.saveState = lastError?.code === "attempts-exhausted" ? "blocked" : "failed";
   paintSaveStatus(attempt);
   if (attempt.saveState === "blocked") {
+    finishSession(attempt.uid, attempt.examId, attempt.attemptId); // all attempts used up: there is nothing that could ever be stored
     if (currentAttempt === attempt) disarmUnloadGuard();
   } else {
     retryWhenBackOnline(attempt);

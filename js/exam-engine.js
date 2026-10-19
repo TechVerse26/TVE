@@ -15,6 +15,7 @@ export const state = {
   secondsLeft: 0,
   examLayout: "one",
   attemptsSoFar: 0,
+  attemptId: null,  // one id per attempt, minted when it starts (or read back from a saved attempt) — what keeps the final save from ever storing the same attempt twice
   submitted: false, // flips to true (synchronously) the moment the final submit starts — blocks double submits
   submitting: false, // true from the instant a MANUAL submit is requested until it is confirmed or cancelled
 };
@@ -29,9 +30,21 @@ export function resetSessionState(examId) {
   state.secondsLeft = 0;
   state.examLayout = "one";
   state.attemptsSoFar = 0;
+  state.attemptId = null;
   state.submitted = false;
   state.submitting = false;
   resetQuestionClock();
+}
+
+/* ---------- "Something about the attempt changed" ----------
+   The question screen calls notifyStateChange() after every redraw (an answer was locked, the student moved to another
+   question). exam-session.js listens, so an unfinished attempt is saved on this device after EVERY change — without the
+   renderer or the engine knowing anything about storage. One listener at most; a failing listener never breaks the exam. */
+let changeListener = null;
+export function setStateChangeListener(fn) { changeListener = typeof fn === "function" ? fn : null; }
+export function notifyStateChange() {
+  if (!changeListener) return;
+  try { changeListener(); } catch (err) { console.error("state listener failed:", err); }
 }
 
 /* ---------- Per-question screen time ----------
@@ -71,6 +84,21 @@ export function stopQuestionClock() {
   flushQuestionClock();
   qClock.id = null;
   return { ...qClock.times };
+}
+
+/** The times so far INCLUDING the question being looked at right now — read-only: the clock keeps running (used when saving progress). */
+export function snapshotQuestionTimes() {
+  const times = { ...qClock.times };
+  if (qClock.id !== null && qClock.since !== null) times[qClock.id] = (times[qClock.id] || 0) + Math.max(0, clockNow() - qClock.since) / 1000;
+  return times;
+}
+
+/** Puts back the times of a resumed attempt; the clock itself restarts when the question is drawn (markQuestionShown). */
+export function restoreQuestionTimes(times) {
+  resetQuestionClock();
+  Object.entries(times || {}).forEach(([id, sec]) => {
+    if (Number.isFinite(sec) && sec >= 0) qClock.times[id] = sec;
+  });
 }
 
 if (typeof document !== "undefined") {

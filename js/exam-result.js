@@ -22,6 +22,7 @@
 // ==========================================================================
 import { escapeHtml, confirmAction } from "./utils.js";
 import { navigate, reloadRoute } from "./router.js";
+import { finishSession } from "./exam-session.js";
 import { toBnDigits } from "./schedule-core.js";
 import { normalizeReview, reviewListHtml, reviewTtlHours } from "./exam-review.js";
 import { printReport } from "./exam-report.js";
@@ -530,10 +531,11 @@ function renderRich(resultView, attempt, hooks) {
 
   // ---- buttons ----
   let leaving = false;
-  async function leaveIfSure(go) {
+  async function leaveIfSure(go, { replacesAttempt = false } = {}) {
     if (leaving) return;
     // Leaving with a result that isn't stored yet would lose it — ask first.
-    if (attempt.saveState !== "saved" && attempt.saveState !== "blocked") {
+    const unsaved = attempt.saveState !== "saved" && attempt.saveState !== "blocked";
+    if (unsaved) {
       const ok = await confirmAction(
         "এই ফলাফল এখনো সেভ হয়নি। এখন চলে গেলে এটি হারিয়ে যেতে পারে।",
         { title: "সেভ হয়নি", confirmLabel: "তবুও যাব", cancelLabel: "থাকি" }
@@ -541,6 +543,9 @@ function renderRich(resultView, attempt, hooks) {
       if (!ok) return;
     }
     leaving = true;
+    // A retake replaces the unsaved attempt on purpose (the student was just warned). Leaving any other way keeps the copy kept
+    // on this device — the "ফলাফল সেভ হয়নি" bar (exam-session.js) brings it back and stores it later with the same attempt id.
+    if (unsaved && replacesAttempt) finishSession(attempt.uid, attempt.examId, attempt.attemptId);
     go();
   }
   bindCommonActions(resultView, root, { courseHref, leaveIfSure, onRetrySave });
@@ -595,7 +600,7 @@ function bindCommonActions(resultView, root, { courseHref, leaveIfSure, onRetryS
     // No report block could be mounted (it should never happen): print the page itself — it has its own print layout.
     if (!ok) window.print();
   });
-  resultView.querySelector("#exs-retake")?.addEventListener("click", () => leaveIfSure(() => reloadRoute()));
+  resultView.querySelector("#exs-retake")?.addEventListener("click", () => leaveIfSure(() => reloadRoute(), { replacesAttempt: true }));
   resultView.querySelector("#exs-course-link")?.addEventListener("click", (e) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // "open in new tab" etc. — leave it to the browser
     e.preventDefault();

@@ -20,6 +20,7 @@ import { initPerformancePage } from "./page-performance.js";
 import { runPageCleanups } from "./page-lifecycle.js";
 import { syncServerTime } from "./server-time.js";
 import { startReminderScheduler, stopReminderScheduler } from "./reminders.js";
+import { mountResumeBanner } from "./exam-session.js";
 import { peekExamCatalog } from "./exam-data.js";
 import { humanizeBn } from "./schedule-core.js";
 import { auth } from "./firebase-config.js";
@@ -96,7 +97,11 @@ syncServerTime();
 
 // "Remind me": evaluated on this device only (reminders.js) — no Firestore reads or writes. The exam list is passed
 // in only when it is already in memory, so the background check can never trigger a read.
+// An exam attempt that is waiting on this device (unfinished, or finished but not stored yet) shows as a slim bar on every page.
+const resumeBanner = mountResumeBanner({ getUid: () => auth.currentUser?.uid || null });
+
 onAuthStateChanged(auth, (user) => {
+  resumeBanner.refresh();
   if (!user) { stopReminderScheduler(); return; }
   startReminderScheduler(() => ({
     uid: auth.currentUser?.uid || null,

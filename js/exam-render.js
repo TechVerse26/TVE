@@ -11,7 +11,7 @@ import { serverNow } from "./server-time.js";
 import { getHomeFeed } from "./home-data.js";
 import { reminderIds } from "./reminders.js";
 import { examCardHtml, bindExamCardActions } from "./exam-card.js";
-import { state, markQuestionShown } from "./exam-engine.js";
+import { state, markQuestionShown, notifyStateChange } from "./exam-engine.js";
 import { cgText } from "./copy-guard.js";
 
 
@@ -404,6 +404,7 @@ export function renderQuestion(refs) {
   refs.prevBtn.disabled = state.currentIndex === 0;
   refs.nextBtn.classList.toggle("hidden", isLast);
   refs.submitBtn.classList.toggle("hidden", !isLast);
+  notifyStateChange(); // an answer was locked or the student moved on → the saved copy of this attempt follows (exam-session.js)
 }
 
 export function renderAllQuestions(refs) {
@@ -414,6 +415,7 @@ export function renderAllQuestions(refs) {
       ${renderOptionsHtml(q)}
     </div>`).join("");
   bindOptionClicks(refs.questionArea, () => renderAllQuestions(refs));
+  notifyStateChange();
 }
 
 /* ---------- Result screen + save-status chip ----------
