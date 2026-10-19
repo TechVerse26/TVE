@@ -17,3 +17,11 @@ export const reauthenticateWithCredential = async () => {};
 export const updatePassword = async () => {};
 export class GoogleAuthProvider {}
 export const EmailAuthProvider = { credential: () => ({}) };
+// "Forgot password?": every call is recorded (email, the settings object, and the language the SDK had at that moment);
+// a test can make the next calls fail with window.__MOCK__.resetErrors = ["auth/too-many-requests", ...] (consumed one per call).
+export async function sendPasswordResetEmail(a, email, settings) {
+  M.resets = M.resets || [];
+  M.resets.push({ email, settings: settings || null, lang: a.languageCode || null });
+  const code = (M.resetErrors || []).shift();
+  if (code) { const e = new Error(code); e.code = code; throw e; }
+}
