@@ -25,3 +25,22 @@
 .auth-card > :not(.auth-logo):not(h1):not(.auth-sub) { margin-inline: var(--sp-5); }
 .auth-card > .auth-switch { margin-bottom: var(--sp-5); }
 .auth-card > button, .auth-card > a.btn { display: flex; width: calc(100% - 2 * var(--sp-5)); }   /* full width inside the side margins, never wider than the card */
+
+/* ---------- Forgot password (inside the same card) ---------- */
+.auth-forgot { display: block; margin: var(--sp-2) 0 0 auto; padding: var(--sp-1) 2px; border: 0; background: none; color: var(--accent-soft); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.auth-forgot:hover { text-decoration: underline; }
+.auth-reset, .auth-done { margin-bottom: var(--sp-5); }
+.auth-reset .field { margin-bottom: var(--sp-4); }
+.auth-msg { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); line-height: 1.6; color: var(--accent-coral); }
+.auth-msg--hint { padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-sm); background: var(--tint-amber); color: var(--text-primary); }
+.auth-fix { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; text-align: left; }
+.auth-back { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); width: 100%; margin-top: var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-muted); font: inherit; font-size: var(--fs-md); font-weight: 600; cursor: pointer; }
+.auth-back:hover { background: var(--bg-elevated-2); color: var(--text-primary); }
+.auth-done:focus { outline: none; }
+.auth-done > p { margin: 0 0 var(--sp-4); font-size: var(--fs-md); line-height: 1.65; color: var(--text-primary); }
+.auth-done > p b { overflow-wrap: anywhere; }
+.auth-done > .auth-note { font-size: var(--fs-sm); color: var(--text-muted); }
+.auth-done > .auth-msg { margin: 0 0 var(--sp-3); }
+.auth-steps { display: flex; flex-direction: column; gap: var(--sp-3); margin: 0 0 var(--sp-4); padding: 0; list-style: none; counter-reset: auth-step; }
+.auth-steps li { position: relative; padding-inline-start: 34px; font-size: var(--fs-md); line-height: 1.6; color: var(--text-primary); counter-increment: auth-step; }
+.auth-steps li::before { content: counter(auth-step); position: absolute; left: 0; top: 1px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--tint-accent); color: var(--accent); font-size: var(--fs-xs); font-weight: 700; }
