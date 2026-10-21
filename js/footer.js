@@ -40,6 +40,7 @@ const ACCOUNT = [
 const SOCIAL = [
   { key: "facebook", label: "Facebook", icon: "fa-facebook-f" },
   { key: "youtube", label: "YouTube", icon: "fa-youtube" },
+  { key: "whatsapp", label: "WhatsApp", icon: "fa-whatsapp" },
   { key: "telegram", label: "Telegram", icon: "fa-telegram" },
   { key: "linkedin", label: "LinkedIn", icon: "fa-linkedin-in" },
 ];
