@@ -146,9 +146,7 @@ summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accen
 .page-head h1 { margin-bottom: var(--sp-1); }
 .page-head p { color: var(--text-muted); }
 
-/* footer */
-.site-footer { border-top: 1px solid var(--border); padding: var(--sp-4) 0; color: var(--text-muted); font-size: var(--fs-sm); }
-.footer-inner { display: flex; justify-content: center; text-align: center; }
+/* footer → css/footer.css (markup: js/footer.js · links: js/footer-config.js) */
 
 /* ==========================================================================
    4. Buttons  — one height, one radius, one weight

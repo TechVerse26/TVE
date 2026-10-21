@@ -1,0 +1,135 @@
+/* ==========================================================================
+   Tech Verse Exam — site footer
+   Drawn by js/footer.js into <footer class="site-footer" id="site-footer">; every URL lives in js/footer-config.js.
+   Same flat light language as the rest of the app: white surface · hairline borders · navy headings · muted links ·
+   ONE accent. No glow · no blur · no gradient · no shadow · no movement — colour / border changes only (--t-fast).
+   Uses the tokens from base.css only (colours, --sp-*, --radius-*, --fs-*, --container via .container).
+
+     1  Frame            the footer rests on the bottom edge of short pages
+     2  Main grid        phone: stacked + accordion · tablet: 2 columns · desktop: brand + 3 columns
+     3  Brand · social
+     4  Link groups      heading (tablet / desktop) or accordion summary (phone)
+     5  Contact
+     6  Bottom bar
+   ========================================================================== */
+
+/* 1 — Frame */
+body.site-body { display: flex; flex-direction: column; }          /* min-height: 100dvh comes from base.css */
+.site-footer {
+  margin-top: auto;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.site-footer:empty { display: none; }
+body.exam-taking .site-footer { display: none; }                   /* mid-exam nothing but the exam is tappable (same rule as the phone bottom bar) */
+@media (max-width: 900px) { body.has-bottom-nav .site-footer { padding-bottom: 0; } }   /* the body already reserves the bottom bar + safe area */
+
+/* 2 — Main grid (phone first) */
+.ftr-main { display: grid; padding-top: var(--sp-7); }
+.ftr-brand { padding-bottom: var(--sp-6); }
+@media (min-width: 600px) {
+  .ftr-main { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-7) var(--sp-6); padding-block: calc(var(--sp-7) + var(--sp-2)) var(--sp-7); }
+  .ftr-brand { padding-bottom: 0; }
+}
+@media (min-width: 1024px) {
+  .ftr-main { grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)); column-gap: var(--sp-7); padding-block: calc(var(--sp-7) + var(--sp-4)) calc(var(--sp-7) + var(--sp-2)); }
+}
+
+/* 3 — Brand · social */
+.ftr-brand { min-width: 0; }
+.ftr-logo { display: inline-flex; align-items: center; gap: var(--sp-3); min-height: 44px; max-width: 100%; }
+.ftr-logo img { flex: none; height: 36px; width: auto; }
+.ftr-logo-name { display: flex; flex-direction: column; padding-inline-start: var(--sp-3); border-inline-start: 1px solid var(--border-strong); line-height: 1.2; }
+.ftr-logo-name b { font-size: var(--fs-lg); font-weight: 800; letter-spacing: -0.01em; color: var(--text-primary); }
+.ftr-logo-name span { font-size: var(--fs-sm); font-weight: 600; color: var(--accent); }
+.ftr-about { max-width: 42ch; margin-top: var(--sp-4); line-height: 1.65; }
+.ftr-social { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-5); }
+.ftr-social-btn {
+  display: grid; place-items: center; width: 40px; height: 40px;
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  color: var(--navy-2); font-size: 1rem;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+@media (max-width: 599px) { .ftr-social-btn { width: 44px; height: 44px; } }   /* same touch size as the phone nav buttons */
+.ftr-social-btn[href]:hover { color: var(--accent); border-color: var(--accent); background: var(--tint-accent); }
+.ftr-social-btn.is-pending { color: var(--text-muted); opacity: 0.6; cursor: default; }
+
+/* 4 — Link groups.  Phone: a closed <details> row per group.  ≥ 600px: a plain column with a heading (footer.js keeps it open). */
+.ftr-group { min-width: 0; border-top: 1px solid var(--border); }
+.ftr-heading { margin-bottom: var(--sp-3); font-size: var(--fs-lg); font-weight: 700; line-height: 1.3; color: var(--text-primary); }
+.ftr-heading--static { display: none; }
+
+.ftr-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  min-height: 52px; cursor: pointer; list-style: none;
+  font-size: var(--fs-lg); font-weight: 700; color: var(--text-primary);
+  transition: color var(--t-fast);
+}
+.ftr-summary::-webkit-details-marker { display: none; }
+.ftr-summary::marker { content: ""; }
+.ftr-summary:hover { color: var(--accent); }
+.ftr-caret { flex: none; font-size: 0.75rem; color: var(--text-muted); }
+.ftr-acc[open] > .ftr-summary .ftr-caret { transform: rotate(180deg); }   /* state change only — no transition */
+.ftr-acc .ftr-links { padding-bottom: var(--sp-3); }
+
+.ftr-links { display: grid; }
+.ftr-link {
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-height: 44px; padding-block: var(--sp-1);
+  color: var(--text-muted); font-size: var(--fs-md); line-height: 1.4;
+  transition: color var(--t-fast);
+}
+.ftr-ico { flex: none; width: 16px; text-align: center; font-size: var(--fs-sm); transition: color var(--t-fast); }
+.ftr-link-text { min-width: 0; overflow-wrap: anywhere; }
+.ftr-chev { flex: none; margin-inline-start: auto; font-size: 0.625rem; opacity: 0.6; transition: color var(--t-fast); }
+.ftr-link[href]:hover, .ftr-link[href]:hover .ftr-ico, .ftr-link[href]:hover .ftr-chev { color: var(--accent); }
+.ftr-link[href]:hover .ftr-chev { opacity: 1; }
+.ftr-link.is-pending { cursor: default; opacity: 0.6; }
+
+@media (min-width: 600px) {
+  .ftr-group { border-top: 0; }
+  .ftr-heading--static { display: block; }
+  .ftr-summary { display: none; }
+  .ftr-acc .ftr-links { padding-bottom: 0; }
+  .ftr-link { min-height: 36px; }
+}
+
+/* 5 — Contact */
+.ftr-contact { display: grid; gap: var(--sp-4); padding-block: var(--sp-6); border-top: 1px solid var(--border); }
+.ftr-contact .ftr-heading { margin-bottom: 0; }
+.ftr-contact-list { display: grid; gap: var(--sp-4); }
+.ftr-contact-item { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.ftr-contact-ico { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--tint-accent); color: var(--accent); font-size: 0.95rem; }
+.ftr-contact-text { display: flex; flex-direction: column; min-width: 0; }
+.ftr-contact-label { font-size: var(--fs-xs); line-height: 1.3; color: var(--text-muted); }
+.ftr-contact-value { display: flex; align-items: center; min-height: 28px; font-size: var(--fs-md); font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; transition: color var(--t-fast); }
+.ftr-contact-value:hover { color: var(--accent); }
+@media (min-width: 600px) {
+  .ftr-contact { padding-block: var(--sp-7); }
+  .ftr-contact-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sp-6); }   /* Email / Website sit under the two columns above */
+}
+@media (min-width: 1024px) {
+  .ftr-contact { grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)); column-gap: var(--sp-7); align-items: center; }   /* same template as .ftr-main */
+  .ftr-contact-list { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-7); }   /* items keep their natural width: the address never breaks mid-word */
+}
+
+/* 6 — Bottom bar: a strong divider, then copyright + legal.  Phone: stacked and centred. */
+.ftr-bottom {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-1) var(--sp-5);
+  padding-block: var(--sp-4); border-top: 1px solid var(--border-strong);
+  font-size: var(--fs-sm); text-align: center;
+}
+.ftr-legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; }
+.ftr-legal li + li::before { content: ""; display: inline-block; width: 1px; height: 12px; margin-inline: var(--sp-3); background: var(--border-strong); vertical-align: middle; }
+.ftr-legal-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--text-muted); transition: color var(--t-fast); }
+.ftr-legal-link[href]:hover { color: var(--accent); }
+.ftr-legal-link.is-pending { cursor: default; opacity: 0.6; }
+@media (min-width: 768px) {
+  .ftr-bottom { flex-direction: row; justify-content: space-between; text-align: start; padding-block: var(--sp-3); }
+  .ftr-legal { justify-content: flex-end; }
+  .ftr-legal-link { min-height: 36px; }
+}
