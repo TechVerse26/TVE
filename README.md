@@ -294,6 +294,22 @@ WCAG AA কনট্রাস্ট। নকল Firestore-এ ব্যর্�
 লেখার চারপাশে বাড়তি ফাঁকা জায়গা থাকলে লোগো ছোট দেখাবে — `viewBox` লেখার মাপে ছেঁটে নাও
 (বর্তমান ফাইলে তা-ই করা আছে)।
 
+## ফুটার (`js/footer.js`, `js/footer-config.js`, `css/footer.css`)
+
+সব স্টুডেন্ট পেজের নিচে একই ফুটার দেখায় — `index.html`-এ `<footer id="site-footer">`, ভেতরের সবকিছু `js/footer.js` আঁকে।
+লোগো `assets/logo.svg` থেকে; রং, স্পেসিং, কন্টেইনার, আইকন বর্তমান ডিজাইন সিস্টেম ও Font Awesome থেকে।
+
+- **লিংক বসানো (একটাই ফাইল):** `js/footer-config.js` খুলে ফাঁকা `""` জায়গায় আসল URL দাও — Facebook / YouTube / Telegram / LinkedIn,
+  Help Center, FAQ, Terms & Conditions, Privacy Policy। ফাঁকা থাকলে আইটেমটা ধূসর ও ক্লিক-অযোগ্য থাকে (ভাঙা লিংক নেই, নকল URL নেই)।
+  অ্যাপের ভেতরের পেজ হলে `"#/faq"`-এর মতো রুট দাও (আগে `app.js`-এ সেই রুট যোগ করে)।
+- **ইমেইল / ওয়েবসাইট:** একই ফাইলের `contact`। "Contact Support" আপাতত সাপোর্ট ইমেইলে (`mailto:`) যায়।
+- **Quick Navigation / Account লিংক:** `js/footer.js`-এর ওপরের `QUICK` ও `ACCOUNT` তালিকা — সবই আগে থেকে থাকা রুট
+  (`#/exam`, `#/exams`, `#/schedule`, `#/results`, `#/leaderboard`, `#/performance`, `#/login`, `#/signup`)।
+- **লেআউট:** ফোন (<600px) — তিনটা গ্রুপ অ্যাকর্ডিয়ন (native `<details>`), ডিফল্টে বন্ধ · ট্যাবলেট (600–1023px) — দুই কলাম ·
+  ডেস্কটপ (≥1024px) — ব্র্যান্ড + তিন কলাম। Contact সব মাপেই আলাদা সারিতে নিচে।
+- **আচরণ:** এক্সাম চলাকালীন (`body.exam-taking`) ফুটার লুকানো; ছোট পেজে (যেমন 404) ফুটার স্ক্রিনের নিচের কিনারায় বসে; প্রিন্টে বন্ধ।
+  অ্যাপ বুট হওয়ার পর (`load`) আঁকা হয়, তাই লোডিংয়ের সময় ফাঁকা পর্দায় ভেসে ওঠে না।
+
 ## Firestore rules
 
 `firestore.rules` ফাইলটা পুরোটা Firebase Console → Firestore → Rules-এ পেস্ট করে **Publish**
