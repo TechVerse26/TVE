@@ -13,23 +13,24 @@ const SUPPORT_EMAIL = "tv.support.info@gmail.com";
 export const FOOTER_CONFIG = {
   contact: {
     email: SUPPORT_EMAIL,
-    website: "https://tvexam.vercel.app",
+    website: "https://tvsites.vercel.app",
   },
 
   // Paste the real page links here — nothing is invented.
   social: {
-    facebook: "",   // e.g. "https://www.facebook.com/<your-page>"
-    youtube: "",    // e.g. "https://www.youtube.com/@<your-channel>"
+    facebook: "https://www.facebook.com/irnahmed360",   // e.g. "https://www.facebook.com/<your-page>"
+    youtube: "https://www.youtube.com/@techverseofficial26",    // e.g. "https://www.youtube.com/@<your-channel>"
+    whatsapp: "https://wa.me/8801957329211",
     telegram: "",   // e.g. "https://t.me/<your-channel>"
     linkedin: "",   // e.g. "https://www.linkedin.com/company/<your-company>"
   },
 
   // "Student Resources" column + the legal links in the bottom bar.
   pages: {
-    help: "",                              // Help Center
+    help: "https://tvcourse.vercel.app/index.html#/help",                              // Help Center
     faq: "",                               // Frequently Asked Questions
     support: `mailto:${SUPPORT_EMAIL}`,    // Contact Support → the support inbox until a support page exists
-    terms: "",                             // Terms & Conditions
-    privacy: "",                           // Privacy Policy
+    terms: "https://tvcourse.vercel.app/#/terms",                             // Terms & Conditions
+    privacy: "https://tvcourse.vercel.app/#/privacy",                           // Privacy Policy
   },
 };
