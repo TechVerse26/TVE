@@ -294,15 +294,76 @@ WCAG AA কনট্রাস্ট। নকল Firestore-এ ব্যর্�
 লেখার চারপাশে বাড়তি ফাঁকা জায়গা থাকলে লোগো ছোট দেখাবে — `viewBox` লেখার মাপে ছেঁটে নাও
 (বর্তমান ফাইলে তা-ই করা আছে)।
 
+## তথ্য ও আইনি পেজ — About · FAQ · Help · Privacy · Terms · Credits
+
+ছয়টা পেজই **ইংরেজিতে**, সবার জন্য খোলা (লগইন লাগে না) আর সাইটের একই নেভবার ও ফুটারের ভেতরে চলে। `lang="en"` শুধু এই পেজগুলোর নিজের মোড়কে দেওয়া —
+`<html lang="bn">` ও বাকি সব পেজ আগের মতোই। পেজ ছেড়ে গেলে নিজের স্ক্রল/রিসাইজ লিসেনার নিজে মুছে যায়।
+
+| পেজ | রুট | লেখা (এখানে এডিট করো) | পেজ মডিউল |
+|---|---|---|---|
+| About Us | `#/about` | `js/about-data.js` | `js/page-about.js` |
+| FAQ (৬৪টা প্রশ্ন, ৯টা ক্যাটাগরি, সার্চ) | `#/faq` | `js/faq-data.js` | `js/page-faq.js` |
+| Help Center (সার্চ, গাইড, সমস্যা সমাধান, যোগাযোগ) | `#/help` | `js/help-data.js` | `js/page-help.js` |
+| Privacy Policy (১৭ সেকশন) | `#/privacy` | `js/privacy-data.js` | `js/page-privacy.js` |
+| Terms & Conditions (১৫ সেকশন) | `#/terms` | `js/terms-data.js` | `js/page-terms.js` |
+| Credits (টিম কার্ড + ব্যবহৃত টুল) | `#/credits` | `js/credits-data.js` | `js/page-credits.js` |
+
+সবার সাধারণ অংশ: `js/info-core.js` (কোনো DOM/Firebase নেই — escaping, নিরাপদ লিংক, FAQ সার্চ, টিম-সদস্য যাচাই), `js/info-ui.js` (মার্কআপ বিল্ডার ও আচরণ),
+`js/info-config.js` (সাপোর্ট ইমেইল/ওয়েবসাইট, "Last updated" তারিখ, মালিকের তথ্য), `css/info-pages.css` (`index.html`-এ লিংক করা)।
+নতুন কোনো লাইব্রেরি বা আইকন প্যাকেজ নেই — আগের Font Awesome ও ডিজাইন টোকেন; কোনো glow/blur/গ্রেডিয়েন্ট/ভারী শ্যাডো নেই।
+
+**লেখার নিয়ম:** লেখায় `**bold**`, `[লেবেল](#/রুট)`, `{email}`, `{site}`, `{name}`, `{owner:key}` চলে। সব লেখা একবারেই escape হয় (`info-core.js`), তাই কেউ
+`<script>` বা `javascript:` লিংক ঢোকাতে পারে না। FAQ-তে প্রশ্ন যোগ করতে `faq-data.js`-এ একটা অবজেক্ট (`id` ইউনিক, `cat`, `q`, `a`, `kw`) বসাও।
+Privacy/Terms-এর সেকশনের `id` পাল্টালে `…?section=` লিংক ভাঙতে পারে (FAQ/Help কয়েকটা id-তে লিংক করে, যেমন `your-rights`, `sharing`, `device-storage`) —
+unit test সেটা ধরে ফেলে।
+
+### আপনাকে যা বসাতে হবে (কোড থেকে জানা যায় না, তাই বানিয়ে লেখা হয়নি)
+
+- **`js/info-config.js` → `OWNER_DETAILS`** — ৯টা তথ্য: `operator` (সাইট যে প্রতিষ্ঠান চালায় — নাম ও ঠিকানা), `minimumAge`, `dataLocation` (Firestore-এর অঞ্চল),
+  `hostingLogs` (হোস্টিং কী লগ রাখে), `retention` (অ্যাকাউন্ট/ফলাফল কতদিন রাখা হয়), `deletion` (সংশোধন/মুছে ফেলার অনুরোধ কীভাবে সামলানো হয়), `dataLaw` (প্রযোজ্য ডেটা-সুরক্ষা আইন),
+  `governingLaw` (প্রযোজ্য আইন ও এখতিয়ার), `contentOwnership` (প্রশ্ন/কোর্স-কনটেন্টের মালিকানা)। যতক্ষণ `value` ফাঁকা, Privacy/Terms পেজে ওই জায়গায়
+  হলুদ **"To be confirmed"** চিহ্ন আর পেজের ওপরে একটা নোটিশ দেখায়। `value`-তে লেখা বসালে চিহ্নটা সাধারণ লেখা হয়ে যায় — অন্য কোনো ফাইল বদলাতে হয় না।
+- **`LEGAL_DATES`** (একই ফাইলে) — Privacy/Terms-এর লেখা বদলালে "Last updated" তারিখ (`YYYY-MM-DD`) বদলে দাও।
+- **Credits-এর টিম:** প্রজেক্টে কোনো সদস্যের নাম, ছবি বা প্রোফাইল লিংক ছিল না, তাই `js/credits-data.js`-এ এখন তিনটা ফাঁকা **placeholder কার্ড** (ড্যাশ-বর্ডার, "To be confirmed")
+  আছে — আসল কেউ নয়। একজনকে যোগ করতে ফাইলের ওপরের নির্দেশ অনুযায়ী একটা এন্ট্রিতে `name`, `role`, চাইলে `bio`, `photo` (ছবি `assets/team/`-এ রেখে) ও `links` দাও।
+  নাম থাকলেই কার্ডটা আসল হয়; ছবি না থাকলে বা লোড না হলে নামের আদ্যক্ষর দেখায়। ভুল ছবি/লিংক (যেমন `linkedin` টাইপে অন্য সাইটের ঠিকানা) নিজে থেকেই বাদ পড়ে
+  এবং ব্রাউজার কনসোলে কারণ লেখা থাকে। কাউকে সদস্য করার আগে তাঁর অনুমতি নাও।
+- **About-এর লেখা:** Mission, Vision ও Values প্ল্যাটফর্ম আসলে কীভাবে চলে তা দেখে খসড়া করা — নিজের ভাষায় বদলাতে চাইলে `about-data.js`।
+- **আইনি পর্যালোচনা:** Privacy Policy ও Terms কোড দেখে লেখা বর্ণনা, আইনি পরামর্শ নয়। ব্যবহারের আগে একজন আইনজীবীকে দিয়ে (বিশেষ করে Terms-এর দায়-অস্বীকার ও
+  এখতিয়ারের অংশ) দেখিয়ে নেওয়া ভালো।
+
+### পেজগুলো যা দাবি করে না
+
+কোনো নকল সংখ্যা, পুরস্কার, পার্টনার, সার্টিফিকেশন বা কমপ্লায়েন্স দাবি (GDPR ইত্যাদি) নেই; কোনো রিপ্লাই-সময়ের প্রতিশ্রুতি নেই; সাপোর্ট **শুধু ইমেইলে** — নকল টিকেট ফর্ম,
+চ্যাট বা "লাইভ সাপোর্ট" আঁকা হয়নি। Privacy Policy শুধু কোডে যা সত্যিই হয় তা লেখে (কী সংগ্রহ হয়, কী হয় না, কারা দেখতে পারে, ডিভাইসে কী জমে)।
+এই নিয়মগুলো unit test-এ পাহারা দেওয়া আছে (`claims lint`) — কেউ "GDPR compliant" জাতীয় বাক্য ঢোকালে টেস্ট ফেল করে।
+
+### পরীক্ষা
+
+```
+node --experimental-vm-modules --no-warnings tests/check-syntax.mjs     # সব মডিউল পার্স হয় কি না
+node --test tests/unit/*.test.mjs                                       # unit (তথ্য-পেজের লজিক ও কনটেন্ট-ইন্টিগ্রিটি: tests/unit/info.test.mjs)
+python3 tests/e2e/run_info.py [--shots]                                 # Chromium-এ ছয় পেজ + ফুটার (ফোন/ট্যাবলেট/ডেস্কটপ); --shots দিলে ছবি /home/claude/shots-এ
+```
+
+`run_info.py` যাচাই করে: রুট লোড ও `<title>`, ইংরেজি-only কনটেন্ট, ফুটারের প্রতিটা লিংক, FAQ সার্চ/ফিল্টার/accordion (মাউস ও কিবোর্ড), Help-এর লিংক ও `mailto:`,
+Credits-এর placeholder ও ছবি-ফলব্যাক, 320/390/820/1366px-এ ওভারফ্লো নেই, কিবোর্ড ফোকাস-রিং, ডুপ্লিকেট id/ভাঙা রেফারেন্স/অনুপস্থিত ফাইল নেই, এবং
+পেজ ছাড়লে লিসেনার মুছে যায়।
+
 ## ফুটার (`js/footer.js`, `js/footer-config.js`, `css/footer.css`)
 
 সব স্টুডেন্ট পেজের নিচে একই ফুটার দেখায় — `index.html`-এ `<footer id="site-footer">`, ভেতরের সবকিছু `js/footer.js` আঁকে।
 লোগো `assets/logo.svg` থেকে; রং, স্পেসিং, কন্টেইনার, আইকন বর্তমান ডিজাইন সিস্টেম ও Font Awesome থেকে।
 
-- **লিংক বসানো (একটাই ফাইল):** `js/footer-config.js` খুলে ফাঁকা `""` জায়গায় আসল URL দাও — Facebook / YouTube / Telegram / LinkedIn,
-  Help Center, FAQ, Terms & Conditions, Privacy Policy। ফাঁকা থাকলে আইটেমটা ধূসর ও ক্লিক-অযোগ্য থাকে (ভাঙা লিংক নেই, নকল URL নেই)।
-  অ্যাপের ভেতরের পেজ হলে `"#/faq"`-এর মতো রুট দাও (আগে `app.js`-এ সেই রুট যোগ করে)।
-- **ইমেইল / ওয়েবসাইট:** একই ফাইলের `contact`। "Contact Support" আপাতত সাপোর্ট ইমেইলে (`mailto:`) যায়।
+- **লিংক বসানো (একটাই ফাইল):** `js/footer-config.js`। `pages`-এর সাতটা লিংকই এখন আসল পেজে যায় — About Us `#/about`, Help Center `#/help`,
+  FAQ `#/faq`, Contact Support `#/help?section=contact`, Terms & Conditions `#/terms`, Privacy Policy `#/privacy`, Credits `#/credits`
+  (পেজগুলোর বিবরণ: ওপরের "তথ্য ও আইনি পেজ" সেকশন)। শুধু Facebook / YouTube / Telegram / LinkedIn এখনো ফাঁকা `""` — আসল URL পেলে ওখানে বসাও।
+  ফাঁকা থাকলে আইটেমটা ধূসর ও ক্লিক-অযোগ্য থাকে (ভাঙা লিংক নেই, নকল URL নেই)। অ্যাপের ভেতরের পেজ হলে `"#/faq"`-এর মতো রুট দাও (আগে `app.js`-এ সেই রুট থাকতে হবে)।
+- **ইমেইল / ওয়েবসাইট:** একই ফাইলের `contact`। "Contact Support" এখন Help Center-এর Contact সেকশনে যায় — সেখানে "Email support" বাটন
+  (বিষয় ও "কী কী লিখবেন" তালিকা আগে থেকে ভরা), ঠিকানা কপির বাটন ও সাপোর্ট ইমেইল আছে। আগের মতো সরাসরি মেইল অ্যাপ চাইলে `support`-এ `mailto:…` বসাও।
+- **Student Resources এখন সাতটা:** About Us · Help Center · FAQ · Contact Support · Terms & Conditions · Privacy Policy · Credits
+  (তালিকা `js/footer.js`-এর `RESOURCES`)। নিচের বারে Privacy/Terms আগের মতোই থাকে।
+- **যে পেজে আছো, ফুটারের সেই পেজেরই লিংকে ক্লিক:** আগের মতো ওপরে স্ক্রল করে; তবে লিংকটা ওই পেজেরই কোনো সেকশনের হলে (`…?section=contact`) সেই সেকশনে নিয়ে যায়।
 - **Quick Navigation / Account লিংক:** `js/footer.js`-এর ওপরের `QUICK` ও `ACCOUNT` তালিকা — সবই আগে থেকে থাকা রুট
   (`#/exam`, `#/exams`, `#/schedule`, `#/results`, `#/leaderboard`, `#/performance`, `#/login`, `#/signup`)।
 - **লেআউট:** ফোন (<600px) — তিনটা গ্রুপ অ্যাকর্ডিয়ন (native `<details>`), ডিফল্টে বন্ধ · ট্যাবলেট (600–1023px) — দুই কলাম ·
