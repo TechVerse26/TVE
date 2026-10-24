@@ -64,6 +64,7 @@ export const CREDITS = {
        photo: "https://tvgallery.vercel.app/TVExam/Credits_member/imran_ahmed_ceo_&_founder_manager_and_director.webp", 
        links: [
          { type: "website",  url: "https://myprojectinfo.vercel.app/" },
+         { type: "github",  url: "https://github.com/Imran-s-Project" },
        ] 
       },   // placeholder — replace with a real person (see the top of this file)
       { name: "", role: "", bio: "", photo: "", links: [] },   // placeholder
