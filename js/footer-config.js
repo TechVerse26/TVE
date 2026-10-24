@@ -13,7 +13,7 @@ const SUPPORT_EMAIL = "tv.support.info@gmail.com";
 export const FOOTER_CONFIG = {
   contact: {
     email: SUPPORT_EMAIL,
-    website: "https://tvexam.vercel.app",
+    website: "https://tvsites.vercel.app",
   },
 
   // Paste the real page links here — nothing is invented.
