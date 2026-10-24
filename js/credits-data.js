@@ -58,7 +58,7 @@ export const CREDITS = {
       badge: "member details",
     },
     members: [
-      { name: "", role: "", bio: "", photo: "", links: [] },   // placeholder — replace with a real person (see the top of this file)
+      { name: "Imran Ahmed", role: "CEO & Founder", bio: "Building technology-driven solutions for smarter learning, digital growth & future opportunities.Focused on innovation, leadership, and creating meaningful digital experiences.", photo: "https://tvgallery.vercel.app/TVExam/Credits_member/imran_ahmed_ceo_&_founder_manager_and_director.webp", links: [] },   // placeholder — replace with a real person (see the top of this file)
       { name: "", role: "", bio: "", photo: "", links: [] },   // placeholder
       { name: "", role: "", bio: "", photo: "", links: [] },   // placeholder
     ],
