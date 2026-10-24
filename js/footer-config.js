@@ -18,10 +18,11 @@ export const FOOTER_CONFIG = {
 
   // Paste the real page links here — nothing is invented.
   social: {
-    facebook: "",   // e.g. "https://www.facebook.com/<your-page>"
-    youtube: "",    // e.g. "https://www.youtube.com/@<your-channel>"
-    telegram: "",   // e.g. "https://t.me/<your-channel>"
-    linkedin: "",   // e.g. "https://www.linkedin.com/company/<your-company>"
+    facebook: "https://www.facebook.com/irnahmed360",   // e.g. "https://www.facebook.com/<your-page>"
+    youtube: "https://www.youtube.com/@techverseofficial26",    // e.g. "https://www.youtube.com/@<your-channel>"
+    telegram: "https://t.me/techverseofficial26",   // e.g. "https://t.me/<your-channel>"
+    whatsapp: "https://wa.me/8801957329211",
+    linkedin: "https://www.linkedin.com/groups/42836312",   // e.g. "https://www.linkedin.com/company/<your-company>"
   },
 
   // "Student Resources" column + the legal links in the bottom bar. All seven are real pages of the app (routes in js/app.js,
