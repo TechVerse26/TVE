@@ -45,6 +45,7 @@ const SOCIAL = [
   { key: "youtube", label: "YouTube", icon: "fa-youtube" },
   { key: "telegram", label: "Telegram", icon: "fa-telegram" },
   { key: "whatsapp", label: "WhatsApp", icon: "fa-whatsapp" },
+  { key: "github", label: "GitHub", icon: "fa-github" },
   { key: "linkedin", label: "LinkedIn", icon: "fa-linkedin-in" },
 ];
 const LEGAL = [
