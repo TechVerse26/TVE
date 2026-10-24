@@ -17,6 +17,12 @@ import { initSchedulePage } from "./page-schedule.js";
 import { initNotificationsPage } from "./page-notifications.js";
 import { initLeaderboardPage } from "./page-leaderboard.js";
 import { initPerformancePage } from "./page-performance.js";
+import { initAboutPage } from "./page-about.js";
+import { initFaqPage } from "./page-faq.js";
+import { initHelpPage } from "./page-help.js";
+import { initPrivacyPage } from "./page-privacy.js";
+import { initTermsPage } from "./page-terms.js";
+import { initCreditsPage } from "./page-credits.js";
 import { runPageCleanups } from "./page-lifecycle.js";
 import { syncServerTime } from "./server-time.js";
 import { startReminderScheduler, stopReminderScheduler } from "./reminders.js";
@@ -70,6 +76,13 @@ const router = new Router(
     profile: genericRoute(initProfilePage, "Profile — Tech Verse Exam"),
     login: genericRoute(initLoginPage, "Log in — Tech Verse Exam"),
     signup: genericRoute(initSignupPage, "Sign up — Tech Verse Exam"),
+    // Information pages (English, public): content in js/*-data.js, shared pieces in js/info-ui.js, styles in css/info-pages.css.
+    about: genericRoute(initAboutPage, "About Us — Tech Verse Exam"),
+    faq: genericRoute(initFaqPage, "FAQ — Tech Verse Exam"),
+    help: genericRoute(initHelpPage, "Help Center — Tech Verse Exam"),
+    privacy: genericRoute(initPrivacyPage, "Privacy Policy — Tech Verse Exam"),
+    terms: genericRoute(initTermsPage, "Terms & Conditions — Tech Verse Exam"),
+    credits: genericRoute(initCreditsPage, "Credits — Tech Verse Exam"),
     404: genericRoute(async (_p, mount) => {
       mount.innerHTML = `<div class="container page"><div class="exs-empty"><h2>Page not found</h2><a href="#/home" class="btn btn-primary mt-16">Return to Home</a></div></div>`;
     }, "Page not found — Tech Verse Exam"),

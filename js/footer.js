@@ -2,7 +2,8 @@
 // footer.js — the shared site footer: markup + two tiny behaviours.
 //
 //   • phone (< 600px): the three link groups are native <details> accordions, closed by default
-//   • a footer link that points at the page you are already on scrolls to the top instead of doing nothing
+//   • a footer link that points at the page you are already on does something useful instead of nothing: a link to a section of
+//     this very page (…?section=contact) goes to that section, any other one scrolls back to the top
 //
 // Every URL comes from footer-config.js. Routes are the app's real routes (see app.js). Styles: css/footer.css.
 // Deliberately independent of the app bundle (no Firebase import): it can never delay or break login / exams.
@@ -25,11 +26,13 @@ const QUICK = [
   { label: "Leaderboard", href: "#/leaderboard", icon: "fa-ranking-star" },
 ];
 const RESOURCES = [
+  { label: "About Us", href: CFG.pages.about, icon: "fa-circle-info" },
   { label: "Help Center", href: CFG.pages.help, icon: "fa-circle-question" },
   { label: "Frequently Asked Questions", href: CFG.pages.faq, icon: "fa-comments" },
   { label: "Contact Support", href: CFG.pages.support, icon: "fa-headset" },
   { label: "Terms & Conditions", href: CFG.pages.terms, icon: "fa-file-contract" },
   { label: "Privacy Policy", href: CFG.pages.privacy, icon: "fa-shield-halved" },
+  { label: "Credits", href: CFG.pages.credits, icon: "fa-users" },
 ];
 const ACCOUNT = [
   { label: "Student Login", href: "#/login", icon: "fa-right-to-bracket" },
@@ -40,7 +43,6 @@ const ACCOUNT = [
 const SOCIAL = [
   { key: "facebook", label: "Facebook", icon: "fa-facebook-f" },
   { key: "youtube", label: "YouTube", icon: "fa-youtube" },
-  { key: "whatsapp", label: "WhatsApp", icon: "fa-whatsapp" },
   { key: "telegram", label: "Telegram", icon: "fa-telegram" },
   { key: "linkedin", label: "LinkedIn", icon: "fa-linkedin-in" },
 ];
@@ -143,9 +145,12 @@ function bindAccordions(root) {
 function bindSamePageLinks(root) {
   root.addEventListener("click", (e) => {
     const a = e.target.closest("a[href^='#/']");
-    if (!a || a.hash !== window.location.hash) return;   // a different route: the router handles it
-    e.preventDefault();                                   // same route: the hash would not change → bring the page back to the top
-    window.scrollTo({ top: 0 });
+    if (!a || a.hash !== window.location.hash) return;   // a different address: the router handles it
+    e.preventDefault();                                   // the very same address: the hash would not change, so nothing would happen …
+    const id = new URLSearchParams(a.hash.split("?")[1] || "").get("section");
+    const section = id ? document.getElementById(id) : null;
+    if (section) section.scrollIntoView({ block: "start" });   // … a link to a section of this page goes there (the page's own CSS keeps it clear of the top bar)
+    else window.scrollTo({ top: 0 });                           // … any other link brings the page back to the top
   });
 }
 

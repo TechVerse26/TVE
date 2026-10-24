@@ -3,7 +3,7 @@
 //
 //   ""            not connected yet → the item stays in the footer, greyed out and not clickable (no broken links)
 //   "https://…"   opens in a new tab
-//   "#/route"     opens inside the app (e.g. "#/faq" once that page exists in app.js)
+//   "#/route"     opens inside the app (the route must exist in app.js)
 //   "mailto:…"    opens the mail app
 //
 // The footer itself lives in footer.js; its styles in css/footer.css.
@@ -13,24 +13,26 @@ const SUPPORT_EMAIL = "tv.support.info@gmail.com";
 export const FOOTER_CONFIG = {
   contact: {
     email: SUPPORT_EMAIL,
-    website: "https://tvsites.vercel.app",
+    website: "https://tvexam.vercel.app",
   },
 
   // Paste the real page links here — nothing is invented.
   social: {
-    facebook: "https://www.facebook.com/irnahmed360",   // e.g. "https://www.facebook.com/<your-page>"
-    youtube: "https://www.youtube.com/@techverseofficial26",    // e.g. "https://www.youtube.com/@<your-channel>"
-    whatsapp: "https://wa.me/8801957329211",
+    facebook: "",   // e.g. "https://www.facebook.com/<your-page>"
+    youtube: "",    // e.g. "https://www.youtube.com/@<your-channel>"
     telegram: "",   // e.g. "https://t.me/<your-channel>"
     linkedin: "",   // e.g. "https://www.linkedin.com/company/<your-company>"
   },
 
-  // "Student Resources" column + the legal links in the bottom bar.
+  // "Student Resources" column + the legal links in the bottom bar. All seven are real pages of the app (routes in js/app.js,
+  // words in js/about-data.js … js/credits-data.js). Clear one to "" and its footer item turns grey and unclickable again.
   pages: {
-    help: "https://tvcourse.vercel.app/index.html#/help",                              // Help Center
-    faq: "",                               // Frequently Asked Questions
-    support: `mailto:${SUPPORT_EMAIL}`,    // Contact Support → the support inbox until a support page exists
-    terms: "https://tvcourse.vercel.app/#/terms",                             // Terms & Conditions
-    privacy: "https://tvcourse.vercel.app/#/privacy",                           // Privacy Policy
+    about: "#/about",                      // About Us
+    help: "#/help",                        // Help Center
+    faq: "#/faq",                          // Frequently Asked Questions
+    support: "#/help?section=contact",     // Contact Support → the Help Center's contact section (e-mail button + what to include)
+    terms: "#/terms",                      // Terms & Conditions
+    privacy: "#/privacy",                  // Privacy Policy
+    credits: "#/credits",                  // Credits
   },
 };
