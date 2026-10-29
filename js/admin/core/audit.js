@@ -57,6 +57,19 @@ export const ACTIONS = {
   "admin.role": ["Admin role changed", "fa-user-gear", "amber"],
   "admin.remove": ["Admin removed", "fa-user-xmark", "coral"],
   "logs.purge": ["Old logs deleted", "fa-broom", "coral"],
+  "email.settings": ["Email settings changed", "fa-envelope-circle-check", "amber"],
+  "email.test": ["Test email sent", "fa-flask-vial", ""],
+  "email.template.create": ["Email template created", "fa-file-circle-plus", "teal"],
+  "email.template.update": ["Email template edited", "fa-file-pen", ""],
+  "email.template.delete": ["Email template deleted", "fa-file-circle-minus", "coral"],
+  "email.campaign.draft": ["Email campaign drafted", "fa-file-lines", ""],
+  "email.campaign.start": ["Email campaign started", "fa-paper-plane", "teal"],
+  "email.campaign.complete": ["Email campaign completed", "fa-circle-check", "teal"],
+  "email.campaign.interrupt": ["Email campaign interrupted", "fa-circle-pause", "amber"],
+  "email.campaign.fail": ["Email campaign failed", "fa-circle-xmark", "coral"],
+  "email.campaign.retry": ["Failed recipients retried", "fa-rotate", "amber"],
+  "email.campaign.export": ["Campaign details exported", "fa-download", ""],
+  "email.campaign.delete": ["Email campaign deleted", "fa-trash", "coral"],
 };
 export const actionMeta = (a) => ACTIONS[a] || [a, "fa-circle-info", ""];
 

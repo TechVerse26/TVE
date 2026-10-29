@@ -14,10 +14,10 @@ export const ROLES = {
   },
   manager: {
     label: "Manager", tone: "teal",
-    desc: "এক্সাম, শিডিউল, প্রশ্ন, শিক্ষার্থী, রেজাল্ট, নোটিশ ও হোমপেজ কন্টেন্ট পরিচালনা করতে পারে; সেটিংস ও অ্যাডমিন বদলাতে পারে না।",
+    desc: "এক্সাম, শিডিউল, প্রশ্ন, শিক্ষার্থী, রেজাল্ট, নোটিশ, হোমপেজ কন্টেন্ট ও ইমেইল ক্যাম্পেইন (Email Center) পরিচালনা করতে পারে; সেটিংস, EmailJS কনফিগারেশন ও অ্যাডমিন বদলাতে পারে না।",
     perms: ["exams.view", "exams.write", "exams.delete", "questions.view", "questions.write", "questions.delete",
       "taxonomy.view", "taxonomy.write", "students.view", "students.manage", "results.view", "results.export",
-      "analytics.view", "notifications.manage", "notices.manage", "homepage.manage", "logs.view"],
+      "analytics.view", "notifications.manage", "notices.manage", "homepage.manage", "logs.view", "email.manage"],
   },
   editor: {
     label: "Content Editor", tone: "amber",
@@ -32,6 +32,10 @@ export const ROLES = {
   },
 };
 
+/* Email Center permissions
+     email.manage    compose, preview, test-send and send campaigns; manage templates & campaign history   → Super Admin, Manager
+     email.settings  change the EmailJS configuration (Service / Template ID, Public Key …)               → Super Admin only (held through "*")
+   Editors and Viewers have neither: they can never send e-mail. firestore.rules enforces the same split (canManageComms / isSuperAdmin). */
 export const ROLE_ORDER = ["super", "manager", "editor", "viewer"];
 
 let current = { role: "super", perms: new Set(["*"]) };
