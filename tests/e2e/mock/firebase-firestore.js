@@ -43,6 +43,7 @@ M.deny = M.deny || [];
 //                                              after:true → the write is applied FIRST and the error comes afterwards (a lost reply)
 //   M.hang = [{ prefix, times }]               the next `times` writes under `prefix` never answer (a dead connection)
 M.fail = M.fail || [];
+M.failBatch = M.failBatch || [];
 M.hang = M.hang || [];
 M.faults = M.faults || [];
 
@@ -72,9 +73,11 @@ export const getFirestore = () => ({ __db: true });
 export const enableIndexedDbPersistence = async () => {};
 export const collection = (db, ...parts) => ({ type: "col", path: segs(parts).join("/") });
 export function doc(base, ...parts) {
-  if (base && base.type === "col" && !parts.length) return { type: "doc", path: `${base.path}/${newId()}` };
+  // like the real SDK: a DocumentReference carries both `path` and `id`
+  const make = (path) => ({ type: "doc", path, id: path.split("/").pop() });
+  if (base && base.type === "col" && !parts.length) return make(`${base.path}/${newId()}`);
   const p = base && base.type === "col" ? [base.path, ...parts] : parts;
-  return { type: "doc", path: segs(p).join("/") };
+  return make(segs(p).join("/"));
 }
 const idOf = (path) => path.split("/").pop();
 
@@ -149,11 +152,24 @@ export async function addDoc(col, data) { const path = `${col.path}/${newId()}`;
 
 export function writeBatch() {
   const ops = [];
+  const add = (path, run) => { ops.push({ path, run }); return b; };
   const b = {
-    set: (r, d, o) => { ops.push(() => doSet(r.path, d, o)); return b; },
-    update: (r, d) => { ops.push(() => doUpdate(r.path, d)); return b; },
-    delete: (r) => { ops.push(() => doDelete(r.path)); return b; },
-    commit: async () => { ops.forEach((f) => f()); },
+    set: (r, d, o) => add(r.path, () => doSet(r.path, d, o)),
+    update: (r, d) => add(r.path, () => doUpdate(r.path, d)),
+    delete: (r) => add(r.path, () => doDelete(r.path)),
+    commit: async () => {
+      // Opt-in fault injection for BATCHES (nothing sets M.failBatch unless a test does):
+      //   M.failBatch = [{ prefix, times, code }]  the next `times` commits that touch a path under `prefix` fail, writing nothing.
+      //   `skip` lets that many matching commits through first (e.g. let a campaign be created, then fail its progress saves).
+      const f = (M.failBatch || []).find((x) => x.times > 0 && ops.some((o) => o.path.startsWith(x.prefix)));
+      if (f && f.skip > 0) f.skip--;
+      else if (f) {
+        f.times--;
+        M.faults.push({ kind: "batch-fail", prefix: f.prefix });
+        throw Object.assign(new Error(`simulated ${f.code || "unavailable"}`), { code: f.code || "unavailable" });
+      }
+      ops.forEach((o) => o.run());
+    },
   };
   return b;
 }
