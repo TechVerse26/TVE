@@ -163,6 +163,7 @@ python3 tests/e2e/run_result.py --shots                  # ফলাফল অ�
 python3 tests/e2e/run_copyguard.py --shots               # প্রশ্ন কপি-গার্ড: ৮৯টি চেক (নিচের "প্রশ্ন কপি/সিলেক্ট বন্ধ" অংশ)
 python3 tests/e2e/run_resume.py --shots                  # চলমান পরীক্ষা Resume: ৬০টি চেক (রিফ্রেশ, ব্যানার, সময়-শেষ, সেভ-না-হওয়া, রিটেক, দুই ট্যাব, নষ্ট ডেটা, "সব প্রশ্ন" লেআউট, ফোনের ঘড়ি বদল, ৩২০px)
 python3 tests/e2e/run_reset.py --shots                   # Forgot password: ৪৩টি চেক (যাচাই, টাইপো, রিসেন্ড-অপেক্ষা, এরর, ফলব্যাক, ৩২০px)
+python3 tests/e2e/run_email.py --shots                   # Email Center: ২৩৫টি চেক (নকল EmailJS SDK — আসল ইমেইল কখনো যায় না; পারমিশন, শ্রেণিবিন্যাস, সেন্ড/retry/ক্র্যাশ-resume, ৩৯০px, a11y)
 ```
 
 নোট: Node ২২-এ `node --test tests/unit` (ডিরেক্টরি) ফেল করে — ফাইলের নাম বা `*.test.mjs` দিন। `--shots` স্ক্রিনশট
@@ -176,6 +177,7 @@ python3 tests/e2e/run_reset.py --shots                   # Forgot password: ৪�
 PDF (`page.pdf()` + টেক্সট যাচাই) ও প্রিন্টে শুধু রিপোর্ট; ৩২০/৩৯০/৮২০/১৩৬৬ px × লাইট/ডার্কে ওভারফ্লো নেই ও
 WCAG AA কনট্রাস্ট। নকল Firestore-এ ব্যর্থতা ঢোকানোর হাতল আছে (`tests/e2e/mock/firebase-firestore.js`):
 `M.fail` (লেখা ব্যর্থ; `after:true` = লেখা হয়ে গিয়ে রিপ্লাই হারানো), `M.hang` (উত্তরই আসে না), `M.deny` (permission-denied)।
+Email Center-এর জন্য যোগ: `M.failBatch = [{prefix, times, skip, code}]` (ব্যাচ-কমিট ব্যর্থ করে; `skip` = প্রথম কয়েকটি যেতে দেয়)।
 
 ম্যানুয়াল QA (আসল প্রজেক্টে, rules পাবলিশের পর): (১) শিডিউল করা এক্সামের শুরুর আগে `#/exam?id=…` খুলুন → "hasn't started"; (২) ডেভটুলে ওই এক্সামের `examBundles` ডকুমেন্ট `getDoc` করুন → `permission-denied`; (৩) শুরুর সময়ে কাউন্টডাউন নিজে থেকে "Live Now" হয়; (৪) ফোনের ঘড়ি ৩ ঘণ্টা এগিয়ে দিয়ে হোম খুলুন → কাউন্টডাউন ঠিক থাকে; (৫) Remind me → রিফ্রেশে "Reminder set" থাকে; (৬) অ্যাডমিন শিডিউল বাতিল করলে ৫ মিনিটের মধ্যে শিক্ষার্থীর কাছে "Not Available"; (৭) Exam Schedule → Remove → এক্সাম Draft, প্রশ্ন অক্ষত।
 
@@ -385,6 +387,9 @@ Credits-এর placeholder ও ছবি-ফলব্যাক, 320/390/820/1366
   (অ্যাডমিন যোগ/বাদ) বদলাতে পারে শুধু Super Admin।
   **এই rules Publish না করলে** নতুন পেজগুলো (Question Bank, Subjects, Logs, Settings, Admin Management)
   "Firestore rules প্রয়োজন" লিখে দেখাবে — বাকি সবকিছু আগের মতোই চলবে।
+- **Email Center-এর কালেকশন** (সবই শুধু অ্যাডমিনের; ইমেইল পাঠানোর অনুমতি `canManageComms()` = Super Admin ও Manager):
+  `emailSettings/main` (EmailJS-এর পাবলিক আইডি — বদলায় শুধু Super Admin; Manager শুধু `lastTest`), `emailTemplates/{id}`,
+  `emailCampaigns/{id}` + `emailCampaigns/{id}/parts/{n}` (প্রাপক-ভিত্তিক ফলাফল)। বিস্তারিত: `docs/EMAIL-CENTER.md`।
 
 ## Firestore read/write কমানো (ফ্রি কোটা: দিনে ৫০,০০০ read / ২০,০০০ write)
 
@@ -494,6 +499,7 @@ TVcourse-এ যেভাবে করো, একইভাবে Firebase Consol
 | **Analytics** | অংশগ্রহণ, ইউজার বৃদ্ধি, পাস রেট, স্কোর ডিস্ট্রিবিউশন, বেশি চেষ্টা হওয়া/কঠিন এক্সাম, কঠিন প্রশ্ন, সপ্তাহ/সময়ের হিসাব; দৈনিক/সাপ্তাহিক/মাসিক |
 | **Activity Logs** | কে কখন কী বদলেছে (এক্সাম, প্রশ্ন, ইউজার, সেটিংস, অ্যাডমিন…), ফিল্টার, CSV |
 | **Notifications** | ঘোষণা তৈরি/এডিট/মোছা — সবাই বা নির্দিষ্ট কোর্সের শিক্ষার্থী |
+| **Email Center** | EmailJS দিয়ে ব্যক্তিগতকৃত ইমেইল: ঘোষণা, "এক্সাম জমা দেননি" রিমাইন্ডার, টেমপ্লেট, প্রিভিউ/টেস্ট, নিয়ন্ত্রিত বাল্ক সেন্ড + retry, ক্যাম্পেইন হিস্ট্রি (নিচের অংশ) |
 | **Settings** | General, Exams, Results, Users, Questions, Notifications, Security, Site status (মেইনটেন্যান্স মোড) |
 | **Admin Management** | অ্যাডমিন যোগ/বাদ, রোল পরিবর্তন |
 
@@ -527,6 +533,23 @@ TVcourse-এ যেভাবে করো, একইভাবে Firebase Consol
   সাইট-ব্যাপী নোটিশ = মেইনটেন্যান্স মোড।
 - Analytics-এর "কঠিন প্রশ্ন" শুধু যেসব অ্যাটেম্পটের রিভিউ এখনো সংরক্ষিত (৪৮ ঘণ্টা পর মুছে যায়) তার ভিত্তিতে — তাই এটি সাম্প্রতিক অবস্থার ছবি।
 - আপডেটের পর প্রথমবার এক্সাম তালিকা ফ্রেশ লোড হলে `examIndex` নিজে থেকে মিলিয়ে নেয়; আলাদা কিছু করতে হয় না।
+
+## Email Center (EmailJS) — শিক্ষার্থীদের ব্যক্তিগতকৃত ইমেইল
+
+**Communication → Email Center** (`admin.html#/email-center`; Super Admin ও Manager)। সম্পূর্ণ গাইড, EmailJS Dashboard-এর হুবহু কনফিগারেশন, ভেরিয়েবল-ম্যাপিং, Firestore মডেল ও
+সমস্যা-সমাধান: **[`docs/EMAIL-CENTER.md`](docs/EMAIL-CENTER.md)**।
+
+**চালু করার সংক্ষেপ:** (১) `firestore.rules` Publish → (২) ডেপ্লয় (সাথে `assets/email-logo.png`) → (৩) EmailJS-এ Service + Template
+(Content = `{{{html_body}}}`, To = `{{to_email}}`, Reply-To = `{{reply_to}}`, Subject = `{{subject}}`, From Name = `{{from_name}}`, Cc/Bcc ফাঁকা) →
+(৪) Email Settings-এ Service ID / Template ID / Public Key বসিয়ে Save → (৫) **Send test email** — সফল না হওয়া পর্যন্ত বাল্ক সেন্ড বন্ধ।
+
+**যা নিশ্চিত করা আছে:** প্রতিজনকে আলাদা ইমেইল, শুধু নিজের তথ্য · "এই এক্সাম জমা দেননি" তালিকা আসল `results` + `examSessions` থেকে (অন্য এক্সামের ফলাফল গণনা হয় না; start-tracking না
+পড়া গেলে কাউকে "কখনো শুরু করেননি" বলা হয় না) · বন্ধ/বাতিল/শুরু-না-হওয়া এক্সামে বিভ্রান্তিকর রিমাইন্ডার আটকানো · একটি-একটি করে ≥ ১.১ সেকেন্ডে (EmailJS-এর ১ রিকোয়েস্ট/সেকেন্ড),
+429-এ backoff · আগে রেকর্ড, পরে ইমেইল; ট্যাব মরলে অনিশ্চিতগুলো `uncertain` — **কখনো নিজে থেকে আবার পাঠানো হয় না**; retry শুধু failed (ও চাইলে uncertain) · "Request accepted" ≠ ইনবক্স-ডেলিভারি ·
+কোনো প্রাইভেট কী কোডে নেই (শুধু Public Key, Firestore-এ — সোর্সে নয়)।
+
+**জেনে রাখুন:** ব্রাউজার-থেকে-EmailJS পদ্ধতির নিজস্ব নিরাপত্তা-সীমা আছে (Allowed domains সেট করুন; কারণ ও বিকল্প গাইডের ৮ম অংশে)। EmailJS প্ল্যানের কোটা কোডে ধরে নেওয়া হয়নি —
+Dashboard-এ দেখে নিন, দরকারে Safety cap বসান।
 
 ## Bulk question import ফরম্যাট
 

@@ -462,5 +462,59 @@ match /counters/{counterId} {
       allow delete: if isAdmin();
     }
 
+    /* ==========================================================================
+       Email Center (অ্যাডমিন প্যানেল → Communication → Email Center) — EmailJS দিয়ে শিক্ষার্থীদের ইমেইল।
+       সবই শুধু অ্যাডমিনের জন্য; শিক্ষার্থী এর কিছুই পড়তে/লিখতে পারে না। ইমেইল পাঠানো ও ক্যাম্পেইন ম্যানেজের অনুমতি = canManageComms()
+       (Super Admin ও Manager) — Content Editor ও Viewer পড়তেও পারে না।
+         • emailSettings/main    EmailJS-এর Service ID, Template ID, Public Key, প্রেরকের নাম ইত্যাদি। কোনো প্রাইভেট কী/সিক্রেট এখানে রাখা হয় না।
+                                 বদলাতে পারে শুধু Super Admin; Manager শুধু `lastTest` (সর্বশেষ টেস্ট-ইমেইলের ফল) আপডেট করতে পারে।
+         • emailTemplates/{id}   অ্যাডমিনের সেভ করা ইমেইল টেমপ্লেট।
+         • emailCampaigns/{id}   ক্যাম্পেইনের সারাংশ + ইমেইলের লেখা (ব্যক্তিগত তথ্য ছাড়া — {{ভেরিয়েবল}}-সহ)।
+           └ parts/{n}           প্রাপক-ভিত্তিক ফলাফল (নাম, ইমেইল, অবস্থা) — ব্যক্তিগত তথ্য, তাই এই ছোট ছোট ডকুমেন্টে আলাদা রাখা।
+       ========================================================================== */
+    function validEmailSettings(d) {
+      return d.serviceId is string && d.serviceId.size() <= 100
+        && d.templateId is string && d.templateId.size() <= 100
+        && d.publicKey is string && d.publicKey.size() <= 120;
+    }
+    function validEmailTemplate(d) {
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.content is map
+        && d.get('lang', 'en') in ['en', 'bn', 'both'];
+    }
+    function validCampaignStatus(d) {
+      return d.status in ['draft', 'sending', 'completed', 'completed_errors', 'stopped', 'interrupted', 'failed'];
+    }
+
+    match /emailSettings/{docId} {
+      allow read: if canManageComms();
+      allow create: if isSuperAdmin() && validEmailSettings(request.resource.data);
+      allow update: if (isSuperAdmin() && validEmailSettings(request.resource.data)) ||
+        (canManageComms() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastTest']));
+      allow delete: if isSuperAdmin();
+    }
+
+    match /emailTemplates/{templateId} {
+      allow read: if canManageComms();
+      allow create, update: if canManageComms() && validEmailTemplate(request.resource.data);
+      allow delete: if canManageComms();
+    }
+
+    match /emailCampaigns/{campaignId} {
+      allow read: if canManageComms();
+      allow create: if canManageComms() && request.resource.data.createdBy.uid == request.auth.uid
+        && validCampaignStatus(request.resource.data) && request.resource.data.status in ['draft', 'sending'];
+      allow update: if canManageComms() && validCampaignStatus(request.resource.data)
+        && request.resource.data.createdBy.uid == resource.data.createdBy.uid;
+      allow delete: if isSuperAdmin() || (canManageComms() && resource.data.status == 'draft');
+
+      match /parts/{partId} {
+        allow read: if canManageComms();
+        allow create, update: if canManageComms();
+        allow delete: if isSuperAdmin() ||
+          (canManageComms() && get(/databases/$(database)/documents/emailCampaigns/$(campaignId)).data.status == 'draft');
+      }
+    }
+
   }
 }
