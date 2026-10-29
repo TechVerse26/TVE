@@ -15,13 +15,13 @@ import { collection, getDocs, doc, setDoc, addDoc, deleteDoc, query, orderBy, li
 import { toast, openModal, closeModal } from "../utils.js";
 import { fetchAllExamsAdmin } from "../exam-data.js";
 import * as cache from "../cache.js";
-import { courses } from "./admin.js";
+import { courses, go } from "./admin.js";
 import {
   esc, $, fmtDateTime, pageHead, chip, segmented, bindSegmented, createTable, confirmDanger, withBusy, debounce,
   errorState, skeleton, toLocalInput, fromLocalInput, toMs, isDenied, rulesHint,
 } from "./core/ui.js";
 import { can, currentRole } from "./core/permissions.js";
-import { takePending } from "./core/bus.js";
+import { takePending, setPending } from "./core/bus.js";
 import { logAction } from "./core/audit.js";
 import { loadTaxonomy, getTaxonomy, categoryPath } from "./core/taxonomy.js";
 import { writeFeedFields } from "../home-data.js";
@@ -77,7 +77,7 @@ export async function mount(el) {
     if (e.target.closest("[data-retry]")) return load({ force: true });
     const b = e.target.closest("[data-act]");
     if (!b) return;
-    ({ edit: openEditor, toggle: togglePublish, dup: duplicate, delete: remove })[b.dataset.act]?.(b.dataset.id);
+    ({ edit: openEditor, toggle: togglePublish, dup: duplicate, delete: remove, email: prepareEmail })[b.dataset.act]?.(b.dataset.id);
   });
   await Promise.all([loadTaxonomy().catch(() => {}), load()]);
   if (takePending("new-notice") && canWrite) openEditor(null);
@@ -87,6 +87,13 @@ export async function activate() {
   if (!table) return;
   if (loadFailed) load();
   if (takePending("new-notice") && can("notices.manage")) openEditor(null);
+}
+
+/** Hand the notice to Email Center as a DRAFT. Publishing or editing a notice never sends mail by itself; sending is a separate, confirmed step there. */
+function prepareEmail(id) {
+  if (!can("email.manage")) return;
+  setPending("email-from-notice", id);
+  go("email-center");
 }
 
 async function load({ force = false } = {}) {
@@ -147,6 +154,7 @@ function columns(canWrite) {
       <button type="button" class="icon-btn" data-act="edit" data-id="${n.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
       <button type="button" class="icon-btn" data-act="toggle" data-id="${n.id}" title="${n.status === "draft" ? "Publish" : "Unpublish (back to draft)"}"><i class="fa-solid ${n.status === "draft" ? "fa-eye" : "fa-eye-slash"}"></i></button>
       <button type="button" class="icon-btn" data-act="dup" data-id="${n.id}" title="Duplicate (as a draft)"><i class="fa-solid fa-clone"></i></button>
+      ${can("email.manage") ? `<button type="button" class="icon-btn" data-act="email" data-id="${n.id}" title="Prepare an email from this notice (nothing is sent until you confirm in Email Center)" aria-label="Prepare email from this notice"><i class="fa-solid fa-envelope"></i></button>` : ""}
       <button type="button" class="icon-btn danger" data-act="delete" data-id="${n.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
     </div>` : "") },
   ];

@@ -25,7 +25,7 @@ const PERM_LABELS = {
   "taxonomy.view": "Subjects/Categories: view", "taxonomy.write": "Subjects/Categories: edit",
   "students.view": "Students: view", "students.manage": "Students: manage accounts",
   "results.view": "Results: view", "results.export": "Results: export",
-  "analytics.view": "Analytics", "notifications.manage": "Notifications", "logs.view": "Activity Logs",
+  "analytics.view": "Analytics", "notifications.manage": "Notifications", "email.manage": "Email Center", "logs.view": "Activity Logs",
 };
 
 export async function mount(el) {

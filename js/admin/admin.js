@@ -50,6 +50,7 @@ const NAV = [
     { id: "notices", label: "Notices", icon: "fa-bullhorn", perm: "notices.manage", mod: "./notices.js" },
     { id: "homepage", label: "Homepage", icon: "fa-house-laptop", perm: "homepage.manage", mod: "./homepage.js" },
     { id: "notifications", label: "Notifications", icon: "fa-bell", perm: "notifications.manage", mod: "./notifications.js" },
+    { id: "email-center", label: "Email Center", icon: "fa-envelope", perm: "email.manage", mod: "./email-center.js" },
   ] },
   { group: "System", items: [
     { id: "settings", label: "Settings", icon: "fa-gear", perm: "settings.manage", mod: "./settings-page.js" },
