@@ -426,6 +426,70 @@ Firestore-এ কোয়েরি যতগুলো ডকুমেন্ট 
 `KEEP_LEGACY_QUESTION_DOCS = true` করো — তখন প্রতিটা সেভ পুরোনো প্রশ্ন-ডকুমেন্টগুলোও লিখবে
 (বেশি write, কিন্তু অন্য সাইট অক্ষত থাকবে)।
 
+## অ্যাপ ইনস্টল (PWA) — হেডারের ⬇ আইকন → প্রিভিউ পপআপ → আসল ইনস্টল
+
+হেডারে **Schedule আইকনের ঠিক পাশে** একটা *Install app* আইকন আছে — লগইন করা থাকুক বা না থাকুক, শেয়ার্ড হেডার যেখানে দেখা যায় সেখানেই।
+সাইজ/বর্ডার/হোভার সবই আগের `.nav-icon-btn`-এর (ডেস্কটপে ৪০×৪০, ফোনে ৪৪×৪৪) — আলাদা কোনো স্টাইল নেই। চাপলে পেজ বদলায় না; পপআপ খোলে:
+বাঁয়ে অ্যাপের স্ক্রিনশট, ডানে অ্যাপ-আইকন · নাম · বর্ণনা · *Fast Access · Secure · Lightweight* · **Install App** / *Maybe Later*।
+
+- **Install App** চাপলে ব্রাউজারের আসল `beforeinstallprompt` প্রম্পট খোলে (ক্লিকের ভেতর থেকেই `prompt()`); `accepted`/`dismissed` দুটোই হ্যান্ডেল হয়।
+  `appinstalled` ইভেন্টে নিশ্চিত না হওয়া পর্যন্ত কোথাও "installed" লেখা হয় না।
+- প্রম্পট না থাকলে (iPhone/iPad, Firefox, Facebook/Instagram-এর ইনঅ্যাপ ব্রাউজার …) ব্রাউজার-অনুযায়ী ধাপ দেখায় — iOS-এ *Share → Add to Home Screen*। ভুয়া সাফল্যের বার্তা কখনো নয়।
+- ইনস্টল-করা অ্যাপের ভেতরে (standalone) আইকন লুকিয়ে যায়; ইনস্টল নিশ্চিত হলে আইকন ✓ হয়। চলমান পরীক্ষার সময় (`body.exam-taking`) আইকন লুকানো থাকে ও পপআপ খোলে না।
+- `Esc`, ✕, বাইরে ক্লিক, ফোকাস-ট্র্যাপ, ব্যাকগ্রাউন্ড স্ক্রল-লক, `prefers-reduced-motion` — সব আছে। পেজ বদলালে (`hashchange`) পপআপ নিজেই বন্ধ হয়।
+
+### নিজের স্ক্রিনশট বসানো — একটাই লাইন
+
+`js/pwa-config.js` খুলে এই লাইনটা বদলাও (আর কোনো ফাইল নয়):
+
+```js
+export const PWA_PREVIEW_IMAGE_URL = "https://…/তোমার-স্ক্রিনশট.png";   // বা নিজের সাইটের পথ: "assets/pwa/screenshot.png"
+export const PWA_PREVIEW_IMAGE_ALT = "Screenshot of the Tech Verse Exam app";   // স্ক্রিন-রিডারের জন্য ছবির বর্ণনা
+```
+
+- যে লিংক দেবে হুবহু সেটাই দেখাবে; ছবি কাটা হয় না (মূল অনুপাত থাকে, `object-fit: contain`), গোল কোণা + পাতলা ফ্রেম।
+- ফাঁকা / `PASTE_…` অবস্থায় বা ছবি লোড না হলে নিরপেক্ষ Tech Verse টাইল দেখায় — কোনো স্টক বা বানানো ছবি নয়।
+- ছবি পপআপ প্রথমবার খোলার আগে ডাউনলোডই হয় না। সবচেয়ে ভালো মানায় ফোনের পোর্ট্রেট স্ক্রিনশট (যেমন ১০৮০×২৩৪০)।
+- স্ক্রিনশট নিজের সাইটের `assets/`-এর ভেতরে রাখলে পরে ছবি বদলানোর সময় ফাইলের **নাম বদলে** দাও (যেমন `screenshot-v2.png`) — ওয়ার্কার `assets/`-এর ছবি ক্যাশ করে রাখে, তাই একই নামে বদলালে প্রথমবার পুরনোটাই দেখা যেতে পারে।
+
+### ফাইলগুলো
+
+| ফাইল | কাজ |
+|---|---|
+| `js/pwa-config.js` | **শুধু সেটিং** — স্ক্রিনশট লিংক + alt টেক্সট |
+| `js/pwa-install.js` | ইনস্টল-স্টেট, `beforeinstallprompt`/`appinstalled`, পপআপ (খোলা-বন্ধ, ফোকাস, স্ক্রল-লক) |
+| `js/pwa-core.js` | পিওর হেল্পার: লিংক যাচাই, standalone ডিটেকশন, ব্রাউজার চেনা, ইনস্টল-ধাপ (`tests/unit/pwa.test.mjs`) |
+| `js/pwa-early.js` | `<head>`-এর ছোট ক্লাসিক স্ক্রিপ্ট — মডিউল লোডের আগেই আসা ইনস্টল-ইভেন্ট ধরে রাখে |
+| `js/pwa-register.js` | সার্ভিস ওয়ার্কার রেজিস্টার + আপডেট-চেক |
+| `css/pwa-install.css` | পপআপ + হেডার-আইকনের অবস্থা (ফোনের সরু স্ক্রিনে হেডারে জায়গা করার নিয়মও) |
+| `manifest.webmanifest` | নাম *Tech Verse Exam* / *Tech Verse*, `standalone`, নেভি থিম, আইকন, শর্টকাট (Exams · Schedule · Results) |
+| `service-worker.js` · `offline.html` | রুট-স্কোপ ওয়ার্কার ও অফলাইন পেজ |
+| `assets/pwa/` | আইকন: ১৯২/৫১২ (`any`), ১৯২/৫১২ (`maskable`), `apple-touch-icon.png` (১৮০) + সোর্স `icon-source.svg` — `assets/logo-on-navy.svg`-এর অফিসিয়াল **TV** মনোগ্রাম |
+
+`js/nav.js` (আইকন + `tve:nav-rendered` ইভেন্ট), `js/app.js` (আলাদা `import()`-এ লোড — PWA-তে কিছু ভাঙলেও বাকি সাইট অক্ষত), `index.html` (manifest/আইকন/মেটা) বদলেছে।
+
+### সার্ভিস ওয়ার্কার — কী ক্যাশ হয়, কী হয় না
+
+- **ক্যাশ হয়:** `offline.html` এবং `/assets/`-এর লোগো/আইকন ছবি (stale-while-revalidate, সর্বোচ্চ ৬০টি)।
+- **কখনো না:** HTML, JS, CSS, JSON, Firebase/Google/CDN/EmailJS-এর কোনো রিকোয়েস্ট, `HEAD` (সার্ভার-ঘড়ি), POST — সব সরাসরি নেটওয়ার্কে যায়। টোকেন, প্রোফাইল, প্রশ্ন, উত্তর, সাবমিশন, ফলাফল কিছুই সংরক্ষিত হয় না।
+  তাই নতুন ডিপ্লয় পরের লোডেই লাইভ; পরীক্ষার টাইমার/সাবমিশনে ক্যাশ কখনো ঢোকে না।
+- **অফলাইন:** পেজ খুলতে না পারলে (শুধু নেটওয়ার্ক না থাকলে) ব্রাউজারের এরর-পেজের বদলে `offline.html`; নেট ফিরলে নিজেই রিলোড হয়।
+- **আপডেট:** ব্রাউজার প্রতি লোডে `service-worker.js` যাচাই করে (`updateViaCache: "none"`); নতুন ওয়ার্কার নিজেই দায়িত্ব নেয়, পেজ কখনো জোর করে রিলোড হয় না।
+  শুধু `offline.html` বা `service-worker.js` বদলালে ফাইলের ওপরের `SW_VERSION` একটা বাড়াও — পুরনো ক্যাশ নিজে মুছে যাবে।
+- **জরুরি বন্ধ:** `service-worker.js`-এর পুরো কনটেন্ট নিচেরটা দিয়ে বদলে ডিপ্লয় করলে ওয়ার্কার নিজেকে সরিয়ে ফেলে:
+  `self.addEventListener("install", () => self.skipWaiting()); self.addEventListener("activate", (e) => e.waitUntil((async () => { for (const k of await caches.keys()) await caches.delete(k); await self.registration.unregister(); })()));`
+
+### টেস্ট
+
+```
+node --test tests/unit/pwa.test.mjs                          # লিংক যাচাই, ব্রাউজার চেনা, ইনস্টল-ধাপ, manifest/আইকন, ওয়ার্কারের নিয়ম
+node --experimental-vm-modules --no-warnings tests/check-syntax.mjs
+python3 tests/e2e/run_pwa.py [--shots]                       # আসল ব্রাউজারে: হেডারের সাইজ/অ্যালাইনমেন্ট (৩২০–১৩৬৬px), পপআপ, ইনস্টল-ফ্লো, ওয়ার্কার, অফলাইন
+```
+
+> সীমাবদ্ধতা: ব্রাউজারের নিজস্ব ইনস্টল-ডায়ালগ অটোমেশনে চালানো যায় না, তাই `run_pwa.py` একই আকৃতির কৃত্রিম `beforeinstallprompt` ইভেন্ট ব্যবহার করে।
+> ডিপ্লয়ের পর আসল Android Chrome ও ডেস্কটপ Chrome/Edge-এ একবার ইনস্টল করে দেখে নাও।
+
 ## ডিপ্লয় করার আগে
 
 `js/firebase-config.js`-এ TVcourse-এর মতোই `tv-course` প্রজেক্টের config

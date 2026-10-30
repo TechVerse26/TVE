@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1B4D">
+<meta name="robots" content="noindex">
+<title>You're offline — Tech Verse Exam</title>
+<!-- Shown by service-worker.js when a page cannot be loaded because the device is offline.
+     Fully self-contained (no scripts, fonts or images from elsewhere) so it works with no connection at all. -->
+<style>
+  :root { --navy: #0A1B4D; --navy-2: #12307F; --accent: #1558E0; --text: #0B1B3F; --muted: #566884; --bg: #F3F6FC; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    min-height: 100vh; min-height: 100dvh; display: grid; place-items: center;
+    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    background: var(--navy); color: #fff;
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans Bengali", "Hind Siliguri", sans-serif; line-height: 1.55;
+  }
+  main {
+    width: min(100%, 420px); padding: 32px 24px 24px; text-align: center;
+    background: #fff; color: var(--text); border-radius: 24px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  }
+  .mark { display: block; margin: 0 auto 20px; border-radius: 20px; box-shadow: 0 2px 8px rgba(10, 27, 77, 0.25); }
+  h1 { font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.01em; }
+  p { margin-top: 10px; font-size: 0.9375rem; color: var(--muted); overflow-wrap: anywhere; }
+  button {
+    margin-top: 22px; width: 100%; min-height: 48px; padding: 10px 20px; border: 0; border-radius: 8px;
+    background: var(--accent); color: #fff; font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
+  }
+  button:hover { background: #0F47B8; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .note { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(15, 40, 100, 0.12); font-size: 0.8125rem; }
+</style>
+</head>
+<body>
+<main>
+  <svg class="mark" xmlns="http://www.w3.org/2000/svg" width="84" height="84" role="img" aria-label="Tech Verse Exam" viewBox="0 0 512 512"><rect rx="114.02" fill="#0A1B4D"/><g transform="translate(72.826 121.408) scale(0.49573)"><path d="M 340.00,112.00 L 164.00,112.00 L 163.00,111.00 L 160.00,112.00 L 91.00,112.00 L 39.00,176.00 L 39.00,177.00 L 124.00,177.00 L 125.00,178.00 L 131.00,178.00 L 132.00,177.00 L 169.00,177.00 L 171.00,179.00 L 171.00,432.00 L 175.00,430.00 L 191.00,414.00 L 192.00,414.00 L 250.00,356.00 L 250.00,355.00 L 259.00,347.00 L 259.00,179.00 L 264.00,177.00 L 387.00,177.00 L 384.00,171.00 L 366.00,148.00 L 362.00,141.00 L 355.00,133.00 L 353.00,129.00 Z" fill="#FFFFFF"/><path d="M 700.00,112.00 L 617.00,112.00 L 607.00,125.00 L 601.00,135.00 L 597.00,139.00 L 595.00,143.00 L 583.00,158.00 L 577.00,168.00 L 570.00,176.00 L 569.00,179.00 L 565.00,183.00 L 559.00,191.00 L 558.00,194.00 L 524.00,239.00 L 510.00,260.00 L 503.00,268.00 L 499.00,275.00 L 495.00,279.00 L 477.00,305.00 L 468.00,316.00 L 464.00,313.00 L 443.00,285.00 L 441.00,281.00 L 433.00,272.00 L 431.00,268.00 L 424.00,260.00 L 420.00,253.00 L 410.00,241.00 L 406.00,234.00 L 399.00,226.00 L 387.00,210.00 L 385.00,206.00 L 376.00,195.00 L 279.00,195.00 L 279.00,197.00 L 309.00,242.00 L 310.00,245.00 L 318.00,256.00 L 319.00,259.00 L 337.00,285.00 L 338.00,288.00 L 341.00,291.00 L 342.00,294.00 L 352.00,308.00 L 353.00,311.00 L 371.00,337.00 L 372.00,340.00 L 388.00,363.00 L 389.00,366.00 L 399.00,380.00 L 400.00,383.00 L 405.00,389.00 L 406.00,392.00 L 414.00,403.00 L 415.00,406.00 L 420.00,412.00 L 427.00,424.00 L 429.00,426.00 L 493.00,426.00 L 501.00,414.00 L 502.00,411.00 L 505.00,408.00 L 508.00,402.00 L 511.00,399.00 L 512.00,396.00 L 519.00,387.00 L 520.00,384.00 L 523.00,381.00 L 524.00,378.00 L 527.00,375.00 L 532.00,366.00 L 548.00,342.00 L 551.00,339.00 L 552.00,336.00 L 652.00,186.00 L 658.00,179.00 L 660.00,174.00 L 665.00,168.00 L 676.00,150.00 L 680.00,146.00 L 681.00,143.00 L 692.00,128.00 L 693.00,125.00 L 699.00,117.00 Z" fill="#3D8BFF"/><path d="M 361.00,111.00 L 361.00,113.00 L 366.00,121.00 L 385.00,146.00 L 391.00,156.00 L 398.00,164.00 L 402.00,171.00 L 409.00,179.00 L 483.00,179.00 L 482.00,175.00 L 478.00,171.00 L 466.00,153.00 L 434.00,111.00 Z" fill="#3D8BFF"/></g></svg>
+  <h1>You're offline</h1>
+  <p>Tech Verse Exam needs an internet connection for live exams, your schedule and your results. Check your connection, then try again.</p>
+  <button type="button" id="retry">Try again</button>
+  <p class="note">If an exam attempt was in progress, it is saved on this device and will be waiting for you when you reconnect.</p>
+</main>
+<script>
+  // Back online → load the real page again (the address is still the page that was requested).
+  document.getElementById("retry").addEventListener("click", function () { window.location.reload(); });
+  window.addEventListener("online", function () { window.location.reload(); });
+</script>
+</body>
+</html>

@@ -4,9 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0A1B4D">
+<!-- PWA: keeps the browser's one-time "install available" event until js/pwa-install.js is ready -->
+<script src="js/pwa-early.js"></script>
 <title>Tech Verse Exam</title>
 <meta name="description" content="Tech Verse Exam — live exams, practice, schedule, results and leaderboard for students">
 <link rel="icon" href="assets/favicon.ico">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/pwa/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tech Verse">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="assets/logo-on-navy.svg" as="image" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="css/base.css">
@@ -18,6 +26,7 @@
 <link rel="stylesheet" href="css/home.css">
 <link rel="stylesheet" href="css/results.css">
 <link rel="stylesheet" href="css/info-pages.css">
+<link rel="stylesheet" href="css/pwa-install.css">
 </head>
 <body class="site-body">
 
