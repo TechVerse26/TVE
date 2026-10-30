@@ -16,6 +16,7 @@ export const WHATS_NEW = {
   title: "Tech Verse Exam-এ নতুন কী কী ফিউচার নতুন আসছে",
   lead: "নিচে দেখেনিন আমাদের Tech Verse Exam platform এর নিত্য নতুন ফিউচার।",
   items: [
+    { icon: "fa-mobile-screen-button", tone: "blue", title: "Installable PWA", text: "Fully optimized for Progressive Web App installation across supported devices." },
     { icon: "fa-palette", tone: "blue", title: "নতুন ডিজাইন", text: "নীল ও নেভি থিমে সব পেজ একই স্টাইলে — ফোনে ও কম্পিউটারে সমান সুন্দর।" },
     { icon: "fa-house", tone: "purple", title: "নতুন হোম পেজ", text: "সার্চ বার, Popular Categories ও How It Works — যা খুঁজছেন এক ট্যাপেই।" },
     { icon: "fa-layer-group", tone: "green", title: "All Categories", text: "বিষয় ও ক্যাটাগরি ধরে পরীক্ষা খুঁজুন এবং সরাসরি Start Exam করুন।" },
