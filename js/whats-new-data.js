@@ -11,8 +11,8 @@
 // ==========================================================================
 export const WHATS_NEW = {
   enabled: true,
-  version: "01.00.02.23681",
-  date: "2026-10-20",
+  version: "01.00.02.23682",
+  date: "2026-10-30",
   title: "Tech Verse Exam-এ নতুন কী কী ফিউচার নতুন আসছে",
   lead: "নিচে দেখেনিন আমাদের Tech Verse Exam platform এর নিত্য নতুন ফিউচার।",
   items: [
