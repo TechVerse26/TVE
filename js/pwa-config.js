@@ -14,7 +14,7 @@
 // ==========================================================================
 
 /** Direct link to your app screenshot (https://… or a path inside this site). */
-export const PWA_PREVIEW_IMAGE_URL = "PASTE_MY_APP_SCREENSHOT_URL_HERE";
+export const PWA_PREVIEW_IMAGE_URL = "https://tvgallery.vercel.app/TVExam/tech_verse_exam_install_app_preview_profile.webp";
 
 /** What a screen reader says for the screenshot. Describe what the picture shows. */
 export const PWA_PREVIEW_IMAGE_ALT = "Screenshot of the Tech Verse Exam app";
