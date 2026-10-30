@@ -127,3 +127,9 @@ router.start();
 
 // "What's new": once per release, never during login / signup / an exam (whats-new.js). The text lives in whats-new-data.js.
 initWhatsNew();
+
+// PWA — the "Install app" icon + popup (pwa-install.js) and the thin service worker (pwa-register.js).
+// Loaded on the side with dynamic import() so they are fully isolated: should anything in them ever fail,
+// the rest of the site (login, exams, schedule, results …) carries on exactly as before.
+import("./pwa-install.js").then((m) => m.initPwaInstall()).catch((err) => console.warn("[pwa] install experience unavailable:", err));
+import("./pwa-register.js").then((m) => m.registerServiceWorker()).catch((err) => console.warn("[pwa] service worker unavailable:", err));

@@ -1,8 +1,9 @@
 // ==========================================================================
 // nav.js — the whole navigation system, rebuilt on every page (renderNav keeps working exactly as before):
 //
-//   desktop   logo  |  Home · All Exams · Courses · Schedule · Results  |  🔔 · Admin · Profile
-//   phone     top bar: brand | 📅 · 🔔 · avatar(☰)   bottom bar: Home · Exams · Courses · Results · Profile
+//   desktop   logo  |  Home · All Exams · Courses · Schedule · Results  |  ⬇ · 🔔 · Admin · Profile
+//   phone     top bar: brand | 📅 · ⬇ · 🔔 · avatar(☰)   bottom bar: Home · Exams · Courses · Results · Profile
+//   ⬇ = "Install app" (everyone, signed in or not): a plain .nav-icon-btn, opens the popup in js/pwa-install.js
 //   drawer    (☰) secondary only: Leaderboard · My Performance · Notifications · Admin Panel · Profile · Sign Out
 //
 // ONE list of primary pages feeds both the desktop links and the bottom bar, and ONE `lit` value decides which
@@ -17,6 +18,9 @@ let navBound = false;
 /* Brand lockup from the reference: graduation-cap mark + "Tech Verse" + "Exam Platform". */
 const BRAND_MARK = `<svg class="brand-mark" viewBox="0 0 40 40" width="38" height="38" aria-hidden="true" focusable="false"><rect width="40" height="40" rx="11" fill="#1F6BFF"/><path fill="#fff" d="M20 9 6 16l14 7 11-5.5V25h2.5V16L20 9z"/><path fill="#fff" fill-opacity=".85" d="M11 21.2v5.1c0 1.7 4 3.2 9 3.2s9-1.5 9-3.2v-5.1l-9 4.4z"/></svg>`;
 const brandHtml = () => `<a href="#/home" class="brand brand--lockup" aria-label="Tech Verse Exam — Home">${BRAND_MARK}<span class="brand-text"><b>Tech <em>Verse</em></b><small>Exam Platform</small></span></a>`;
+/* "Install app" icon — the same .nav-icon-btn as Schedule / Notifications (40px desktop, 44px phone), shown to everyone.
+   js/pwa-install.js listens for [data-pwa-install] (delegated, so re-rendering the bar is safe) and keeps label / state in sync. */
+const INSTALL_BTN = `<button type="button" class="nav-icon-btn nav-install" data-pwa-install aria-label="Install Tech Verse Exam app" title="Install app" aria-haspopup="dialog"><i class="fa-solid fa-download nav-install-ico" aria-hidden="true"></i><i class="fa-solid fa-circle-check nav-install-ok" aria-hidden="true"></i></button>`;
 /* The student's own photo when the account has one (Google sign-in), otherwise their initial. https only. */
 export const avatarInner = (photo, letter) => (/^https:\/\//.test(photo || "") ? `<img src="${escapeHtml(photo)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : letter);
 
@@ -78,6 +82,7 @@ export async function renderNav(activePage = "") {
           ${user ? `
           <a href="#/exams" class="nav-icon-btn nav-search" aria-label="Search exams" title="Search exams"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></a>
           <a href="#/schedule" class="nav-icon-btn nav-schedule${activePage === "schedule" ? " is-active" : ""}" aria-label="Schedule" title="Schedule"><i class="fa-regular fa-calendar-days" aria-hidden="true"></i></a>
+          ${INSTALL_BTN}
           <div class="nav-bell-wrap">
             <button type="button" class="nav-icon-btn nav-bell${activePage === "notifications" ? " is-active" : ""}" id="nav-bell" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false">
               <i class="fa-regular fa-bell" aria-hidden="true"></i>
@@ -89,7 +94,7 @@ export async function renderNav(activePage = "") {
           <a href="#/profile" class="nav-user-chip" aria-label="Profile: ${escapeHtml(label)}"${cur(lit === "profile")}>
             <span class="user-avatar" aria-hidden="true">${avatar}</span>
             <span class="nav-user-name">${escapeHtml(label)}</span>
-          </a>` : `<a href="#/login" class="btn btn-outline btn-sm nav-login">Login</a><a href="#/signup" class="btn btn-primary btn-sm nav-signup">Sign Up</a>`}
+          </a>` : `${INSTALL_BTN}<a href="#/login" class="btn btn-outline btn-sm nav-login">Login</a><a href="#/signup" class="btn btn-primary btn-sm nav-signup">Sign Up</a>`}
 
           <button type="button" class="nav-icon-btn nav-menu-btn${user ? " nav-menu-btn--avatar" : ""}" id="nav-hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-drawer">
             ${user ? `<span class="user-avatar" aria-hidden="true">${avatar}</span>` : `<i class="fa-solid fa-bars" aria-hidden="true"></i>`}
@@ -140,6 +145,7 @@ export async function renderNav(activePage = "") {
 
   document.body.classList.toggle("has-bottom-nav", !!user);
   if (user) mountBell({ uid: user.uid, profile });
+  document.dispatchEvent(new Event("tve:nav-rendered"));                // pwa-install.js re-applies the install icon's label / state
 
   if (!navBound) {
     navBound = true;
