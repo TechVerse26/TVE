@@ -1,0 +1,194 @@
+/* ==========================================================================
+   pwa-install.css — "Install app": the header icon states + the preview popup (js/pwa-install.js)
+
+   The header icon itself is a plain  .nav-icon-btn  (css/base.css §12a): its 40px / 44px size, border,
+   radius, hover and spacing are NOT redefined here — only the installed / standalone states below.
+
+   Popup  ≥ 700px : centred card, screenshot left · app info right
+          < 700px : bottom sheet (screenshot beside the info; stacked under 380px), scrolls inside if needed
+   Uses the site's tokens (--navy, --accent, --sp-*, --radius-*, --font-*). Flat: hairline borders, one soft shadow,
+   no glow, no decorative gradients, no looping animation.
+   ========================================================================== */
+
+/* ---------- header icon ---------- */
+.nav-install { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.nav-install .nav-install-ok { display: none; }
+html.pwa-installed .nav-install .nav-install-ico { display: none; }
+html.pwa-installed .nav-install .nav-install-ok { display: block; color: #7FE3A8; }
+html.pwa-standalone .nav-install,           /* already running as the installed app: nothing to install */
+body.exam-taking .nav-install { display: none; }   /* mid-exam nothing but the exam is tappable */
+
+/* The top bar now carries one more 44px icon. On narrow phones the room comes from the GAPS — the icons keep their
+   44px size and the logo keeps its look (only the very narrowest screens trim the lockup slightly). */
+@media (max-width: 389px) {
+  .topnav-inner { gap: var(--sp-2); }
+  .nav-tools { gap: var(--sp-1); }
+}
+@media (max-width: 359px) {
+  .brand--lockup { gap: var(--sp-2); }
+  .brand-mark { width: 34px; height: 34px; }
+  .brand-text b { font-size: 1rem; }
+  .brand-text small { font-size: 0.625rem; }
+  .nav-tools { gap: 2px; }
+}
+@media (max-width: 339px) {
+  .topnav .topnav-inner { padding-inline: calc(var(--sp-2) + env(safe-area-inset-left, 0px)) calc(var(--sp-2) + env(safe-area-inset-right, 0px)); }
+}
+@media (max-width: 329px) {
+  .brand--lockup { gap: 6px; }
+  .brand-text b { font-size: 0.9375rem; }
+}
+
+/* the page must not shift when the scrollbar disappears under the popup */
+html.pwa-lock body { padding-right: var(--pwa-sbw, 0px); }
+html.pwa-lock .topnav { padding-right: var(--pwa-sbw, 0px); }
+
+/* ---------- overlay ---------- */
+.pwa-overlay {
+  position: fixed; inset: 0; z-index: 220;
+  display: grid; place-items: center;
+  padding: max(var(--sp-4), env(safe-area-inset-top, 0px)) max(var(--sp-4), env(safe-area-inset-right, 0px))
+           max(var(--sp-4), env(safe-area-inset-bottom, 0px)) max(var(--sp-4), env(safe-area-inset-left, 0px));
+  background: rgba(8, 20, 60, 0.66);
+  overscroll-behavior: contain;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.pwa-overlay.is-open { opacity: 1; pointer-events: auto; }
+
+/* ---------- dialog ---------- */
+.pwa-dialog {
+  --pwa-shot-h: min(68vh, 540px);
+  --pwa-shot-h: min(68dvh, 540px);
+  position: relative; width: min(100%, 800px); max-height: 100%;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--bg-elevated); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 24px;
+  box-shadow: 0 24px 64px rgba(8, 20, 60, 0.36), 0 2px 6px rgba(8, 20, 60, 0.12);
+  transform: translateY(14px) scale(0.985);
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pwa-dialog:focus { outline: none; }
+.pwa-overlay.is-open .pwa-dialog { transform: none; }
+
+.pwa-close {
+  position: absolute; top: var(--sp-3); right: var(--sp-3); z-index: 2;
+  width: 40px; height: 40px; display: grid; place-items: center;
+  border-radius: 50%; border: 1px solid var(--border-strong);
+  background: var(--bg-elevated); color: var(--navy); font-size: 1rem;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.pwa-close svg { display: block; }
+.pwa-close:hover { background: var(--bg-elevated-2); border-color: var(--accent); }
+.pwa-close:focus-visible { outline: 2px solid #fff; outline-offset: 1px; box-shadow: 0 0 0 4px var(--accent); }   /* readable on navy AND on white */
+
+.pwa-grid { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); }
+
+/* ---------- left: the screenshot ---------- */
+.pwa-preview { display: grid; place-items: center; min-width: 0; padding: 32px 24px; background: var(--navy); }
+.pwa-shot { position: relative; display: grid; place-items: center; width: 100%; margin: 0; }
+.pwa-shot-img {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; object-fit: contain;
+  border-radius: 22px; border: 1px solid rgba(255, 255, 255, 0.24); background: #fff;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+}
+.pwa-shot.is-loaded .pwa-shot-img {                     /* loaded: the image sets its own size, original proportions kept */
+  position: static; display: block; width: auto; height: auto; max-width: 100%; max-height: var(--pwa-shot-h);
+  aspect-ratio: var(--shot-ar, auto); opacity: 1; transition: opacity 0.2s ease;
+}
+.pwa-shot.is-loaded .pwa-shot-fallback { display: none; }
+.pwa-shot.is-fallback .pwa-shot-img { display: none; }
+
+.pwa-shot-fallback {                                    /* no / broken screenshot link: a quiet brand tile, not a fake screenshot */
+  display: grid; align-content: center; justify-items: center; gap: var(--sp-3);
+  width: min(100%, 200px); aspect-ratio: 9 / 16; max-height: var(--pwa-shot-h);
+  border-radius: 22px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06);
+  color: var(--on-navy-muted); font-size: var(--fs-md); font-weight: 600; text-align: center;
+}
+.pwa-shot-fallback img { width: 56px; height: 56px; border-radius: 14px; }
+
+/* ---------- right: info + action ---------- */
+.pwa-info { display: flex; flex-direction: column; justify-content: center; gap: var(--sp-3); min-width: 0; padding: 36px 32px 28px; overflow-wrap: anywhere; }
+.pwa-app { display: flex; align-items: center; gap: var(--sp-3); padding-right: 36px; }
+.pwa-app-icon { flex: none; width: 56px; height: 56px; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 2px 6px rgba(10, 27, 77, 0.16); }
+.pwa-app-text { min-width: 0; }
+.pwa-app-name { font-size: var(--fs-md); font-weight: 800; letter-spacing: 0.06em; line-height: 1.25; color: var(--navy); }
+.pwa-app-host { margin-top: 2px; font-size: var(--fs-sm); color: var(--text-muted); }
+
+.pwa-title { margin-top: var(--sp-2); font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.01em; }
+.pwa-desc { font-size: var(--fs-base); line-height: 1.55; color: var(--text-muted); max-width: 46ch; }
+
+.pwa-benefits { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin: var(--sp-1) 0; padding: var(--sp-3) 0; border-block: 1px solid var(--border); }
+.pwa-benefits li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-md); font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+.pwa-benefits i { color: var(--accent); font-size: 0.9em; }
+
+.pwa-guide { padding: var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated-2); }
+.pwa-guide-title { font-size: var(--fs-base); }
+.pwa-steps { counter-reset: pwa-step; display: grid; gap: var(--sp-2); margin-top: var(--sp-3); }
+.pwa-steps li { counter-increment: pwa-step; position: relative; padding-left: 30px; font-size: var(--fs-md); line-height: 1.5; }
+.pwa-steps li::before {
+  content: counter(pwa-step); position: absolute; left: 0; top: 1px; width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--accent); color: #fff; font-size: var(--fs-xs); font-weight: 700; line-height: 1;
+}
+.pwa-guide-note { margin-top: var(--sp-3); font-size: var(--fs-sm); color: var(--text-muted); }
+
+.pwa-status { display: flex; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-3); border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-elevated-2); font-size: var(--fs-md); line-height: 1.45; }
+.pwa-status i { margin-top: 2px; color: var(--accent); }
+.pwa-status[data-tone="success"] { background: var(--tint-green); border-color: rgba(20, 160, 91, 0.35); color: var(--green-text); }
+.pwa-status[data-tone="success"] i { color: var(--green-text); }
+.pwa-status[data-tone="warn"] { background: var(--tint-amber); border-color: rgba(217, 130, 0, 0.35); color: var(--accent-amber); }
+.pwa-status[data-tone="warn"] i { color: var(--accent-amber); }
+
+.pwa-actions { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-2); }
+.pwa-primary { flex: 1 1 auto; min-height: 48px; font-size: var(--fs-lg); }
+.pwa-later { flex: none; min-height: 48px; }
+.pwa-primary:disabled { opacity: 0.85; cursor: progress; }
+
+/* ---------- phones: bottom sheet ---------- */
+@media (max-width: 699px) {
+  .pwa-overlay { align-items: end; padding: max(var(--sp-3), env(safe-area-inset-top, 0px)) 0 0; }
+  .pwa-dialog {
+    --pwa-shot-h: min(54vh, 430px);
+    --pwa-shot-h: min(54dvh, 430px);
+    width: 100%; max-height: 100%; border-radius: 24px 24px 0 0; border-bottom: 0;
+    transform: translateY(32px);
+  }
+  .pwa-grid { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+  .pwa-preview { padding: var(--sp-5) var(--sp-3); }
+  .pwa-shot-img, .pwa-shot-fallback { border-radius: 16px; }
+  .pwa-info { gap: var(--sp-2); padding: var(--sp-5) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); }
+  .pwa-close { top: var(--sp-2); right: var(--sp-2); width: 44px; height: 44px; }
+  .pwa-app { gap: var(--sp-2); padding-right: 40px; }
+  .pwa-app-icon { width: 44px; height: 44px; border-radius: 12px; }
+  .pwa-app-name { font-size: var(--fs-sm); letter-spacing: 0.04em; }
+  .pwa-title { margin-top: var(--sp-1); font-size: 1.125rem; }
+  .pwa-desc { font-size: var(--fs-md); line-height: 1.5; }
+  .pwa-benefits { gap: var(--sp-1) var(--sp-3); padding: var(--sp-2) 0; }
+  .pwa-benefits li { font-size: var(--fs-sm); }
+  .pwa-guide { padding: var(--sp-3); }
+  .pwa-actions { flex-direction: column; align-items: stretch; gap: var(--sp-1); }
+  .pwa-primary, .pwa-later { width: 100%; }
+  .pwa-later { min-height: 44px; }
+}
+
+/* very narrow phones (≈ 360px and under): not enough room for two columns → stack, screenshot stays clearly visible */
+@media (max-width: 379px) {
+  .pwa-dialog { --pwa-shot-h: min(36vh, 300px); --pwa-shot-h: min(36dvh, 300px); }
+  .pwa-grid { grid-template-columns: minmax(0, 1fr); }
+  .pwa-preview { padding: var(--sp-4) var(--sp-4) var(--sp-3); }
+  .pwa-shot-fallback { width: min(100%, 130px); }
+  .pwa-info { padding-top: var(--sp-4); }
+  .pwa-app { padding-right: 0; }
+}
+
+/* short landscape screens: use the width, keep the popup inside the viewport */
+@media (max-height: 520px) and (min-width: 700px) {
+  .pwa-dialog { --pwa-shot-h: min(60vh, 300px); --pwa-shot-h: min(60dvh, 300px); }
+  .pwa-preview { padding: var(--sp-4); }
+  .pwa-info { padding-block: var(--sp-5) var(--sp-4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pwa-overlay, .pwa-dialog, .pwa-shot-img { transition: none !important; }
+  .pwa-dialog { transform: none !important; }
+}
