@@ -207,14 +207,14 @@ const POPUP_HTML = `
       <figure class="pwa-shot" data-el="shot">
         <img class="pwa-shot-img" data-el="img" alt="" decoding="async" fetchpriority="high">
         <div class="pwa-shot-fallback" data-el="fallback">
-          <img src="assets/pwa/android-chrome-192.png" alt="" width="56" height="56" decoding="async">
+          <img src="assets/pwa/icon-192.png" alt="" width="56" height="56" decoding="async">
           <span>Tech Verse Exam</span>
         </div>
       </figure>
     </div>
     <div class="pwa-info">
       <div class="pwa-app">
-        <img class="pwa-app-icon" src="assets/pwa/android-chrome-192.png" alt="" width="56" height="56" decoding="async">
+        <img class="pwa-app-icon" src="assets/pwa/icon-192.png" alt="" width="56" height="56" decoding="async">
         <div class="pwa-app-text">
           <p class="pwa-app-name" data-el="appName"></p>
           <p class="pwa-app-host" data-el="host"></p>
