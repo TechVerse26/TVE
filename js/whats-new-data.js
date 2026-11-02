@@ -11,11 +11,12 @@
 // ==========================================================================
 export const WHATS_NEW = {
   enabled: true,
-  version: "01.00.02.23683",
-  date: "2026-10-30",
+  version: "01.00.02.23685",
+  date: "2026-11-02",
   title: "Tech Verse Exam-এ নতুন কী কী ফিউচার নতুন আসছে",
   lead: "নিচে দেখেনিন আমাদের Tech Verse Exam platform এর নিত্য নতুন ফিউচার।",
   items: [
+    { icon: "fa-graduation-cap", tone: "blue", title: "নতুন Academic Section চালু!", text: "Courses সেকশনে যুক্ত হয়েছে নতুন Academic Section। এখন JSC, SSC ও HSC শিক্ষার্থীরা নিজেদের শ্রেণি অনুযায়ী অনলাইন পরীক্ষায় অংশ নিতে পারবে এবং নিজেদের প্রস্তুতি যাচাই করতে পারবে।" },
     { icon: "fa-mobile-screen-button", tone: "blue", title: "Installable PWA", text: "Fully optimized for Progressive Web App installation across supported devices." },
     { icon: "fa-palette", tone: "blue", title: "নতুন ডিজাইন", text: "নীল ও নেভি থিমে সব পেজ একই স্টাইলে — ফোনে ও কম্পিউটারে সমান সুন্দর।" },
     { icon: "fa-house", tone: "purple", title: "নতুন হোম পেজ", text: "সার্চ বার, Popular Categories ও How It Works — যা খুঁজছেন এক ট্যাপেই।" },
