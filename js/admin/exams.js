@@ -47,6 +47,26 @@ export let currentExams = [];
    List page
    ========================================================================== */
 let root = null, table = null, updateBulk = () => {}, staleExams = false, loadFailed = false;
+
+/* ---------- Academic placement (Section › Level › Subject) — optional, see js/admin/academic.js ----------
+   Loaded with dynamic import(): if the academic modules or the academic collections are unavailable, this page works
+   exactly as before and simply has no "Academic placement" box (an exam's existing academic ids are left untouched). */
+let acIndex = null; // { core, index } — only used to print "Academic › SSC › Mathematics" under an exam's title
+async function loadAcademicForForm() {
+  try {
+    const [core, D] = await Promise.all([import("../academic-core.js"), import("./core/academic-data.js")]);
+    return { AC: core, data: await D.loadAcademic() };
+  } catch { return null; }
+}
+/** Only when some exam already sits in an academic subject (so sites that don't use Academic never pay for the extra reads). */
+async function primeAcademicIndex() {
+  if (!currentExams.some((e) => e.academicSubjectId)) return;
+  const a = await loadAcademicForForm();
+  if (!a) return;
+  acIndex = { core: a.AC, index: a.AC.indexNodes(a.data) };
+  refreshList();
+}
+const academicPath = (e) => (acIndex ? acIndex.core.placementPath(e, acIndex.index) : "");
 const filters = { q: "", status: "all", type: "", subject: "", category: "", course: "", difficulty: "", date: "" };
 
 export async function mount(el) {
@@ -139,6 +159,7 @@ export async function loadExamsTable(opts) {
     currentExams = await fetchAllExamsAdmin(opts);
     loadFailed = false;
     refreshList();
+    primeAcademicIndex();
     // What we just read IS the truth — make sure the students' index matches it (1 read; a write only if something differs).
     if (!wasCached || cache.wantsFresh(opts)) syncExamIndex(currentExams, courses).catch(() => { /* retried on the next fresh load */ });
   } catch (err) {
@@ -163,7 +184,7 @@ function filtered() {
       if (filters.date === "past" && !(t && t < ds)) return false;
       if (filters.date === "none" && t) return false;
     }
-    return !q || `${e.title} ${e.courseName || ""} ${subjectName(e.subjectId)} ${categoryPath(e.categoryId)}`.toLowerCase().includes(q);
+    return !q || `${e.title} ${e.courseName || ""} ${subjectName(e.subjectId)} ${categoryPath(e.categoryId)} ${academicPath(e)}`.toLowerCase().includes(q);
   });
 }
 
@@ -196,7 +217,7 @@ function examColumns() {
   const canWrite = can("exams.write"), canDel = can("exams.delete");
   return [
     { key: "title", label: "Exam", sortable: true, sortValue: (e) => e.title || "", render: (e) => {
-      const sub = [subjectName(e.subjectId), categoryPath(e.categoryId), e.courseName].filter(Boolean).join(" · ");
+      const sub = [subjectName(e.subjectId), categoryPath(e.categoryId), e.courseName, academicPath(e)].filter(Boolean).join(" · ");
       return `<div class="cell-main"><div class="t">${e.featured ? '<i class="fa-solid fa-star" style="color:var(--accent-amber)" title="Featured on the home page"></i> ' : ""}${esc(e.title || "Untitled")}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ""}</div>`;
     } },
     { key: "status", label: "Status", sortable: true, sortValue: (e) => examState(e), render: (e) => {
@@ -331,6 +352,7 @@ async function openExamStats(examId) {
         <dt>Difficulty</dt><dd>${esc(DIFFICULTY[ex.difficulty]?.label || "—")}</dd>
         <dt>Subject</dt><dd>${esc(subjectName(ex.subjectId) || "—")}</dd>
         <dt>Category</dt><dd>${esc(categoryPath(ex.categoryId) || "—")}</dd>
+        ${ex.academicSubjectId ? `<dt>Academic</dt><dd>${esc(academicPath(ex) || "Academic subject")}</dd>` : ""}
         <dt>Options</dt><dd>${examSettingsBadges(ex)}</dd></dl></div>
       ${can("exams.write") ? `<div class="row"><button type="button" class="btn btn-primary btn-sm" id="stats-edit"><i class="fa-solid fa-pen"></i> Edit exam</button></div>` : ""}`;
     d.body.querySelector("#stats-edit")?.addEventListener("click", () => { d.close(); openExamModal(examId); });
@@ -414,8 +436,67 @@ function toDatetimeLocalValue(ts) {
 }
 
 
+/* ---------- the "Academic placement" box of the exam editor ---------- */
+const acOpt = (v, label, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(label)}</option>`;
+const acLabel = (n) => `${n.name}${n.status !== "active" ? ` (${n.status})` : ""}`;
+
+function academicPlacementHtml(academic, ex) {
+  if (!academic) return "";
+  const { AC, data } = academic;
+  const sections = data.sections.filter((s) => s.status !== "archived" || s.id === ex?.academicProgramId).sort(AC.byOrder);
+  return `
+    <div class="field ac-placement" id="em-academic">
+      <label>Academic placement <span class="muted">(optional)</span></label>
+      <div class="admin-grid">
+        <div class="field"><select id="em-ac-section" aria-label="Academic section"><option value="">— Not in an academic program —</option>${sections.map((s) => acOpt(s.id, acLabel(s), s.id === ex?.academicProgramId)).join("")}</select></div>
+        <div class="field"><select id="em-ac-level" aria-label="Level"></select></div>
+      </div>
+      <div class="field"><select id="em-ac-subject" aria-label="Subject"></select></div>
+      <div class="ac-path" id="em-ac-path" aria-live="polite"></div>
+      <span class="form-hint">Place the exam inside Section › Level › Subject and it appears on that subject's dashboard (Upcoming / Live / Practice). Leave it empty for a normal exam. Create the sections, levels and subjects under <b>Academic Management</b>.</span>
+    </div>`;
+}
+
+/** Cascading Section → Level → Subject selects; read() → { ok, fields } | { ok: false, message }. */
+function bindAcademicPlacement(overlay, academic, ex) {
+  const { AC, data } = academic;
+  const el = (id) => overlay.querySelector(id);
+  const secSel = el("#em-ac-section"), lvlSel = el("#em-ac-level"), subSel = el("#em-ac-subject"), pathEl = el("#em-ac-path");
+  const keep = (n, id) => n.status !== "archived" || n.id === id;       // an archived node is offered only if this exam already sits in it
+  const fillLevels = (sel) => {
+    const sid = secSel.value;
+    lvlSel.disabled = !sid;
+    lvlSel.innerHTML = `<option value="">${sid ? "— Select level —" : "Level"}</option>` + (sid ? data.levels.filter((l) => l.sectionId === sid && keep(l, ex?.academicLevelId)).sort(AC.byOrder).map((l) => acOpt(l.id, acLabel(l), l.id === sel)).join("") : "");
+  };
+  const fillSubjects = (sel) => {
+    const lid = lvlSel.value;
+    subSel.disabled = !lid;
+    subSel.innerHTML = `<option value="">${lid ? "— Select subject —" : "Subject"}</option>` + (lid ? data.subjects.filter((b) => b.levelId === lid && keep(b, ex?.academicSubjectId)).sort(AC.byOrder).map((b) => acOpt(b.id, acLabel(b), b.id === sel)).join("") : "");
+  };
+  const paint = () => {
+    const names = [data.sections.find((x) => x.id === secSel.value), data.levels.find((x) => x.id === lvlSel.value), data.subjects.find((x) => x.id === subSel.value)].filter(Boolean).map((n) => n.name);
+    pathEl.innerHTML = names.length === 3 ? `<i class="fa-solid fa-sitemap"></i> Academic: ${names.map((n) => `<b>${esc(n)}</b>`).join(" › ")}` : names.length ? `<span class="muted">Choose the level and the subject to finish the placement.</span>` : "";
+  };
+  fillLevels(ex?.academicLevelId); fillSubjects(ex?.academicSubjectId); paint();
+  secSel.addEventListener("change", () => { fillLevels(""); fillSubjects(""); paint(); });
+  lvlSel.addEventListener("change", () => { fillSubjects(""); paint(); });
+  subSel.addEventListener("change", paint);
+
+  const hadPlacement = !!(ex && (ex.academicProgramId || ex.academicLevelId || ex.academicSubjectId));
+  return {
+    read() {
+      const res = AC.validatePlacement({ sectionId: secSel.value, levelId: lvlSel.value, subjectId: subSel.value }, AC.indexNodes(data));
+      if (!res.ok) return { ok: false, message: res.error === "incomplete" ? "Academic placement: choose the section, the level AND the subject — or clear all three." : "Academic placement is no longer valid — reselect it." };
+      if (res.empty) return { ok: true, fields: hadPlacement ? res.payload : {} }; // cleared → blank the three ids; never had one → write nothing
+      return { ok: true, fields: res.payload };
+    },
+  };
+}
+
 async function openExamModal(examId) {
   const ex = examId ? currentExams.find((x) => x.id === examId) : null;
+  const academic = await loadAcademicForForm(); // null → no "Academic placement" box, nothing academic is written
+  if (academic) acIndex = { core: academic.AC, index: academic.AC.indexNodes(academic.data) }; // so the list can show "Academic › SSC › Maths" right after saving
   let questionDrafts = [];
   if (ex) {
     // One bundle document for an up-to-date exam (1 read); the old per-question docs only for exams not optimised yet.
@@ -467,6 +548,7 @@ async function openExamModal(examId) {
           </select>
           <span class="form-hint">If you link a course, only students enrolled in that course will be able to see or take this exam — unenrolled students won't see it in their list at all</span>
         </div>
+        ${academicPlacementHtml(academic, ex)}
 
         <div class="field" id="em-scope-field" hidden>
           <label>Exam Covers</label>
@@ -596,6 +678,7 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
   const lessonsField = overlay.querySelector("#em-lessons-field");
   const scopeSelect = overlay.querySelector("#em-scope");
   const lessonPicker = overlay.querySelector("#em-lesson-picker");
+  const placement = academic ? bindAcademicPlacement(overlay, academic, ex) : null;
   const courseSelectEl = overlay.querySelector("#em-course-id");
   const examLessonsCache = {};
 
@@ -889,6 +972,13 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
       return;
     }
 
+    const place = placement ? placement.read() : null;
+    if (place && !place.ok) {
+      switchExamTab("settings");
+      toast(place.message, "error");
+      return;
+    }
+
     const btn = overlay.querySelector("#exam-modal-save-btn");
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span>`;
@@ -916,6 +1006,7 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         featured: overlay.querySelector("#em-featured").checked,
         passPercent: Math.min(100, Math.max(0, Number(overlay.querySelector("#em-pass-percent").value) || 0)),
         instructions: overlay.querySelector("#em-instructions").value.trim(),
+        ...(place ? place.fields : {}), // academicProgramId / academicLevelId / academicSubjectId — only when the box exists and something changed or is set
       };
 
       // Publish schedule — leave empty for "publish now", leave hours empty/0 for "unlimited".

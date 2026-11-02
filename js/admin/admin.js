@@ -36,6 +36,7 @@ const NAV = [
     { id: "schedule", label: "Exam Schedule", icon: "fa-calendar-days", perm: "exams.view", mod: "./schedule.js" },
     { id: "questions", label: "Question Bank", icon: "fa-circle-question", perm: "questions.view", mod: "./questions.js" },
     { id: "taxonomy", label: "Subjects & Categories", icon: "fa-folder-tree", perm: "taxonomy.view", mod: "./taxonomy-page.js" },
+    { id: "academic", label: "Academic Management", icon: "fa-graduation-cap", perm: "academic.view", mod: "./academic.js" },
   ] },
   { group: "People", items: [
     { id: "students", label: "Students", icon: "fa-users", perm: "students.view", mod: "./students.js" },

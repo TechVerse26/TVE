@@ -23,6 +23,7 @@ const PERM_LABELS = {
   "exams.view": "Exams: view", "exams.write": "Exams: create & edit", "exams.delete": "Exams: delete",
   "questions.view": "Question Bank: view", "questions.write": "Question Bank: add & edit", "questions.delete": "Question Bank: delete",
   "taxonomy.view": "Subjects/Categories: view", "taxonomy.write": "Subjects/Categories: edit",
+  "academic.view": "Academic: view", "academic.write": "Academic: create & edit", "academic.delete": "Academic: delete & move", "academic.access": "Academic: student access",
   "students.view": "Students: view", "students.manage": "Students: manage accounts",
   "results.view": "Results: view", "results.export": "Results: export",
   "analytics.view": "Analytics", "notifications.manage": "Notifications", "email.manage": "Email Center", "logs.view": "Activity Logs",
