@@ -70,6 +70,13 @@ export const ACTIONS = {
   "email.campaign.retry": ["Failed recipients retried", "fa-rotate", "amber"],
   "email.campaign.export": ["Campaign details exported", "fa-download", ""],
   "email.campaign.delete": ["Email campaign deleted", "fa-trash", "coral"],
+  "academic.create": ["Academic item created", "fa-graduation-cap", "teal"],
+  "academic.update": ["Academic item updated", "fa-graduation-cap", ""],
+  "academic.status": ["Academic item status changed", "fa-toggle-on", "amber"],
+  "academic.order": ["Academic order changed", "fa-arrow-down-1-9", ""],
+  "academic.move": ["Academic content moved", "fa-right-left", "amber"],
+  "academic.delete": ["Academic item deleted", "fa-trash", "coral"],
+  "academic.access": ["Academic access granted / revoked", "fa-key", "amber"],
 };
 export const actionMeta = (a) => ACTIONS[a] || [a, "fa-circle-info", ""];
 

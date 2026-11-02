@@ -17,20 +17,28 @@ export const ROLES = {
     desc: "এক্সাম, শিডিউল, প্রশ্ন, শিক্ষার্থী, রেজাল্ট, নোটিশ, হোমপেজ কন্টেন্ট ও ইমেইল ক্যাম্পেইন (Email Center) পরিচালনা করতে পারে; সেটিংস, EmailJS কনফিগারেশন ও অ্যাডমিন বদলাতে পারে না।",
     perms: ["exams.view", "exams.write", "exams.delete", "questions.view", "questions.write", "questions.delete",
       "taxonomy.view", "taxonomy.write", "students.view", "students.manage", "results.view", "results.export",
-      "analytics.view", "notifications.manage", "notices.manage", "homepage.manage", "logs.view", "email.manage"],
+      "analytics.view", "notifications.manage", "notices.manage", "homepage.manage", "logs.view", "email.manage",
+      "academic.view", "academic.write", "academic.delete", "academic.access"],
   },
   editor: {
     label: "Content Editor", tone: "amber",
     desc: "এক্সাম, প্রশ্ন ও বিষয়/ক্যাটাগরি তৈরি ও এডিট করতে পারে; মুছতে বা শিক্ষার্থী পরিচালনা করতে পারে না।",
     perms: ["exams.view", "exams.write", "questions.view", "questions.write", "taxonomy.view", "taxonomy.write",
-      "results.view", "analytics.view"],
+      "results.view", "analytics.view", "academic.view", "academic.write"],
   },
   viewer: {
     label: "Viewer", tone: "",
     desc: "শুধু দেখতে পারে — কিছুই বদলাতে পারে না।",
-    perms: ["exams.view", "questions.view", "taxonomy.view", "students.view", "results.view", "analytics.view"],
+    perms: ["exams.view", "questions.view", "taxonomy.view", "students.view", "results.view", "analytics.view", "academic.view"],
   },
 };
+
+/* Academic Management (Section › Level › Subject — js/admin/academic.js)
+     academic.view    open the page and see the tree                                              → Manager, Editor, Viewer
+     academic.write   create / edit / reorder / archive sections, levels and subjects              → Manager, Editor
+     academic.delete  delete an empty node, move content to another node                          → Manager
+     academic.access  grant or revoke a student's access to a Paid program (academicEntitlements)  → Manager
+   Super Admin holds all of them through "*". firestore.rules applies the same split (canEditContent / canManageComms). */
 
 /* Email Center permissions
      email.manage    compose, preview, test-send and send campaigns; manage templates & campaign history   → Super Admin, Manager
