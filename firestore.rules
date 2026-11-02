@@ -34,6 +34,46 @@ service cloud.firestore {
       );
     }
 
+    /* ---------- Academic Management (Section › Level › Subject) — শিক্ষার্থী কোন কোন এক্সামের প্রশ্ন পড়তে পারবে ----------
+       এক্সামের academicProgramId / academicLevelId / academicSubjectId ফিল্ড ঐচ্ছিক — পুরোনো (বা academic নয় এমন) এক্সামে না থাকলে
+       নিচের কোনো শর্তই চলে না, আচরণ হুবহু আগের মতো (কোনো বাড়তি রিডও নয়)।
+       ফিল্ড থাকলে প্রশ্ন পড়ার অনুমতি মেলে শুধু যদি:
+         • subject, level ও section — তিনটিই active (inactive / archived হলে শিক্ষার্থী পাবে না) এবং এক্সামের আইডিগুলো পরস্পর মেলে
+           (subject.levelId == academicLevelId, subject.sectionId == level.sectionId == academicProgramId), এবং
+         • effective access Free হয়, অথবা Paid হলে শিক্ষার্থীর subject / level / section-এর যেকোনো একটিতে অ্যাক্সেস দেওয়া আছে।
+       effective access = subject → level → section: নিজের mode 'free'/'paid' হলে সেটাই, 'inherit' হলে ওপরেরটা, সবার ওপরেও inherit হলে Free।
+       অ্যাক্সেসের প্রমাণ academicEntitlements/{uid}_{nodeId} — লিখতে পারে শুধু অ্যাডমিন (Super Admin / Manager)। শিক্ষার্থীর নিজের
+       users/{uid}.enrolledCourses এখানে ধরাই হয় না, কারণ সেটা শিক্ষার্থী নিজেই বদলাতে পারে।
+       খরচ: academic এক্সামে অতিরিক্ত ≤ ৬টা get/exists (subject, level, section + সর্বোচ্চ ৩টা অ্যাক্সেস-চেক); সব মিলিয়ে ১০-এর সীমার ভেতরে। */
+    function hasAcademicGrant(nodeId) {
+      return exists(/databases/$(database)/documents/academicEntitlements/$(request.auth.uid + '_' + nodeId));
+    }
+    function academicIsPaid(sub, lvl, sec) {
+      return sub.get('accessMode', 'inherit') == 'paid'
+        || (sub.get('accessMode', 'inherit') == 'inherit'
+            && (lvl.get('accessMode', 'inherit') == 'paid'
+                || (lvl.get('accessMode', 'inherit') == 'inherit' && sec.get('accessMode', 'inherit') == 'paid')));
+    }
+    function academicChainOk(ex, sub, lvl, sec) {
+      return sub.get('status', 'inactive') == 'active'
+        && lvl.get('status', 'inactive') == 'active'
+        && sec.get('status', 'inactive') == 'active'
+        && sub.get('levelId', '') == ex.academicLevelId
+        && sub.get('sectionId', '') == ex.academicProgramId
+        && lvl.get('sectionId', '') == ex.academicProgramId
+        && (!academicIsPaid(sub, lvl, sec)
+            || hasAcademicGrant(ex.academicSubjectId)
+            || hasAcademicGrant(ex.academicLevelId)
+            || hasAcademicGrant(ex.academicProgramId));
+    }
+    function academicAllowsStudent(ex) {
+      return ex.get('academicSubjectId', '') == ''
+        || academicChainOk(ex,
+          get(/databases/$(database)/documents/academicSubjects/$(ex.academicSubjectId)).data,
+          get(/databases/$(database)/documents/academicLevels/$(ex.academicLevelId)).data,
+          get(/databases/$(database)/documents/academicSections/$(ex.academicProgramId)).data);
+    }
+
     /* ---------- এক্সাম এই মুহূর্তে শিক্ষার্থীর জন্য খোলা কিনা — সার্ভারের নিজের ঘড়ি (request.time) দিয়ে ----------
        ক্লায়েন্টের ঘড়ি/UI-র ওপর ভরসা নয়: প্রশ্ন (সঠিক উত্তর সহ) পড়ার অনুমতিই মেলে না যদি
          • এক্সাম Draft হয়, বা সময়সূচি বাতিল (cancelled) হয়,
@@ -52,7 +92,8 @@ service cloud.firestore {
             && (ex.get('publishAt', null) == null || ex.publishAt <= request.time)
             && (ex.get('closesAt', null) == null || ex.closesAt >= request.time)
           )
-        );
+        )
+        && academicAllowsStudent(ex); // academic ফিল্ড না থাকলে সঙ্গে সঙ্গে true — পুরোনো এক্সামের আচরণ অপরিবর্তিত
     }
     /* বড় প্রশ্নব্যাংকের চাংক-আইডি "{examId}__1" থেকে examId বের করে */
     function bundleExamId(bundleId) {
@@ -417,6 +458,69 @@ match /counters/{counterId} {
     match /examTaxonomy/{docId} {
       allow read: if isAdmin();
       allow write: if canEditContent();
+    }
+
+    /* ---------- Academic Management: academicSections / academicLevels / academicSubjects ----------
+       ছবি শুধু coverImage ফিল্ডের একটা https URL স্ট্রিং — ফাইল/Base64 নয়, Firebase Storage-এর কোনো ব্যবহার নেই।
+       পড়া:  অ্যাডমিন সবকিছু; শিক্ষার্থী শুধু status == 'active' ডকুমেন্ট (inactive / archived শিক্ষার্থীর কাছে অস্তিত্বহীন)।
+              কোয়েরিতেও where(\"status\", \"==\", \"active\") থাকতে হয় — অ্যাপ সেটাই করে।
+       লেখা:  তৈরি/এডিট = Super Admin, Manager, Content Editor (canEditContent); মুছে ফেলা = Super Admin ও Manager।
+       প্যারেন্ট-চাইল্ড সম্পর্ক সার্ভারেও যাচাই হয়: level-এর section আছে; subject-এর level আছে এবং subject.sectionId == level.sectionId।
+       existsAfter()/getAfter(): কনটেন্ট সরানোর সময় (একটা batch-এ level আর তার subject একসাথে বদলায়) প্যারেন্টের *নতুন* অবস্থা দেখা হয়।
+       নাম/ক্রম/স্ট্যাটাস বদলানোর update-এ প্যারেন্ট বদলায় না, তাই সেখানে কোনো বাড়তি lookup-ই নেই। */
+    function validAcademicNode(d) {
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.get('description', '') is string && d.get('description', '').size() <= 600
+        && d.get('coverImage', '') is string && d.get('coverImage', '').size() <= 2048
+        && (d.get('coverImage', '') == '' || d.get('coverImage', '').matches('https://[^ ]+'))
+        && d.status in ['active', 'inactive', 'archived']
+        && d.accessMode in ['free', 'paid', 'inherit']
+        && d.order is number
+        && d.get('linkedCourseId', '') is string && d.get('linkedCourseId', '').size() <= 128;
+    }
+    match /academicSections/{sectionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.status == 'active');
+      allow create, update: if canEditContent() && validAcademicNode(request.resource.data);
+      allow delete: if canManageComms();
+    }
+    match /academicLevels/{levelId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.status == 'active');
+      allow create: if canEditContent() && validAcademicNode(request.resource.data)
+        && request.resource.data.sectionId is string
+        && existsAfter(/databases/$(database)/documents/academicSections/$(request.resource.data.sectionId));
+      allow update: if canEditContent() && validAcademicNode(request.resource.data)
+        && request.resource.data.sectionId is string
+        && (request.resource.data.sectionId == resource.data.get('sectionId', '')
+            || existsAfter(/databases/$(database)/documents/academicSections/$(request.resource.data.sectionId)));
+      allow delete: if canManageComms();
+    }
+    match /academicSubjects/{subjectId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.status == 'active');
+      allow create: if canEditContent() && validAcademicNode(request.resource.data)
+        && request.resource.data.levelId is string
+        && request.resource.data.sectionId is string
+        && getAfter(/databases/$(database)/documents/academicLevels/$(request.resource.data.levelId)).data.sectionId == request.resource.data.sectionId;
+      allow update: if canEditContent() && validAcademicNode(request.resource.data)
+        && request.resource.data.levelId is string
+        && request.resource.data.sectionId is string
+        && ((request.resource.data.levelId == resource.data.get('levelId', '') && request.resource.data.sectionId == resource.data.get('sectionId', ''))
+            || getAfter(/databases/$(database)/documents/academicLevels/$(request.resource.data.levelId)).data.sectionId == request.resource.data.sectionId);
+      allow delete: if canManageComms();
+    }
+
+    /* ---------- Paid Academic অ্যাক্সেসের প্রমাণ (academicEntitlements/{uid}_{nodeId}) ----------
+       "এই শিক্ষার্থী এই section / level / subject (এবং তার নিচের সবকিছু) খুলতে পারবে" — ডকুমেন্ট আইডি = শিক্ষার্থীর uid + "_" + নোডের আইডি,
+       যাতে উপরের academicAllowsStudent() সরাসরি exists() দিয়ে যাচাই করতে পারে।
+       লিখতে/মুছতে পারে শুধু Super Admin ও Manager — শিক্ষার্থী নিজে কখনোই নয় (তাই enrolledCourses-এর মতো নিজে বানিয়ে নেওয়া যায় না)।
+       পড়তে পারে: শিক্ষার্থী শুধু নিজের (where uid == নিজের uid), অ্যাডমিন সবার। */
+    match /academicEntitlements/{entId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create, update: if canManageComms()
+        && request.resource.data.uid is string
+        && request.resource.data.nodeId is string
+        && request.resource.data.nodeKind in ['section', 'level', 'subject']
+        && entId == request.resource.data.uid + '_' + request.resource.data.nodeId;
+      allow delete: if canManageComms();
     }
 
     /* প্রশ্নব্যাংক (questionBank/meta, qb__0, qb__1 …) — সঠিক উত্তর আছে, তাই শিক্ষার্থীদের জন্য কখনোই পড়ার অনুমতি নেই */

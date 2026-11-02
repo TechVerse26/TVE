@@ -373,6 +373,152 @@ Credits-এর placeholder ও ছবি-ফলব্যাক, 320/390/820/1366
 - **আচরণ:** এক্সাম চলাকালীন (`body.exam-taking`) ফুটার লুকানো; ছোট পেজে (যেমন 404) ফুটার স্ক্রিনের নিচের কিনারায় বসে; প্রিন্টে বন্ধ।
   অ্যাপ বুট হওয়ার পর (`load`) আঁকা হয়, তাই লোডিংয়ের সময় ফাঁকা পর্দায় ভেসে ওঠে না।
 
+## Academic Management — Section › Level › Subject (`js/academic-*.js`, `js/admin/academic.js`)
+
+Course পেজে (`#/exam`) এখন TVcourse-এর কোর্স কার্ডের নিচে অ্যাডমিনের বানানো **Academic Programs** দেখায়।
+পুরো কাঠামো — কোন Section, কোন Level, কোন Subject — **অ্যাডমিন প্যানেল থেকে বানানো ডেটা**। কোডে SSC / HSC /
+Masters / Mathematics-এর মতো কোনো নাম লেখা নেই (ইউনিট টেস্টও সেটা যাচাই করে), তাই নতুন Category বানাতে ডেভেলপার লাগে না।
+
+```
+Course পেজ (#/exam)
+├─ আগের কোর্স কার্ড ............................ অপরিবর্তিত
+└─ Academic Programs
+   └─ Section (যেমন "Academic")
+      └─ Level (যেমন "SSC", "HSC", "Class 8" — অ্যাডমিন যা নাম দেয়)
+         └─ Subject (SSC-র Mathematics ≠ HSC-র Mathematics, আলাদা ডকুমেন্ট)
+            └─ Upcoming · Live · Practice এক্সাম  ← আগের এক্সাম ইঞ্জিনই, আলাদা ইঞ্জিন নয়
+```
+
+### শিক্ষার্থীর রুট (আগের সব রুট আগের মতোই কাজ করে)
+
+| URL | কী দেখায় |
+|---|---|
+| `#/exam` | কোর্স কার্ড + Academic কার্ড (cover, নাম, বিবরণ, Level সংখ্যা, Exam সংখ্যা, Free/Paid ব্যাজ) |
+| `#/exam?academicProgram=P` | সেই Section-এর Level কার্ড |
+| `#/exam?academicProgram=P&academicLevel=L` | **শুধু** সেই Level-এর Subject |
+| `…&academicSubject=S` | Subject ড্যাশবোর্ড: Upcoming / Live / Practice (সংখ্যাসহ) |
+| `…&academicSubject=S&type=practice` | ওই Subject-এর `practice` / `live` / `upcoming` এক্সাম |
+
+প্রতিটি পেজে Breadcrumb আছে; refresh, back/forward ও সরাসরি লিংক কাজ করে। কোনো Section/Level/Subject না থাকলে বা
+inactive/archived হলে সুন্দর "পাওয়া যাচ্ছে না" পেজ দেখায়। অন্য Subject-এর এক্সাম কখনো মেশে না — এক্সামের তিনটি আইডিই মিলতে হয়।
+অ্যাকাডেমিক এক্সাম শেষে (এন্ট্রি-গেটের "Go back" ও ফলাফলের "সাবজেক্টের এক্সাম" বোতাম) শিক্ষার্থী ঐ Subject-এর ড্যাশবোর্ডেই ফেরে; সাধারণ এক্সামের ফেরার পথ আগের মতোই (`#/exam?course=…`)।
+
+### অ্যাডমিন: Exam system → **Academic Management**
+- **ড্যাশবোর্ড (৮টি কার্ড):** Sections · Levels · Subjects · Academic exams · Free programs · Paid programs · Active · Inactive/archived।
+- **Tree view:** প্রতিটি সারিতে ➕ চাইল্ড যোগ · ✏️ এডিট · ⬆⬇ ক্রম · ⋯ (Preview · Move to… · Activate/Deactivate · Archive/Restore ·
+  Student access · Delete)। সার্চ, Status ও Access ফিল্টার, Expand/Collapse।
+- **ফর্ম (Section / Level / Subject একই):** নাম · বিবরণ · **Cover Image URL** (লাইভ প্রিভিউ) · Status · Display order ·
+  Free / Paid / Inherit · Linked course (বিদ্যমান কোর্স)। নাম বদলালে সম্পর্ক ভাঙে না — সবকিছু stable document ID দিয়ে বাঁধা।
+- **Safe delete:** Level/Subject/Exam আছে এমন নোড সরাসরি মোছা যায় না। সংখ্যাসহ সতর্কবার্তা দেখায় এবং দুটো নিরাপদ পথ দেয় —
+  **Archive** (স্টুডেন্টের কাছে লুকানো, কিছু হারায় না) অথবা **কনটেন্ট অন্য নোডে সরিয়ে** তারপর মোছা (Level/Subject/Exam-এর আইডি
+  নতুন জায়গায় বসে; কাজ মাঝপথে থেমে গেলে আবার চালালে বাকিটুকু শেষ হয় — idempotent)। খালি নোড মুছতে নাম টাইপ করে নিশ্চিত করতে হয়।
+- **Exams → Create/Edit Exam:** নতুন ঐচ্ছিক **Academic placement** — Section বাছলে Level, Level বাছলে Subject লোড হয়; পুরো পথ
+  ("Academic › SSC › Mathematics") দেখায়। তিনটি একসাথে বাছতে হয় (বা তিনটিই ফাঁকা)। এক্সাম লিস্টেও পথটা সাবটাইটেলে দেখায়।
+- **রোল:** `academic.view` (Manager, Editor, Viewer) · `academic.write` তৈরি/এডিট/ক্রম/archive (Manager, Editor) ·
+  `academic.delete` মোছা ও কনটেন্ট সরানো (Manager) · `academic.access` শিক্ষার্থীর Paid অ্যাক্সেস (Manager)। Super Admin সবকিছু।
+  একই বিভাজন `firestore.rules`-এও আছে। সব পরিবর্তন Activity Logs-এ (`academic.*`) ওঠে।
+
+### ডেটা (Firestore)
+
+| ডকুমেন্ট | ফিল্ড |
+|---|---|
+| `academicSections/{id}` | `name, description, coverImage, status, order, accessMode, linkedCourseId, createdAt, updatedAt` |
+| `academicLevels/{id}` | `sectionId` + ঐ একই ফিল্ড |
+| `academicSubjects/{id}` | `sectionId, levelId` + ঐ একই ফিল্ড |
+| `academicEntitlements/{uid}_{nodeId}` | `uid, nodeId, nodeKind, studentName, studentEmail, source, ref, note, grantedBy, grantedAt` — শুধু অ্যাডমিন লেখে |
+| `exams/{id}` (**ঐচ্ছিক নতুন ফিল্ড**) | `academicProgramId, academicLevelId, academicSubjectId` — পুরোনো এক্সামে না থাকলে আগের মতোই চলে |
+| `examIndex/main` (**নতুন ফিল্ড**) | `academicHidden: [নোড আইডি…]` — inactive/archived নোডের তালিকা (নিচে দেখো) |
+
+- `status` = `active | inactive | archived` · `accessMode` = `free | paid | inherit` · `order` = পূর্ণ সংখ্যা (১০, ২০, ৩০…)।
+- আইডি Firestore-এর auto-ID, কখনো বদলায় না। এক্সামে শুধু আইডি জমা থাকে, নাম নয় — তাই নাম বদলালে কিছুই ভাঙে না।
+- Academic Subject (`academicSubjectId`) আর পুরোনো Taxonomy-র `subjectId` **আলাদা জিনিস**; `examTaxonomy/main` ছোঁয়া হয়নি।
+- কোনো ডেটা মাইগ্রেশন লাগে না: নতুন ফিল্ড ঐচ্ছিক, আর কোনো পুরোনো ডকুমেন্ট বদলানো হয় না।
+- **Composite index লাগে না।** সব কোয়েরি শুধু equality (`status == "active"` [+ `sectionId == …`]); সাজানো হয় ব্রাউজারে।
+
+### ছবি — শুধু URL, Firebase Storage নয়
+`coverImage` ফিল্ডে থাকে **একটি https URL স্ট্রিং** — ফাইল, Base64 বা বাইনারি নয়; কোথাও Firebase Storage import/ব্যবহার নেই
+(একটা ইউনিট টেস্ট পুরো `js/` ঘেঁটে এটা নিশ্চিত করে)। তুমি ছবি যেকোনো ইমেজ-হোস্টিংয়ে রেখে ডিরেক্ট লিংক পেস্ট করবে।
+- **Validate:** শুধু `https://…`। `javascript:`, `data:`, `file:`, `blob:`, `ftp:`, সাধারণ `http:`, স্পেস/কন্ট্রোল ক্যারেক্টার, URL-এ
+  ইউজার-পাসওয়ার্ড, ২০৪৮-এর বেশি অক্ষর — সব বাতিল। সেভ করা হয় normalise করা URL (কোট/`<`/`>` percent-encode হয়ে যায়)।
+- **Admin ফর্মে:** লাইভ প্রিভিউ (সত্যিকারের `<img>` এলিমেন্ট — URL কখনো HTML হিসেবে বসে না), **Update preview**, **Replace URL**
+  (ক্লিপবোর্ড থেকে পেস্ট, না পারলে ফোকাস), **Remove image**, অবৈধ লিংকের সতর্কবার্তা, লোড-ব্যর্থ অবস্থা।
+- **শিক্ষার্থীর পেজে:** `<img loading="lazy" object-fit:cover>`, ১৬:৯ ফ্রেম, লোড হলে ধীরে ফুটে ওঠে; ছবি না থাকলে বা না খুললে সমতল
+  নেভি প্লেসহোল্ডার + আইকন। একই URL একাধিক নোডে বসানো যায়, তবে প্রতিটির নিজস্ব `coverImage` ফিল্ড।
+- `firestore.rules`ও `coverImage`-কে `https://…` স্ট্রিং (≤ ২০৪৮) ছাড়া অন্য কিছু লিখতে দেয় না।
+
+### Free / Paid / Inherit
+- নিজের mode `free`/`paid` হলে সেটাই; `inherit` হলে ওপরেরটা (Subject → Level → Section); সবার ওপরে `inherit` = Free।
+  যেমন Academic = Free, SSC = Inherit → Free; HSC = Paid → তার সব Subject Paid; কোনো Subject আলাদা করে Free/Paid করা যায়।
+- Card-এ Free/Paid ব্যাজ; Paid নোডে শিক্ষার্থীর অ্যাক্সেস না থাকলে **"Premium access required"** পেজ — এক্সামের লিস্ট বা প্রশ্ন নয়।
+- **আসল সুরক্ষা সার্ভারে।** `firestore.rules`-এর `examOpenForStudents()` (যা `exams/{id}/questions` ও `examBundles/*` দুটোই পাহারা দেয়)
+  এখন `academicAllowsStudent()`-ও জিজ্ঞেস করে: Subject, Level, Section — তিনটিই `active` হতে হবে, এক্সামের আইডিগুলো পরস্পর মিলতে হবে,
+  আর effective access Paid হলে শিক্ষার্থীর Subject/Level/Section-এর যেকোনো একটিতে `academicEntitlements/{uid}_{nodeId}` থাকতে হবে।
+  Academic ফিল্ড নেই এমন এক্সামে এই শর্ত সঙ্গে সঙ্গে `true` — আচরণ ও খরচ হুবহু আগের মতো। বোতাম লুকানো আর নিরাপত্তা এক জিনিস নয়।
+- **`users/{uid}.enrolledCourses`-এর ওপর Paid অ্যাক্সেস দাঁড় করানো হয়নি** — শিক্ষার্থী নিজেই ওটা বদলাতে পারে (ওপরের "সীমাবদ্ধতা" দেখো)।
+  অ্যাক্সেসের প্রমাণ `academicEntitlements` — লিখতে/মুছতে পারে শুধু Super Admin ও Manager, শিক্ষার্থী কখনোই নয়।
+- **অ্যাক্সেস দেওয়ার উপায় (⋯ → Student access):** ① নাম/ইমেইল/রোল খুঁজে **Grant**; ② নোডে *Linked course* বাছা থাকলে
+  **Import redeemed access codes** — ঐ কোর্সের `accessCodes` (অ্যাডমিনের বানানো, `used == true`) থেকে শিক্ষার্থী বের করে অ্যাক্সেস বসায়;
+  অ্যাডমিন-বানানো কোড তাই বিশ্বাসযোগ্য প্রমাণ। **Revoke** করলে সঙ্গে সঙ্গে বন্ধ।
+- কোনো নকল পেমেন্ট/পারচেজ ডেটা বানানো হয়নি; পেমেন্ট সিস্টেম নকল করা হয়নি — কোর্স কেনা ও কোড দেওয়া আগের (TVcourse) প্রক্রিয়াতেই আছে।
+
+### inactive / archived নোড শিক্ষার্থীর কাছ থেকে কীভাবে লুকোয়
+- Section/Level/Subject কার্ড ও পেজ: কোয়েরিই `status == "active"` দিয়ে, আর rules inactive ডকুমেন্ট শিক্ষার্থীকে পড়তে দেয় না।
+- এক্সাম: নোড inactive/archived করলে অ্যাডমিন প্যানেল `examIndex/main.academicHidden`-এ আইডি লিখে দেয়। শিক্ষার্থীর এক্সাম ক্যাটালগ ঐ
+  ডকুমেন্টই পড়ে (বাড়তি রিড নেই) এবং সেগুলোর এক্সাম সব লিস্টে (Exams, Home, Schedule…) বাদ দেয়। সরাসরি লিংকে গেলেও
+  entry-gate ও rules আটকায়। Academic পেজ প্রথম খোলার সময় এবং ⟳ বোতামে তালিকাটা নতুন করে সিঙ্ক হয়।
+
+### Firestore রিড (ফ্রি কোটা বাঁচাতে)
+`#/exam`: sections ১টি কোয়েরি + প্রতি Section-এ ১টি সস্তা count কোয়েরি (Level সংখ্যা)। Section খুললে section ডকুমেন্ট + তার active level +
+subject — **একটাই "section tree", ৫ মিনিট ক্যাশে** — তাই Level → Subject → Subject ড্যাশবোর্ডে যেতে আর কোনো রিড লাগে না (E2E টেস্ট এটা গুনে
+যাচাই করে)। এক্সাম সংখ্যা/তালিকা আসে বিদ্যমান `examIndex/main` থেকে। অ্যাডমিন প্যানেল তিনটি কালেকশন ১০ মিনিটে একবার পড়ে, প্রতিটি লেখার পর
+নিজের কপি আপডেট করে।
+
+### ⚠ ডেপ্লয়ের ধাপ (এই ক্রমে)
+1. **`firestore.rules` পুরোটা Firebase Console → Firestore → Rules-এ পেস্ট করে Publish।** (নতুন: `academic*` কালেকশন, `validAcademicNode`,
+   `academicAllowsStudent` ও `examOpenForStudents`-এ একটি `&&` শর্ত।) Publish না করলে Academic পেজ "Firestore rules প্রয়োজন" দেখাবে এবং
+   শিক্ষার্থীর পেজে Academic ব্লক আসবে না — বাকি সবকিছু আগের মতোই চলবে।
+2. Hosting ডিপ্লয় (`firebase deploy --only hosting`)। নতুন ফাইল সবই স্ট্যাটিক JS/CSS; কোনো বিল্ড স্টেপ বা ডিপেন্ডেন্সি নেই।
+3. Admin → **Academic Management** খুলে Section → Level → Subject বানাও, তারপর Exams → Create/Edit Exam-এ Academic placement বাছো।
+4. Firebase Storage চালু/কনফিগার করার দরকার নেই। Index ডিপ্লয়ের দরকার নেই।
+5. Paid প্রোগ্রাম চালাতে চাইলে: নোডকে Paid করে (⋯ → Student access) শিক্ষার্থীদের অ্যাক্সেস দাও।
+
+### পরীক্ষা
+```
+node --test tests/unit/*.test.mjs                                  # নতুন: academic.test.mjs (54), academic-ui-rules.test.mjs (22)
+node --experimental-vm-modules --no-warnings tests/check-syntax.mjs
+python3 tests/e2e/run_academic.py          # শিক্ষার্থীর দিক — ৯২টি চেক (Playwright + ইন-মেমোরি Firestore)
+python3 tests/e2e/run_academic_admin.py    # অ্যাডমিনের দিক + অ্যাডমিন → শিক্ষার্থী রাউন্ড-ট্রিপ — ১০৮টি চেক
+```
+আগের সব E2E স্ক্রিপ্টও এই বদলের পরে চালানো হয়েছে এবং **বদলের আগের ফলের সঙ্গে হুবহু মিলেছে**: `run_student` 174/174 · `run_admin` 85/85 ·
+`run_result` 162/162 · `run_leaderboard` 61/61 · `run_resume` 60/60 · `run_copyguard` 89/89 · `run_email` 235/235 · `run_reset` 43/43।
+আগে থেকেই ফেল করছিল এবং এই কাজের সঙ্গে সম্পর্কহীন (ছোঁয়া হয়নি): `tests/unit/pwa.test.mjs`-এর ২টি + `run_pwa`-এর ২টি (পুরোনো প্লেসহোল্ডার স্ক্রিনশট URL ও
+`short_name` ধরে নেয়) এবং `run_info`-এর ৩টি (সোশ্যাল আইকন "এখনো বন্ধ" ধরে নেয়) — অপরিবর্তিত বেসলাইনেও একই সংখ্যায় ফেল করে।
+
+### নতুন ও বদলানো ফাইল
+- **নতুন:** `js/academic-core.js` (খাঁটি লজিক) · `js/academic-ui.js` (কার্ড/ব্যাজ মার্কআপ) · `js/academic-data.js` (শিক্ষার্থীর রিড + ক্যাশ) ·
+  `js/academic-render.js` (শিক্ষার্থীর পেজ) · `js/admin/academic.js` (অ্যাডমিন পেজ) · `js/admin/core/academic-data.js` (অ্যাডমিন রিড/রাইট) ·
+  `css/academic.css` · `tests/unit/academic.test.mjs` · `tests/unit/academic-ui-rules.test.mjs` · `tests/e2e/run_academic.py` ·
+  `tests/e2e/run_academic_admin.py` · `tests/e2e/academic_fixtures.py`
+- **বদলানো (ছোট, পিছনে-সামঞ্জস্যপূর্ণ):** `firestore.rules` · `index.html`, `admin.html` (একটি `<link>`) · `js/exam.js` (রাউটিং, dynamic import) ·
+  `js/exam-render.js` (`renderExamList`-এ ঐচ্ছিক `scope`, `HUB_TABS` export, Academic এক্সাম "General" গ্রুপে না মেশা) ·
+  `js/exam-guard.js` (Academic entry-gate + "Go back" সাবজেক্টে) · `js/exam-result.js` (ঐচ্ছিক `hooks.backHref/backLabel` — ফলাফলের পরে "সাবজেক্টের এক্সাম") · `js/exam-data.js` (`academicHidden` পড়া ও ফিল্টার) · `js/admin/admin.js` (সাইডবার আইটেম) ·
+  `js/admin/exams.js` (Academic placement) · `js/admin/core/permissions.js`, `core/audit.js`, `admins.js`, `logs.js` (রোল/লগ) · `README.md`
+- Academic কোড `exam.js`/`exam-guard.js`/`admin/exams.js`-এ **dynamic import** দিয়ে লোড হয়: কোনো কারণে সেগুলো লোড না হলেও কোর্স লিস্ট,
+  এক্সাম ইঞ্জিন ও পুরোনো অ্যাডমিন এক্সাম এডিটর আগের মতোই চলে (E2E-তে rules ছাড়া অবস্থায় যাচাই করা)।
+
+### সীমাবদ্ধতা (সৎভাবে)
+- **Rules এই পরিবেশে চালিয়ে দেখা যায়নি** (Firebase Emulator/নেটওয়ার্ক নেই)। রুলসের কাঠামো স্ট্যাটিক টেস্টে যাচাই হয়েছে, কিন্তু আসল আচরণ
+  Publish করে একবার চেক করে নাও: (ক) ইনঅ্যাকটিভ Section শিক্ষার্থীর অ্যাকাউন্টে পড়া যায় না, (খ) Paid Subject-এর এক্সামের প্রশ্ন অ্যাক্সেস ছাড়া
+  `permission-denied`, (গ) `academicEntitlements/{uid}_{nodeId}` বানালে খুলে যায়, (ঘ) শিক্ষার্থী `academicEntitlements`-এ লিখতে পারে না।
+  রুলসের হিসাব: Academic এক্সামের প্রশ্ন পড়তে সর্বোচ্চ ৮টি `get/exists` (exam ১ + subject/level/section ৩ + অ্যাক্সেস-চেক ৩ + `isAdmin()` ১) — সীমা ১০।
+- **Paid-এর সার্ভার-যাচাই কেনাকাটার সঙ্গে স্বয়ংক্রিয় নয়।** TVcourse-এর কেনা/কোড-দেওয়া প্রক্রিয়া এই রিপোজিটরির বাইরে, তাই সেটা বদলানো যায়নি।
+  এখন অ্যাডমিন Grant করে বা redeemed access code ইমপোর্ট করে। কেনা শেষ হলেই স্বয়ংক্রিয়ভাবে খুলতে চাইলে কোর্স সাইটের "অনুমোদন" ধাপে
+  `academicEntitlements/{uid}_{nodeId}` লেখার একটি লাইন যোগ করতে হবে (শুধু অ্যাডমিন-অনুমোদিত ধাপ থেকে)। `enrolledCourses` ধরে কিছু খোলা হয় না।
+- Section কার্ডে Level ও Exam সংখ্যা আছে, Subject সংখ্যা নেই (Level কার্ডে আছে) — inactive Level-এর Subject গুনে ভুল সংখ্যা দেখানো এড়াতে।
+- `examIndex/main` এখনো তৈরি না হয়ে থাকলে (নতুন সাইট) শিক্ষার্থীর ক্যাটালগ `academicHidden` ফিল্টার করতে পারে না; অ্যাডমিন একবার Exams
+  পেজ খুললেই ইনডেক্স তৈরি হয়। তখনও entry-gate ও rules সুরক্ষা দেয়।
+- Section কার্ডের Level-সংখ্যা Firestore count aggregation-এ নির্ভর করে; অফলাইনে সেটা বাদ যায় (কার্ড ঠিকই দেখায়)।
+
 ## Firestore rules
 
 `firestore.rules` ফাইলটা পুরোটা Firebase Console → Firestore → Rules-এ পেস্ট করে **Publish**
@@ -387,6 +533,8 @@ Credits-এর placeholder ও ছবি-ফলব্যাক, 320/390/820/1366
   (অ্যাডমিন যোগ/বাদ) বদলাতে পারে শুধু Super Admin।
   **এই rules Publish না করলে** নতুন পেজগুলো (Question Bank, Subjects, Logs, Settings, Admin Management)
   "Firestore rules প্রয়োজন" লিখে দেখাবে — বাকি সবকিছু আগের মতোই চলবে।
+- **Academic Management-এর কালেকশন** — `academicSections`, `academicLevels`, `academicSubjects`, `academicEntitlements` এবং
+  `examOpenForStudents()`-এ `academicAllowsStudent(ex)` শর্ত (Academic ফিল্ডহীন এক্সামে সঙ্গে সঙ্গে `true`, আচরণ অপরিবর্তিত)। বিস্তারিত ওপরের Academic Management সেকশনে।
 - **Email Center-এর কালেকশন** (সবই শুধু অ্যাডমিনের; ইমেইল পাঠানোর অনুমতি `canManageComms()` = Super Admin ও Manager):
   `emailSettings/main` (EmailJS-এর পাবলিক আইডি — বদলায় শুধু Super Admin; Manager শুধু `lastTest`), `emailTemplates/{id}`,
   `emailCampaigns/{id}` + `emailCampaigns/{id}/parts/{n}` (প্রাপক-ভিত্তিক ফলাফল)। বিস্তারিত: `docs/EMAIL-CENTER.md`।
@@ -504,6 +652,8 @@ Firebase Hosting-এ একটা নতুন site হিসেবে ডিপ
 firebase target:apply hosting tvexam <new-site-id>
 firebase deploy --only hosting:tvexam
 ```
+
+> Academic Management ব্যবহার করতে হলে ডেপ্লয়ের আগে `firestore.rules` আবার Publish করতে হবে — ধাপগুলো "Academic Management" সেকশনে।
 
 ## রোল নম্বর (সিরিয়াল, রিড-ওনলি)
 
