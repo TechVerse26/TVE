@@ -71,9 +71,14 @@ async function paintSiteNotice() {
   } catch { /* the banner is optional */ }
 }
 
+/* An exam that sits in an Academic subject (academicSubjectId, no course) is reached through Academic programs — it is not
+   part of the legacy "General Exam" group. Existing exams have no academic fields, so for them nothing changes. */
+const inGeneralGroup = (ex) => !(ex.academicSubjectId && !ex.courseId);
+
 function groupExamsByCourse(exams) {
   const groups = new Map();
   for (const ex of exams) {
+    if (!ex.courseId && !inGeneralGroup(ex)) continue;
     const key = ex.courseId || "general";
     if (!groups.has(key)) groups.set(key, { key, courseId: ex.courseId || null, courseName: ex.courseName || "General", exams: [] });
     groups.get(key).exams.push(ex);
@@ -152,7 +157,7 @@ export async function renderExamCourseList(grid) {
    Shown right after picking a course: three buttons (Upcoming / Live /
    Practice) instead of dumping every exam — upcoming and live exams no
    longer get mixed together in one list. ---------- */
-const HUB_TABS = [
+export const HUB_TABS = [
   { key: "upcoming", label: "Upcoming", sub: "Upcoming Live Exams", icon: "fa-hourglass-half" },
   { key: "live", label: "Live", sub: "Active Live Exams", icon: "fa-satellite-dish" },
   { key: "practice", label: "Practice", sub: "Practice Exams", icon: "fa-dumbbell" },
@@ -175,7 +180,7 @@ export async function renderExamCourseHub(grid, courseKey) {
 
     const allExams = await fetchAllExams();
     if (state.navToken !== myToken) return;
-    const exams = allExams.filter((ex) => (ex.courseId || "general") === courseKey);
+    const exams = allExams.filter((ex) => (ex.courseId || "general") === courseKey && (courseKey !== "general" || inGeneralGroup(ex)));
 
     let title = "Course Exams";
     if (courseKey === "general") title = "General Exam";
@@ -213,15 +218,20 @@ export async function renderExamCourseHub(grid, courseKey) {
 /* ---------- Exam list — one course's exams, filtered to one bucket ----------
    Re-checks visibility itself (not just trusting the hub), so a direct
    #/exam?course=xxx&type=yyy URL to a course the student isn't enrolled in
-   shows nothing rather than leaking the exam list. ---------- */
-export async function renderExamList(grid, courseKey = null, bucketKey = null, { silent = false } = {}) {
+   shows nothing rather than leaking the exam list.
+
+   `scope` (optional, used by the Academic subject dashboard in academic-render.js) swaps the course logic for its own
+   rule: { filter(exam) → bool, backHref, title(hubTab) → string, sub(count) → string, emptyMessages: { [bucket]: text } }.
+   Everything else — the cards, the status ladder, countdowns, practice history, enrolment check per exam — is this same
+   code, so there is still exactly one exam list engine. Without `scope` nothing changes. ---------- */
+export async function renderExamList(grid, courseKey = null, bucketKey = null, { silent = false, scope = null } = {}) {
   grid.classList.remove("exam-grid--courses");
   if (!silent) grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> loading...</div>`;
   const myToken = state.navToken;
-  const backHref = courseKey ? `#/exam?course=${encodeURIComponent(courseKey)}` : "#/exam";
+  const backHref = scope?.backHref || (courseKey ? `#/exam?course=${encodeURIComponent(courseKey)}` : "#/exam");
   const hubTab = HUB_TABS.find((t) => t.key === bucketKey);
   try {
-    if (courseKey && courseKey !== "general") {
+    if (!scope && courseKey && courseKey !== "general") {
       const info = await checkExamVisibility(courseKey, state.userProfile);
       if (state.navToken !== myToken) return;
       if (!info.visible) {
@@ -233,21 +243,25 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null, {
 
     const allExams = await fetchAllExams();
     if (state.navToken !== myToken) return;
-    let exams = courseKey ? allExams.filter((ex) => (ex.courseId || "general") === courseKey) : allExams;
+    let exams = scope ? allExams.filter(scope.filter) : courseKey ? allExams.filter((ex) => (ex.courseId || "general") === courseKey && (courseKey !== "general" || inGeneralGroup(ex))) : allExams;
     if (bucketKey) exams = exams.filter((ex) => getExamBucket(ex) === bucketKey);
     exams = exams.filter((ex) => ex.visibility !== "unlisted"); // unlisted = direct link only
 
-    if (courseKey) {
+    if (scope) {
+      const title = typeof scope.title === "function" ? scope.title(hubTab) : (hubTab ? hubTab.label : "Exams");
+      const sub = typeof scope.sub === "function" ? scope.sub(exams.length) : (exams.length ? `${exams.length} Exams Available` : "No Exams Available Yet");
+      setExamSectionHeader({ title, sub, showBack: true, backHref });
+    } else if (courseKey) {
       let title = hubTab ? hubTab.label : "Course Exams";
       if (courseKey === "general" && !hubTab) title = "General Exams";
       setExamSectionHeader({ title, sub: exams.length ? `${exams.length} Exams Available for This Course` : "No Exams Available for This Course Yet", showBack: true, backHref });
     }
 
     if (!exams.length) {
-      const emptyMsg = bucketKey === "practice" ? "No Practice Exams Available Yet "
+      const emptyMsg = scope?.emptyMessages?.[bucketKey] || (bucketKey === "practice" ? "No Practice Exams Available Yet "
         : bucketKey === "upcoming" ? "No Upcoming Exams at the Moment"
         : bucketKey === "live" ? "No Live Exams Right Now"
-        : "No Exams Available for This Course Yet";
+        : "No Exams Available for This Course Yet");
       grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>${emptyMsg}</p></div>`;
       return;
     }
@@ -280,7 +294,7 @@ export async function renderExamList(grid, courseKey = null, bucketKey = null, {
       examCardHtml(it, ctx, { extra: it.exam.examType === "practice" ? practiceHistoryHtml(it.result) : "" })).join("")}</div>`;
     grid._xcModel = { ctx, items: new Map(items.map((it) => [it.exam.id, it])) };
     bindExamCardActions(grid, (id) => { const m = grid._xcModel; const it = m?.items.get(id); return it ? { item: it, ctx: m.ctx } : null; });
-    startCountdowns(grid, { onReach: () => { if (state.navToken === myToken) renderExamList(grid, courseKey, bucketKey, { silent: true }); } });
+    startCountdowns(grid, { onReach: () => { if (state.navToken === myToken) renderExamList(grid, courseKey, bucketKey, { silent: true, scope }); } });
   } catch {
     if (state.navToken !== myToken) return;
     grid.innerHTML = `<div class="exs-empty"><p>Unable to Load Exams</p></div>`;

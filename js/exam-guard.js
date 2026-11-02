@@ -12,6 +12,7 @@ import { serverNow } from "./server-time.js";
 import { peekHomeFeed } from "./home-data.js";
 import { navigate } from "./router.js";
 import { state } from "./exam-engine.js";
+import { examBackHref } from "./academic-core.js";
 
 const STEP_LABELS = [
   { key: "auth", label: "অ্যাকাউন্ট যাচাই" },
@@ -77,7 +78,7 @@ export function windowBlock(exam, isAdminUser = false) {
 export function recheckWindow(container, exam, isAdminUser) {
   const blocked = windowBlock(exam, isAdminUser);
   if (!blocked) return true;
-  failScreen(container, { ...blocked, backLabel: "Go back", backHref: `#/exam?course=${encodeURIComponent(exam.courseId || "general")}` });
+  failScreen(container, { ...blocked, backLabel: "Go back", backHref: examBackHref(exam, `#/exam?course=${encodeURIComponent(exam.courseId || "general")}`) });
   return false;
 }
 
@@ -125,9 +126,26 @@ export async function runVerification(container, examId, myToken) {
     failScreen(container, { title: "Exam not found.", message: "This exam has been removed, or the link is incorrect.", backLabel: "View all exams", backHref: "#/exam" });
     return { ok: false };
   }
+  // Step 2b — Academic program. An exam inside Section › Level › Subject is open only while all three are active and, for a
+  // PAID program, the student holds an access grant (academicEntitlements). firestore.rules enforces the same thing when the
+  // questions are read; this step only explains it properly instead of a generic "not available".
+  // (Dynamic import: if the academic module ever fails to load, the exam entry works exactly as before.)
+  if (exam.academicSubjectId) {
+    const gate = await import("./academic-data.js")
+      .then((m) => m.checkAcademicExamAccess(exam, { uid: state.currentUser?.uid || "", isAdmin: isAdminUser }))
+      .catch(() => ({ allowed: true, reason: "unverified" }));
+    if (myToken !== state.navToken) return { ok: false };
+    if (!gate.allowed) {
+      setStep(container, "access", "fail");
+      failScreen(container, gate.reason === "payment-required"
+        ? { title: "Premium access required.", message: "This exam is part of a paid program and your account doesn't have access to it yet. Contact support with your registered email to get it activated.", backLabel: "Contact support", backHref: "#/help?section=contact" }
+        : { title: "Exam not available.", message: "This exam isn't open right now — its program, level or subject has been taken offline.", backLabel: "View all exams", backHref: "#/exam" });
+      return { ok: false };
+    }
+  }
   setStep(container, "access", "ok");
 
-  const courseBackHref = `#/exam?course=${encodeURIComponent(exam.courseId || "general")}`;
+  const courseBackHref = examBackHref(exam, `#/exam?course=${encodeURIComponent(exam.courseId || "general")}`); // an academic exam goes back to its subject dashboard
   const blocked = windowBlock(exam, isAdminUser);
   if (blocked) {
     setStep(container, "window", "fail");
@@ -196,7 +214,7 @@ export function renderRulesGate(container, exam, { attemptsSoFar, maxAttempts, t
           ${exam.instructions ? `<li><b>নির্দেশনা:</b> ${escapeHtml(String(exam.instructions)).replace(/\n/g, "<br>")}</li>` : ""}
         </ul>
         <div class="exs-rules-actions">
-          <a href="#/exam?course=${encodeURIComponent(exam.courseId || "general")}" class="btn btn-outline btn-block">Go back</a>
+          <a href="${escapeHtml(examBackHref(exam, `#/exam?course=${encodeURIComponent(exam.courseId || "general")}`))}" class="btn btn-outline btn-block">Go back</a>
           <button type="button" class="btn btn-primary btn-block" id="exs-start-confirm">Start<i class="fa-solid fa-arrow-right"></i></button>
         </div>
       </div>`;

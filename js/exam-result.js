@@ -207,12 +207,12 @@ function statsHtml(a) {
     </div>`;
 }
 
-function actionsHtml(attempt, courseHref, mistakes) {
+function actionsHtml(attempt, courseHref, mistakes, courseLabel = "কোর্সের এক্সাম") {
   return `
     <div class="rx-actions exs-no-print rx-in">
       <button type="button" class="rx-btn rx-btn--primary" data-rx-act="detail"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span>বিস্তারিত ফলাফল দেখুন</span></button>
       <button type="button" class="rx-btn rx-btn--outline" id="exs-retake"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>আবার দিন</span></button>
-      <a href="${courseHref}" class="rx-btn rx-btn--outline" id="exs-course-link"><i class="fa-solid fa-list" aria-hidden="true"></i><span>কোর্সের এক্সাম</span></a>
+      <a href="${courseHref}" class="rx-btn rx-btn--outline" id="exs-course-link"><i class="fa-solid fa-list" aria-hidden="true"></i><span>${escapeHtml(courseLabel)}</span></a>
       <button type="button" class="rx-btn rx-btn--outline" id="exs-print-result"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>PDF ডাউনলোড</span></button>
       ${mistakes > 0 ? `<button type="button" class="rx-btn rx-btn--ghost" data-rx-act="review"><i class="fa-solid fa-list-check" aria-hidden="true"></i><span>ভুলগুলো দেখুন (${bn(mistakes)})</span></button>` : ""}
     </div>`;
@@ -470,7 +470,8 @@ function renderRich(resultView, attempt, hooks) {
   const { onRetrySave, loadContext, onAnalytics } = hooks;
   const core = buildCoreAnalytics(attempt);
   const review = normalizeReview(attempt.review);
-  const courseHref = `#/exam?course=${encodeURIComponent(attempt.courseId || "general")}`;
+  // the caller may point "Course exams" somewhere better (an academic exam → its subject dashboard); otherwise exactly as before
+  const courseHref = hooks.backHref || `#/exam?course=${encodeURIComponent(attempt.courseId || "general")}`;
   const theme = storedTheme() || systemTheme();
 
   resultView.classList.add("exam-result-wrap");
@@ -481,7 +482,7 @@ function renderRich(resultView, attempt, hooks) {
       ${heroHtml(attempt, core)}
       ${notesHtml(core)}
       ${statsHtml(core)}
-      ${actionsHtml(attempt, courseHref, review.length)}
+      ${actionsHtml(attempt, courseHref, review.length, hooks.backLabel)}
       <div class="rx-grid">
         ${timeHtml(core, attempt)}
         ${negativeHtml(core)}
@@ -631,7 +632,7 @@ function renderFallback(resultView, attempt, hooks) {
   const { onRetrySave } = hooks;
   const total = Number(attempt.total) || 0;
   const percent = clamp(Math.round(Number(attempt.percent) || 0), 0, 100);
-  const courseHref = `#/exam?course=${encodeURIComponent(attempt.courseId || "general")}`;
+  const courseHref = hooks.backHref || `#/exam?course=${encodeURIComponent(attempt.courseId || "general")}`;
   let review = [];
   try { review = normalizeReview(attempt.review); } catch { /* leave the list empty */ }
   let reviewHtml = "";
@@ -652,7 +653,7 @@ function renderFallback(resultView, attempt, hooks) {
       </section>
       <div class="rx-actions exs-no-print">
         <button type="button" class="rx-btn rx-btn--primary" id="exs-retake"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>আবার দিন</span></button>
-        <a href="${courseHref}" class="rx-btn rx-btn--outline" id="exs-course-link"><i class="fa-solid fa-list" aria-hidden="true"></i><span>কোর্সের এক্সাম</span></a>
+        <a href="${courseHref}" class="rx-btn rx-btn--outline" id="exs-course-link"><i class="fa-solid fa-list" aria-hidden="true"></i><span>${escapeHtml(hooks.backLabel || "কোর্সের এক্সাম")}</span></a>
         <button type="button" class="rx-btn rx-btn--outline" id="exs-print-result"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>PDF ডাউনলোড</span></button>
       </div>
       <div id="rx-review" tabindex="-1">${reviewHtml}</div>

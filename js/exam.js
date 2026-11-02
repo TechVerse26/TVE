@@ -1,7 +1,9 @@
 // ==========================================================================
 // exam.js — the exam section's public entry point (SPA route handler).
-// URL scheme: #/exam                → exam list (course picker)
+// URL scheme: #/exam                → exam list (course picker + Academic programs block)
 //             #/exam?course=xxx     → one course's exams
+//             #/exam?academicProgram=P[&academicLevel=L[&academicSubject=S[&type=practice]]]
+//                                   → Academic program → level → subject → that subject's exams (academic-render.js)
 //             #/exam?id=xxx         → verification → take → result
 // ==========================================================================
 import { requireAuth, toast, getUserProfile, getExamQuestionCount, confirmAction, closeModal, toBnDigits } from "./utils.js";
@@ -10,6 +12,7 @@ import { state, resetSessionState, buildQuestionPool, scoreExam, stopQuestionClo
 import { fetchQuestions, saveResult, recordExamStart, fetchUserStats, getExamCatalog } from "./exam-data.js";
 import { runVerification, renderRulesGate, recheckWindow, failScreen } from "./exam-guard.js";
 import { renderExamCourseList, renderExamCourseHub, renderExamList, renderQuestion, renderAllQuestions, renderResult, updateSaveStatus, renderExamLoading, disposeResult } from "./exam-render.js";
+import { examBackHref } from "./academic-core.js";
 import { startExamTimer, stopExamTimer, formatClock } from "./exam-timer.js";
 import { renderNav } from "./nav.js";
 import { mountReport, unmountReport, isReportMounted } from "./exam-report.js";
@@ -171,13 +174,40 @@ export async function initExamPage(params) {
     const grid = document.getElementById("exam-grid");
     const courseKey = params.get("course");
     const bucketKey = params.get("type");
+    // The Academic flow adds its own block / breadcrumb to this list view; whatever an earlier visit left behind goes first.
+    document.getElementById("exam-academic-block")?.remove();
+    document.getElementById("exam-breadcrumb")?.remove();
     if (courseKey && bucketKey) await renderExamList(grid, courseKey, bucketKey);
     else if (courseKey) await renderExamCourseHub(grid, courseKey);
-    else await renderExamCourseList(grid);
+    else if (params.get("academicProgram")) await renderAcademicPage(grid, params, myToken);
+    else {
+      await renderExamCourseList(grid);
+      showAcademicBlock(grid, myToken);
+    }
   }
 
   return cleanup;
   function cleanup() { stopExamTimer(); document.body.classList.remove("exam-taking"); }
+}
+
+/* ---------- Academic programs (js/academic-*.js) ----------
+   Loaded with dynamic import() and never awaited by the course list: should anything in the Academic flow fail to load or
+   throw, the course cards, hubs and exam lists above behave exactly as they always did. ---------- */
+function showAcademicBlock(grid, myToken) {
+  import("./academic-render.js")
+    .then((m) => (myToken === state.navToken ? m.mountAcademicHome(grid, myToken) : null))
+    .catch((err) => console.warn("[academic] programs block unavailable:", err));
+}
+
+async function renderAcademicPage(grid, params, myToken) {
+  try {
+    const [core, view] = await Promise.all([import("./academic-core.js"), import("./academic-render.js")]);
+    const parsed = core.parseAcademicParams(params);
+    if (parsed) { await view.renderAcademicRoute(grid, parsed, myToken); return; }
+  } catch (err) {
+    console.error("[academic] page unavailable:", err);
+  }
+  if (myToken === state.navToken) await renderExamCourseList(grid);   // fall back to the plain course list
 }
 
 async function runExamEntry(examId, myToken) {
@@ -230,7 +260,9 @@ async function beginAttempt(exam, myToken) {
     failScreen(verifyView, {
       title: closed ? "Exam not available." : "প্রশ্ন লোড করা যায়নি।",
       message: closed
-        ? "এই মুহূর্তে এক্সামটি খোলা নেই — সময় শেষ হয়ে গেছে, বন্ধ করা হয়েছে অথবা এখনো শুরু হয়নি।"
+        ? (exam.academicSubjectId
+          ? "এই মুহূর্তে এক্সামটি খোলা নেই — সময় শেষ, বন্ধ বা এখনো শুরু হয়নি; অথবা এটি একটি Paid প্রোগ্রামের অংশ যার অ্যাক্সেস আপনার অ্যাকাউন্টে এখনো চালু হয়নি।"
+          : "এই মুহূর্তে এক্সামটি খোলা নেই — সময় শেষ হয়ে গেছে, বন্ধ করা হয়েছে অথবা এখনো শুরু হয়নি।")
         : "ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।",
       backLabel: "সব এক্সাম দেখুন", backHref: "#/exam",
     });
@@ -404,7 +436,9 @@ async function submitExam({ auto = false } = {}) {
   // below — whatever goes wrong on screen, the attempt still gets stored and is
   // still viewable in My Results.
   try {
+    const academicBack = examBackHref(state.exam, ""); // "" unless this exam sits in an academic subject
     const view = renderResult(resultView, attempt, {
+      ...(academicBack ? { backHref: academicBack, backLabel: "সাবজেক্টের এক্সাম" } : {}), // "Course exams" → this subject's dashboard
       onRetrySave: () => persistAttempt(attempt),
       loadContext: () => contextPromise,
       // The comparison / subject sections arrived: the PDF report gets the same finished analysis.

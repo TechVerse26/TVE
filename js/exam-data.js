@@ -37,6 +37,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import * as FirestoreLib from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import * as cache from "./cache.js";
+import { isAcademicHidden } from "./academic-core.js";
 
 // count / sum / average are read off the namespace object on purpose: if some
 // SDK build ever lacked them, this module would still load and only the
@@ -127,6 +128,9 @@ async function readExamIndexDoc() {
       exams: d.exams.filter((e) => e && e.id),
       courses: d.courses && typeof d.courses === "object" ? d.courses : {},
       statsReady: !!d.statsBackfilledAt, // the admin "Optimize" run has summarised every student's results
+      // Academic sections / levels / subjects the admin has set to inactive or archived (written by admin/core/academic-data.js).
+      // Exams under them stay in `exams` — they are only left out of the student catalog below. Rides along in this document: no extra read.
+      academicHidden: Array.isArray(d.academicHidden) ? d.academicHidden.filter((x) => typeof x === "string").slice(0, 5000) : [],
       // Site-wide switch set in Admin → Settings (maintenance mode). Rides along in this document: no extra read.
       site: d.site && typeof d.site === "object" ? { maintenance: !!d.site.maintenance, message: String(d.site.message || "").slice(0, 300) } : { maintenance: false, message: "" },
     };
@@ -144,7 +148,10 @@ async function readExamsCollection() {
 
 async function loadExamCatalog() {
   const idx = await readExamIndexDoc();
-  if (idx) return { exams: idx.exams.filter((e) => !isDraftExam(e)).sort(byNewest), courses: idx.courses, statsReady: idx.statsReady, site: idx.site, source: "index" };
+  if (idx) {
+    const hidden = new Set(idx.academicHidden);   // exams of an inactive / archived academic section, level or subject are not offered to students
+    return { exams: idx.exams.filter((e) => !isDraftExam(e) && !isAcademicHidden(e, hidden)).sort(byNewest), courses: idx.courses, statsReady: idx.statsReady, site: idx.site, source: "index" };
+  }
   return { exams: (await readExamsCollection()).filter((e) => !isDraftExam(e)).sort(byNewest), courses: {}, statsReady: false, site: { maintenance: false, message: "" }, source: "collection" };
 }
 
