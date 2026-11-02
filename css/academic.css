@@ -1,0 +1,175 @@
+/* ==========================================================================
+   academic.css — Academic Management (student pages + admin panel)
+   Uses ONLY the existing design tokens from base.css (navy / cobalt, radius + spacing scales, flat surfaces):
+   no new colours, no gradients, no glow, no heavy shadows, no decorative animation.
+   Loaded by index.html and admin.html.
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Student side
+   ========================================================================== */
+
+/* the academic markup is placed inside #exam-grid (a CSS grid) → it spans the whole row */
+.exam-grid .ac-grid, .exam-grid .ac-hub, .exam-grid .ac-state, .exam-grid .ac-notice, .exam-grid .ac-span { grid-column: 1 / -1; }
+
+.ac-block { margin-top: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
+.ac-block[hidden] { display: none; }
+
+/* ---------- breadcrumb ---------- */
+.ac-crumbs { font-size: var(--fs-sm); color: var(--text-muted); min-width: 0; }
+.ac-crumbs ol { display: flex; flex-wrap: wrap; align-items: center; list-style: none; margin: 0; padding: 0; row-gap: 2px; }
+.ac-crumbs li { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; }
+.ac-crumbs li + li::before { content: "›"; margin-inline: var(--sp-2); opacity: 0.6; flex: none; }
+.ac-crumbs a { display: inline-block; padding: 6px 0; color: var(--accent-soft); font-weight: 600; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-crumbs a:hover { text-decoration: underline; }
+.ac-crumbs [aria-current="page"] span { color: var(--text-primary); font-weight: 600; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+
+/* ---------- card grid ---------- */
+.ac-grid { display: grid; gap: var(--sp-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); min-width: 0; }
+
+.ac-card {
+  position: relative; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: inherit; text-decoration: none; transition: border-color var(--t-fast);
+}
+a.ac-card:hover { border-color: var(--accent-soft); }
+a.ac-card:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+a.ac-card:active { border-color: var(--accent); }
+
+/* cover: flat navy placeholder underneath, the picture on top, the title on a solid dark band */
+.ac-cover { position: relative; display: flex; align-items: flex-end; aspect-ratio: 16 / 9; background: var(--navy); overflow: hidden; }
+.ac-cover-ph { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255, 255, 255, 0.26); font-size: 2.4rem; }
+.ac-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.25s ease; }
+.ac-cover.is-loaded .ac-cover-img { opacity: 1; }
+.ac-cover.is-broken .ac-cover-img { display: none; }
+.ac-cover-title {
+  position: relative; z-index: 1; width: 100%; margin: 0; padding: var(--sp-3) var(--sp-4);
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700; line-height: 1.3; color: var(--on-navy);
+  background: rgba(10, 27, 77, 0.88); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.ac-badges { position: absolute; top: var(--sp-3); inset-inline-start: var(--sp-3); z-index: 2; display: flex; gap: var(--sp-1); }
+.ac-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: #fff; font-size: var(--fs-xs); font-weight: 700; line-height: 1.5; border: 1px solid var(--border-strong); }
+.ac-badge--free { color: var(--green-text); }
+.ac-badge--paid { color: var(--accent-amber); }
+.ac-badge--paid.is-open { color: var(--green-text); }
+
+.ac-body { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); flex: 1; min-width: 0; }
+.ac-desc { margin: 0; color: var(--text-muted); font-size: var(--fs-md); line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ac-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-4); margin-top: auto; color: var(--text-muted); font-size: var(--fs-sm); font-weight: 600; }
+.ac-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.ac-meta .ac-go { margin-inline-start: auto; color: var(--accent-soft); }
+
+/* ---------- subject dashboard (Upcoming / Live / Practice) — same buttons as the course hub ---------- */
+.ac-hub { display: grid; grid-template-columns: 1fr; gap: 14px; width: 100%; max-width: 560px; margin: 0 auto; }
+
+/* ---------- states: empty / not found / error / locked ---------- */
+.ac-state { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-7) var(--sp-4); text-align: center; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.ac-state-ico { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: var(--sp-1); border-radius: 50%; background: var(--tint-accent); color: var(--accent-soft); font-size: 1.35rem; }
+.ac-state--locked .ac-state-ico { background: var(--tint-amber); color: var(--accent-amber); }
+.ac-state--error .ac-state-ico { background: var(--tint-coral); color: var(--accent-coral); }
+.ac-state h2 { margin: 0; font-size: var(--fs-xl); overflow-wrap: anywhere; }
+.ac-state p { margin: 0; max-width: 52ch; color: var(--text-muted); font-size: var(--fs-md); line-height: 1.55; overflow-wrap: anywhere; }
+.ac-state p.ac-state-note { font-size: var(--fs-sm); }
+.ac-state p.ac-state-course { display: inline-flex; align-items: center; gap: 6px; color: var(--text-primary); font-size: var(--fs-sm); }
+.ac-state p.ac-state-course i { color: var(--accent-soft); }
+.ac-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-2); margin-top: var(--sp-3); }
+
+.ac-notice { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--bg-elevated); border: 1px solid var(--accent-amber); border-inline-start-width: 4px; border-radius: var(--radius-md); }
+.ac-notice > i { color: var(--accent-amber); font-size: 1.1rem; margin-top: 2px; }
+.ac-notice b { display: block; margin-bottom: 2px; }
+.ac-notice p { margin: 0; color: var(--text-muted); font-size: var(--fs-md); line-height: 1.5; }
+.ac-notice .btn { margin-inline-start: auto; flex: none; }
+.ac-grid + .ac-notice, .ac-notice + .ac-grid { margin-top: var(--sp-4); }
+
+/* very small phones (320–390px): tighter card padding, slightly smaller title */
+@media (max-width: 390px) {
+  .ac-grid { gap: var(--sp-3); }
+  .ac-body { padding: var(--sp-3); }
+  .ac-cover-title { padding: var(--sp-2) var(--sp-3); font-size: var(--fs-md); }
+  .ac-crumbs a { max-width: 14ch; }
+  .ac-state { padding: var(--sp-6) var(--sp-3); }
+}
+@media (prefers-reduced-motion: reduce) { .ac-cover-img { transition: none; } }
+
+/* ==========================================================================
+   2. Admin panel — Academic Management
+   ========================================================================== */
+.ac-adm-kpis .kpi-label i { margin-inline-end: 6px; color: var(--accent-soft); }
+
+.ac-adm-toolbar .seg { flex: 0 0 auto; }
+
+/* ---------- the tree ---------- */
+.ac-tree { list-style: none; margin: 0; padding: 0; }
+.ac-tree .ac-tree { margin-inline-start: 20px; padding-inline-start: 10px; border-inline-start: 2px solid var(--border); }
+.ac-node.is-collapsed > .ac-tree { display: none; }
+.ac-row { display: flex; align-items: center; gap: 10px; padding: 8px 8px; border-radius: var(--radius-sm); min-width: 0; }
+.ac-row:hover { background: var(--bg-elevated-2); }
+.ac-node.is-dim > .ac-row .ac-thumb, .ac-node.is-dim > .ac-row .ac-info { opacity: 0.62; }
+.ac-twisty { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-muted); border-radius: 6px; cursor: pointer; }
+.ac-twisty:hover { background: var(--bg-elevated-2); color: var(--text-primary); }
+.ac-twisty i { transition: transform var(--t-fast); }
+.ac-node.is-collapsed > .ac-row .ac-twisty i { transform: rotate(-90deg); }
+.ac-twisty.is-leaf { visibility: hidden; }
+.ac-thumb { flex: none; position: relative; display: grid; place-items: center; width: 52px; height: 36px; border-radius: 6px; overflow: hidden; background: var(--navy); color: rgba(255, 255, 255, 0.5); font-size: 0.95rem; }
+.ac-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ac-thumb.is-broken img { display: none; }
+.ac-info { flex: 1; min-width: 0; }
+.ac-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.ac-title b { font-weight: 700; overflow-wrap: anywhere; }
+.ac-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.ac-actions { flex: none; display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.ac-actions .icon-btn { width: 30px; height: 30px; font-size: 0.8rem; }
+.ac-empty-children { margin: 4px 0 6px 40px; font-size: 0.82rem; color: var(--text-muted); }
+.ac-orphans { margin-top: 14px; }
+
+@media (max-width: 720px) {
+  .ac-row { flex-wrap: wrap; row-gap: 6px; }
+  .ac-info { flex: 1 1 calc(100% - 100px); }
+  .ac-actions { margin-inline-start: 36px; flex: 1 1 100%; justify-content: flex-start; }
+  .ac-tree .ac-tree { margin-inline-start: 10px; padding-inline-start: 6px; }
+}
+
+/* ---------- create / edit form ---------- */
+.ac-form { display: grid; gap: 14px; }
+.ac-form .ac-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .ac-form .ac-two { grid-template-columns: 1fr; } }
+.ac-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.84rem; color: var(--text-muted); }
+.ac-path b { color: var(--text-primary); }
+.ac-hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+.ac-err { color: var(--accent-coral); font-size: 0.8rem; font-weight: 600; margin-top: 4px; }
+.field.has-error input, .field.has-error select, .field.has-error textarea { border-color: var(--accent-coral); }
+
+/* cover image URL field: input + live preview + actions + warnings */
+.ac-img-field { display: grid; gap: 8px; }
+.ac-img-preview { position: relative; display: grid; place-items: center; width: 100%; max-width: 360px; aspect-ratio: 16 / 9; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-elevated-2); color: var(--text-muted); overflow: hidden; text-align: center; }
+.ac-img-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ac-img-preview .ac-img-state { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; font-size: 0.8rem; font-weight: 600; }
+.ac-img-preview .ac-img-state i { font-size: 1.3rem; }
+.ac-img-preview.is-ok { border-style: solid; }
+.ac-img-preview.is-bad { border-color: var(--accent-coral); color: var(--accent-coral); background: var(--tint-coral); }
+.ac-img-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ac-img-msg { font-size: 0.8rem; font-weight: 600; min-height: 1.1em; }
+.ac-img-msg.bad { color: var(--accent-coral); }
+.ac-img-msg.ok { color: var(--green-text); }
+
+/* student card preview inside a modal */
+.ac-preview-wrap { max-width: 300px; margin: 0 auto; }
+.ac-preview-wrap .ac-card { pointer-events: none; }
+
+/* ---------- action sheet, move / reassign / delete helpers ---------- */
+.ac-sheet { display: grid; gap: 6px; }
+.ac-sheet .btn { justify-content: flex-start; width: 100%; }
+.ac-usage { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+
+/* ---------- access (entitlements) ---------- */
+.ac-ent-list { display: grid; gap: 6px; margin: 8px 0 12px; max-height: 240px; overflow: auto; }
+.ac-ent { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elevated); min-width: 0; }
+.ac-ent .who { flex: 1; min-width: 0; }
+.ac-ent .who b, .ac-ent .who small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-ent .who small { color: var(--text-muted); font-size: 0.78rem; }
+.ac-find-results { display: grid; gap: 6px; margin-top: 8px; }
+
+/* exam editor → "Academic placement" */
+.ac-placement .ac-path { margin-top: 10px; }
