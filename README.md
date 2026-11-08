@@ -765,6 +765,21 @@ TVcourse-এ যেভাবে করো, একইভাবে Firebase Consol
 **জেনে রাখুন:** ব্রাউজার-থেকে-EmailJS পদ্ধতির নিজস্ব নিরাপত্তা-সীমা আছে (Allowed domains সেট করুন; কারণ ও বিকল্প গাইডের ৮ম অংশে)। EmailJS প্ল্যানের কোটা কোডে ধরে নেওয়া হয়নি —
 Dashboard-এ দেখে নিন, দরকারে Safety cap বসান।
 
+## Push Notification (FCM) — শিক্ষার্থীদের ফোন ও কম্পিউটারে নোটিফিকেশন
+
+**Push Notification** (`admin.html#/push`; Super Admin ও Manager)। সম্পূর্ণ গাইড — Firebase Console, VAPID কী, Vercel Environment Variable, ফ্রি টাইমার, ফ্রি-প্ল্যানের সীমাবদ্ধতা, ফাইল তালিকা ও সমস্যা-সমাধান:
+**[`doc/PUSH-NOTIFICATIONS.md`](doc/PUSH-NOTIFICATIONS.md)**।
+
+**চালু করার সংক্ষেপ:** (১) ডেপ্লয় (সাথে `api/`, `server/`, `package.json`) → (২) Firebase Console → Cloud Messaging → *Web Push certificates → Generate key pair* → কী `js/push/push-config.js`-এর `vapidKey`-এ →
+(৩) Service accounts → *Generate new private key* → Vercel-এ `FIREBASE_SERVICE_ACCOUNT_B64` (+ নির্ধারিত নোটিফিকেশনের জন্য `CRON_SECRET`) → Redeploy → (৪) Admin → Push Notification → Setup & Audit → *Check again* →
+(৫) নিজের ডিভাইসে চালু করে **Send test**। `vapidKey` ফাঁকা থাকলে ফিচারটি পুরোপুরি ঘুমিয়ে থাকে — সাইটে কিছুই বদলায় না।
+
+**ফ্রি ও কার্ড-ছাড়া:** Firebase **Spark** প্ল্যানেই থাকে; Cloud Functions/Blaze/পেইড সার্ভিস নেই। গোপন চাবি শুধু Vercel Environment Variable-এ (ব্রাউজারের কোডে কখনো নয়); সার্ভার প্রতি অনুরোধে অ্যাডমিন-রোল আবার যাচাই করে।
+নির্ধারিত সময়ে পাঠাতে ফ্রি বাইরের টাইমার (cron-job.org বা GitHub Actions) লাগে — Vercel Hobby-র cron দিনে একবারের বেশি চলে না।
+
+**জেনে রাখুন:** "Accepted by FCM" ≠ ডিভাইসে পৌঁছানো (FCM তা জানায় না; কোথাও "Delivered" লেখা নেই) · iPhone/iPad-এ Home Screen অ্যাপ লাগে · অ্যাডমিন প্যানেল ৩০ মিনিট নিষ্ক্রিয় থাকলে সাইন-আউট হয়, তাই
+নির্ভরযোগ্য সময়-নির্ধারণে ফ্রি টাইমারই ভরসা · সীমা ও কারণ গাইডের ৯ম অংশে। পরীক্ষা চলাকালীন কোনো নোটিফিকেশন পেজের ওপরে আসে না।
+
 ## Bulk question import ফরম্যাট
 
 ```

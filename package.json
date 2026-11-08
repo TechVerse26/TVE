@@ -1,0 +1,14 @@
+{
+  "name": "tech-verse-exam",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tech Verse Exam — static site plus the free push-notification API (Vercel serverless, firebase-admin).",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  },
+  "scripts": {
+    "test": "node --no-warnings --test \"tests/unit/*.test.mjs\"",
+    "check": "node --experimental-vm-modules --no-warnings tests/check-syntax.mjs"
+  }
+}

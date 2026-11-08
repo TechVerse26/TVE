@@ -1,0 +1,15 @@
+# dependencies & build output
+node_modules/
+.vercel/
+
+# secrets — never commit a service-account key or an .env file
+.env
+.env.*
+!.env.example
+*service-account*.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+# logs / OS noise
+*.log
+.DS_Store
