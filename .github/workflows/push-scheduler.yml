@@ -1,0 +1,33 @@
+# Optional free scheduler for Tech Verse Exam push notifications (use this OR cron-job.org — not both needed).
+# It wakes the API every ~5 minutes so scheduled notifications go out on time.
+#
+# One-time setup: GitHub → repository → Settings → Secrets and variables → Actions → New repository secret
+#   PUSH_CRON_URL     https://YOUR-SITE.vercel.app/api/push/cron
+#   PUSH_CRON_SECRET  the same text you saved as CRON_SECRET in Vercel
+# Without those two secrets this workflow simply does nothing.
+#
+# Note: GitHub may delay scheduled runs by several minutes, and pauses them in a repository with no activity for 60 days.
+name: push-scheduler
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+permissions: {}
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Wake the push scheduler
+        env:
+          PUSH_CRON_URL: ${{ secrets.PUSH_CRON_URL }}
+          PUSH_CRON_SECRET: ${{ secrets.PUSH_CRON_SECRET }}
+        run: |
+          if [ -z "$PUSH_CRON_URL" ] || [ -z "$PUSH_CRON_SECRET" ]; then
+            echo "Push scheduler secrets are not set — nothing to do."
+            exit 0
+          fi
+          case "$PUSH_CRON_URL" in https://*) ;; *) echo "PUSH_CRON_URL must start with https://"; exit 1 ;; esac
+          curl --fail --silent --show-error --max-time 30 --retry 2 \
+            -H "Authorization: Bearer ${PUSH_CRON_SECRET}" "$PUSH_CRON_URL"
+          echo
