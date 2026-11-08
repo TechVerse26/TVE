@@ -133,3 +133,8 @@ initWhatsNew();
 // the rest of the site (login, exams, schedule, results …) carries on exactly as before.
 import("./pwa-install.js").then((m) => m.initPwaInstall()).catch((err) => console.warn("[pwa] install experience unavailable:", err));
 import("./pwa-register.js").then((m) => m.registerServiceWorker()).catch((err) => console.warn("[pwa] service worker unavailable:", err));
+
+// Push notifications (js/push/) — completely dormant until js/push/push-config.js holds the public VAPID key
+// (setup guide: doc/PUSH-NOTIFICATIONS.md). Loaded on the side, like the PWA files above, after the first paint:
+// a problem inside js/push/ can never affect login, exams or results.
+import("./push/push-boot.js").then((m) => m.initPush()).catch((err) => console.warn("[push] unavailable:", err));
