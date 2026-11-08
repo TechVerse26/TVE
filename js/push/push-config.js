@@ -18,7 +18,7 @@
 // ==========================================================================
 export const PUSH = {
   enabled: true,
-  vapidKey: "",
+  vapidKey: "BP-smBtqyZzrLGPKdCuNAoWRCVY90_B8Ph5q5V1alh83yqLMX6pqLZL7pp9ASCU0TVuc98w5TaCheacSq3YkhVU",
   apiBase: "",
 };
 
