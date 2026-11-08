@@ -14,10 +14,10 @@ export const ROLES = {
   },
   manager: {
     label: "Manager", tone: "teal",
-    desc: "এক্সাম, শিডিউল, প্রশ্ন, শিক্ষার্থী, রেজাল্ট, নোটিশ, হোমপেজ কন্টেন্ট ও ইমেইল ক্যাম্পেইন (Email Center) পরিচালনা করতে পারে; সেটিংস, EmailJS কনফিগারেশন ও অ্যাডমিন বদলাতে পারে না।",
+    desc: "এক্সাম, শিডিউল, প্রশ্ন, শিক্ষার্থী, রেজাল্ট, নোটিশ, হোমপেজ কন্টেন্ট, ইমেইল ক্যাম্পেইন (Email Center) ও পুশ নোটিফিকেশন পরিচালনা করতে পারে; সেটিংস, EmailJS কনফিগারেশন ও অ্যাডমিন বদলাতে পারে না।",
     perms: ["exams.view", "exams.write", "exams.delete", "questions.view", "questions.write", "questions.delete",
       "taxonomy.view", "taxonomy.write", "students.view", "students.manage", "results.view", "results.export",
-      "analytics.view", "notifications.manage", "notices.manage", "homepage.manage", "logs.view", "email.manage",
+      "analytics.view", "notifications.manage", "notices.manage", "homepage.manage", "logs.view", "email.manage", "push.manage",
       "academic.view", "academic.write", "academic.delete", "academic.access"],
   },
   editor: {
@@ -44,6 +44,10 @@ export const ROLES = {
      email.manage    compose, preview, test-send and send campaigns; manage templates & campaign history   → Super Admin, Manager
      email.settings  change the EmailJS configuration (Service / Template ID, Public Key …)               → Super Admin only (held through "*")
    Editors and Viewers have neither: they can never send e-mail. firestore.rules enforces the same split (canManageComms / isSuperAdmin). */
+/* Push Notifications permission
+     push.manage     write, schedule, test and send push notifications, see their history and the audit trail      → Super Admin, Manager
+   This only decides what the page SHOWS. The push server (api/push/*) checks the admin role again on every request, from the
+   verified Firebase ID token and the same users / adminRoles documents — a hand-made request from a browser console gets 403. */
 export const ROLE_ORDER = ["super", "manager", "editor", "viewer"];
 
 let current = { role: "super", perms: new Set(["*"]) };
