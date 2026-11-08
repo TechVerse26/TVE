@@ -1,0 +1,115 @@
+/* ==========================================================================
+   push.css — student-side push notifications (js/push/push-ui.js adds this file on first use)
+
+     1  The explaining card   — small card at the bottom; bottom sheet width on phones, 400px card on larger screens
+     2  The settings card     — on #/notifications: status badge · benefits · kinds (switches) · devices
+     3  The in-page banner    — a notification that arrives while the site is open
+   Uses the site's tokens only (colours, --sp-*, --radius-*, --fs-*). Flat: hairline borders, one soft shadow, no glow,
+   no gradients, no looping animation. Mobile-first: nothing here can overflow a 320px screen sideways.
+   ========================================================================== */
+
+#tvp-root { position: relative; }
+body.exam-taking #tvp-root { display: none; }            /* belt and braces: nothing of push is ever drawn over a running exam */
+@media print { #tvp-root, #tvp-settings { display: none !important; } }
+
+/* ---------- 1. the explaining card ---------- */
+.tvp-prompt {
+  --tvp-gap: var(--sp-3);
+  position: fixed; z-index: 64;                          /* above the bars (55 / 60), below the menu drawer (70+), dialogs (80+) and toasts */
+  left: max(var(--sp-3), env(safe-area-inset-left, 0px));
+  right: max(var(--sp-3), env(safe-area-inset-right, 0px));
+  bottom: calc(var(--tvp-lift, 0px) + var(--tvp-gap) + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  max-width: 440px; margin-inline: auto; padding: var(--sp-4);
+  color: var(--text-primary); background: var(--bg-elevated);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(8, 20, 60, 0.22);
+  animation: tvp-up 0.24s ease-out;
+}
+@media (max-width: 900px) { body.has-bottom-nav .tvp-prompt { --tvp-lift: var(--bottom-nav-h); } }   /* sit above the phone's bottom bar */
+@media (min-width: 701px) { .tvp-prompt { --tvp-gap: var(--sp-5); left: auto; right: var(--sp-5); width: 400px; margin: 0; } }
+
+.tvp-prompt-ico { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--tint-accent); color: var(--accent); font-size: 1.05rem; }
+.tvp-prompt-main { flex: 1 1 auto; min-width: 0; }
+.tvp-prompt-title { font-size: var(--fs-lg); line-height: 1.35; }
+.tvp-prompt-text { margin-top: var(--sp-1); font-size: var(--fs-md); color: var(--text-muted); }
+.tvp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); }
+.tvp-never { display: inline-flex; align-items: center; min-height: 36px; margin-top: var(--sp-1); font-size: var(--fs-xs); color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.tvp-never:hover { color: var(--text-primary); }
+.tvp-never:disabled { opacity: 0.5; pointer-events: none; }
+.tvp-error { margin-top: var(--sp-2); font-size: var(--fs-sm); color: var(--accent-coral); }
+.tvp-error i { margin-inline-end: 4px; }
+
+/* ---------- 2. the settings card ---------- */
+.tvp-card { margin-bottom: var(--sp-4); }
+.tvp-head { align-items: flex-start; }
+.tvp-head-text { flex: 1 1 auto; min-width: 0; }
+.tvp-head .card-sub { margin-top: 2px; }
+.tvp-head .badge { flex: none; }
+.tvp-note { font-size: var(--fs-md); color: var(--text-muted); }
+.tvp-note + .tvp-error, .tvp-note + .tvp-actions { margin-top: var(--sp-3); }
+
+.tvp-benefits { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.tvp-benefits li { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; font-size: var(--fs-base); }
+.tvp-benefits i { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--tint-accent); color: var(--accent); font-size: 0.8rem; }
+
+.tvp-ok { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-base); font-weight: 600; color: var(--green-text); }
+
+.tvp-prefs { min-width: 0; margin: var(--sp-3) 0 0; padding: 0; border: 0; }
+.tvp-prefs legend { padding: 0; margin-bottom: var(--sp-1); font-size: var(--fs-sm); font-weight: 700; color: var(--text-muted); }
+.tvp-switch { position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: 56px; padding: var(--sp-2) 0; cursor: pointer; }
+.tvp-switch + .tvp-switch { border-top: 1px solid var(--border); }
+.tvp-switch-text { min-width: 0; }
+.tvp-switch-text b { display: block; font-size: var(--fs-base); }
+.tvp-switch-text small { display: block; font-size: var(--fs-sm); color: var(--text-muted); }
+.tvp-switch input { position: absolute; right: 0; top: 50%; width: 48px; height: 28px; margin: -14px 0 0; opacity: 0; cursor: pointer; }   /* the real control: invisible, but focusable and the full size of the switch */
+.tvp-switch-ui { position: relative; flex: none; width: 48px; height: 28px; border-radius: 999px; background: var(--border-strong); transition: background var(--t-fast); }
+.tvp-switch-ui::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(8, 20, 60, 0.3); transition: transform var(--t-fast); }
+.tvp-switch input:checked + .tvp-switch-ui { background: var(--accent); }
+.tvp-switch input:checked + .tvp-switch-ui::after { transform: translateX(20px); }
+.tvp-switch input:focus-visible + .tvp-switch-ui { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+
+.tvp-devices { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.tvp-devices h3 { margin-bottom: var(--sp-1); font-size: var(--fs-sm); color: var(--text-muted); }
+.tvp-device { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; padding: 6px 0; }
+.tvp-device > i { flex: none; width: 28px; text-align: center; color: var(--text-muted); }
+.tvp-device-main { min-width: 0; }
+.tvp-device-main b { display: block; font-size: var(--fs-md); overflow-wrap: anywhere; }
+.tvp-device-main small { display: block; font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* ---------- 3. the in-page banner ---------- */
+.tvp-banners {
+  position: fixed; z-index: 150;                         /* above the notification panel (90), below toasts (200) and full-screen dialogs */
+  top: calc(var(--nav-h) + env(safe-area-inset-top, 0px) + var(--sp-2));
+  left: max(var(--sp-3), env(safe-area-inset-left, 0px));
+  right: max(var(--sp-3), env(safe-area-inset-right, 0px));
+  display: grid; gap: var(--sp-2); justify-items: end;
+  pointer-events: none;                                  /* only the banners themselves take taps — the page under the gaps stays usable */
+}
+.tvp-banners:empty { display: none; }
+.tvp-banner {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: var(--sp-3);
+  width: min(100%, 440px); padding: var(--sp-3);
+  background: var(--bg-elevated); color: var(--text-primary);
+  border: 1px solid var(--border-strong); border-inline-start: 4px solid var(--accent); border-radius: var(--radius-md);
+  box-shadow: 0 10px 28px rgba(8, 20, 60, 0.24);
+  animation: tvp-down 0.22s ease-out;
+}
+.tvp-banner[data-cat="exam"] { border-inline-start-color: var(--accent-teal); }
+.tvp-banner[data-cat="result"] { border-inline-start-color: var(--accent-green); }
+.tvp-banner-ico { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--tint-accent); color: var(--accent); }
+.tvp-banner[data-cat="exam"] .tvp-banner-ico { background: var(--tint-teal); color: var(--teal-text); }
+.tvp-banner[data-cat="result"] .tvp-banner-ico { background: var(--tint-green); color: var(--green-text); }
+.tvp-banner-text { flex: 1 1 auto; min-width: 0; }
+.tvp-banner-text > b { display: block; font-size: var(--fs-base); line-height: 1.35; overflow-wrap: anywhere; }
+.tvp-banner-body { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; font-size: var(--fs-md); color: var(--text-muted); white-space: pre-line; overflow-wrap: anywhere; }
+.tvp-banner-text .btn { margin-top: var(--sp-2); }
+.tvp-x { flex: none; width: 36px; height: 36px; display: grid; place-items: center; margin: -6px -6px 0 0; border-radius: 50%; color: var(--text-muted); font-size: 1rem; }
+.tvp-x:hover { background: var(--bg-elevated-2); color: var(--text-primary); }
+
+@keyframes tvp-up { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes tvp-down { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .tvp-prompt, .tvp-banner { animation: none; }
+  .tvp-switch-ui, .tvp-switch-ui::after { transition: none; }
+}
