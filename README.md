@@ -816,3 +816,14 @@ Explanation: ঐচ্ছিক ব্যাখ্যা এখানে
 - **নতুন আপডেট জানাতে:** `js/whats-new-data.js` খুলে `version` (যেমন নতুন তারিখ), `date`, `title`, `lead` ও `items` বদলান — সবাই আবার একবার দেখবে। বন্ধ করতে `enabled: false`।
 - যেকোনো সময় আবার দেখা যায়: Profile → **What's New**।
 - টেস্ট হারনেস (`tests/e2e/harness.py`) ডিফল্টভাবে পপআপটিকে "দেখা হয়ে গেছে" ধরে নেয়, যাতে অন্য টেস্টে ক্লিক আটকে না যায়; পপআপের নিজের টেস্ট `whatsnew_seen=False` দিয়ে চলে।
+
+
+---
+
+## Android app (`mobile-app/`)
+
+A native Android app (React + TypeScript + Ionic + Capacitor) with its own student and admin interface lives in [`mobile-app/`](mobile-app/README.md). It uses this same Firebase project, Firestore data, accounts and admin roles; the website above is unchanged.
+
+* Build an APK for free: GitHub → Actions → **Android APK** → Run workflow (`.github/workflows/android-build.yml`), or locally with `cd mobile-app && npm install && npm run android:debug`.
+* Push notifications: [`mobile-app/ANDROID-FIREBASE.md`](mobile-app/ANDROID-FIREBASE.md). Signing a release: [`mobile-app/docs/SIGNING.md`](mobile-app/docs/SIGNING.md). Admin usage: [`mobile-app/docs/ADMIN-GUIDE.md`](mobile-app/docs/ADMIN-GUIDE.md). Test report: [`mobile-app/docs/TESTING-REPORT.md`](mobile-app/docs/TESTING-REPORT.md).
+* The only website-side code change is a backward-compatible `android` block in `server/push/engine.js` (web push messages are unchanged) plus its test `tests/unit/push-android.test.mjs`.

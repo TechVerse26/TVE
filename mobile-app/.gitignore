@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+# Native secrets — never commit
+android/app/google-services.json
+android/keystore.properties
+*.jks
+*.keystore
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+tests/e2e/.out/
+dist-apk/

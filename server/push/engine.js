@@ -36,6 +36,13 @@ function buildMessage(ctx, job, tokens) {
     tokens,
     data,
     webpush: { headers: { TTL: String(ctx.cfg.ttlSeconds), Urgency: job.category === 'announcement' ? 'normal' : 'high', Topic: topic } },
+    // Native Android app (Capacitor) tokens: the system tray must draw the notification while the app is closed. Web-push
+    // tokens ignore this block entirely, so website notifications behave exactly as before.
+    android: {
+      priority: job.category === 'announcement' ? 'normal' : 'high',
+      ...(Number(ctx.cfg.ttlSeconds) > 0 ? { ttl: Number(ctx.cfg.ttlSeconds) * 1000 } : {}),
+      notification: { title: job.title, body: job.body, tag: data.tag, channelId: 'tvexam_default', ...(job.image ? { imageUrl: job.image } : {}) },
+    },
   };
 }
 

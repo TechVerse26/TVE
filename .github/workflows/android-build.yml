@@ -1,0 +1,131 @@
+# Builds the Tech Verse Exam Android app (mobile-app/) into an APK you can download.
+# Free: uses only GitHub's included Actions minutes. It never runs on a schedule — only when YOU start it
+# (Actions tab → "Android APK" → Run workflow) or when you push a tag that starts with "android-v".
+# The website workflow (push-scheduler.yml) is untouched.
+name: Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "debug = installable test APK · release = signed APK (needs the signing secrets, see mobile-app/docs/SIGNING.md)"
+        type: choice
+        options: [debug, release]
+        default: debug
+  push:
+    tags: ["android-v*"]
+
+permissions:
+  contents: write # lets a tag build attach the APK to a GitHub Release
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile-app
+    env:
+      APP_ID: com.techverse.exam
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+      # All optional. Nothing secret is ever written to the repository or the log.
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decide the build type
+        id: kind
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then TYPE=release; else TYPE=debug; echo "::warning::No signing key secret found, so this tag build is a debug APK. See mobile-app/docs/SIGNING.md to enable release builds."; fi
+          else
+            TYPE="${{ inputs.build_type }}"
+          fi
+          if [ "$TYPE" = "release" ] && [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::A release APK needs the signing secrets (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). Follow mobile-app/docs/SIGNING.md, or run this workflow with build_type = debug."
+            exit 1
+          fi
+          echo "type=$TYPE" >> "$GITHUB_OUTPUT"
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then echo "::notice::GOOGLE_SERVICES_JSON secret not set — the app will build, but push notifications stay off until you add it (mobile-app/ANDROID-FIREBASE.md)."; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('mobile-app/package.json', 'mobile-app/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('mobile-app/package.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+
+      - name: Tests (app rules + parity with the website's exam engine)
+        run: npm test
+
+      - name: Type check (reported, does not block the build)
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      - name: Build the web app
+        run: npm run build
+
+      - name: Create / update the Android project
+        run: node scripts/android.mjs sync
+
+      - name: Build the APK (${{ steps.kind.outputs.type }})
+        run: node scripts/android.mjs build ${{ steps.kind.outputs.type }}
+
+      - name: Validate the APK
+        run: |
+          set -euo pipefail
+          APK=$(ls dist-apk/*.apk | head -n1)
+          echo "APK: $APK"
+          SIZE=$(stat -c%s "$APK")
+          [ "$SIZE" -gt 2000000 ] || { echo "::error::The APK is suspiciously small ($SIZE bytes)."; exit 1; }
+          unzip -l "$APK" | grep -q "classes.dex" || { echo "::error::classes.dex is missing from the APK."; exit 1; }
+          unzip -l "$APK" | grep -q "assets/public/index.html" || { echo "::error::The web app (assets/public/index.html) is not inside the APK."; exit 1; }
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package: name='com.techverse.exam'" || { echo "::error::Wrong Android package name."; exit 1; }
+          "$BT/aapt2" dump badging "$APK" | grep -E "^(package|sdkVersion|targetSdkVersion|application-label):" || true
+          "$BT/apksigner" verify --print-certs "$APK" | head -n 3 || { echo "::error::The APK is not signed."; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TechVerseExam-APK
+          path: mobile-app/dist-apk/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile-app/dist-apk/*.apk
+          generate_release_notes: true
