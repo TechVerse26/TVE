@@ -28,6 +28,16 @@ jobs:
             exit 0
           fi
           case "$PUSH_CRON_URL" in https://*) ;; *) echo "PUSH_CRON_URL must start with https://"; exit 1 ;; esac
-          curl --fail --silent --show-error --max-time 30 --retry 2 \
-            -H "Authorization: Bearer ${PUSH_CRON_SECRET}" "$PUSH_CRON_URL"
+          CODE=$(curl --silent --show-error --max-time 30 --retry 2 -o "$RUNNER_TEMP/cron.txt" -w '%{http_code}' \
+            -H "Authorization: Bearer ${PUSH_CRON_SECRET}" "$PUSH_CRON_URL" || true)
+          echo "HTTP ${CODE:-000}"
+          # The server answers with a tiny JSON line ({"ok":true,...} or {"ok":false,"error":{"code":"..."}}) that never holds a secret.
+          head -c 400 "$RUNNER_TEMP/cron.txt" 2>/dev/null || true
           echo
+          case "$CODE" in
+            2??) ;;
+            401|403) echo "::error::HTTP $CODE - the secret was refused. PUSH_CRON_SECRET (GitHub) must be exactly the same text as CRON_SECRET in Vercel."; exit 1 ;;
+            404) echo "::error::HTTP 404 - nothing answers at PUSH_CRON_URL. It must be https://YOUR-VERCEL-SITE/api/push/cron (GitHub Pages cannot run the push API)."; exit 1 ;;
+            503) echo "::error::HTTP 503 - the push server is not fully set up (CRON_SECRET or the Firebase service-account variables are missing in Vercel). Read the JSON line above."; exit 1 ;;
+            *) echo "::error::HTTP ${CODE:-000} - the scheduler call failed. Read the JSON line above (000 = the host could not be reached)."; exit 1 ;;
+          esac
