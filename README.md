@@ -824,6 +824,6 @@ Explanation: ঐচ্ছিক ব্যাখ্যা এখানে
 
 A native Android app (React + TypeScript + Ionic + Capacitor) with its own student and admin interface lives in [`mobile-app/`](mobile-app/README.md). It uses this same Firebase project, Firestore data, accounts and admin roles; the website above is unchanged.
 
-* Build an APK for free: GitHub → Actions → **Android APK** → Run workflow (`.github/workflows/android-build.yml`), or locally with `cd mobile-app && npm install && npm run android:debug`.
+* Build an APK for free: GitHub → Actions → **Android APK** → Run workflow (`.github/workflows/android-build.yml`), then download it from the repository's **Releases** page (or locally: `cd mobile-app && npm install && npm run android:debug`).
 * Push notifications: [`mobile-app/ANDROID-FIREBASE.md`](mobile-app/ANDROID-FIREBASE.md). Signing a release: [`mobile-app/docs/SIGNING.md`](mobile-app/docs/SIGNING.md). Admin usage: [`mobile-app/docs/ADMIN-GUIDE.md`](mobile-app/docs/ADMIN-GUIDE.md). Test report: [`mobile-app/docs/TESTING-REPORT.md`](mobile-app/docs/TESTING-REPORT.md).
 * The only website-side code change is a backward-compatible `android` block in `server/push/engine.js` (web push messages are unchanged) plus its test `tests/unit/push-android.test.mjs`.
