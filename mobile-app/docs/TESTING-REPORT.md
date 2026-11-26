@@ -1,5 +1,15 @@
 # Testing report (honest)
 
+## Update 2026-11-26 — first real GitHub Actions run, and what was fixed
+* **Why run #7 failed:** the step `android-actions/setup-android@v3` asks `sdkmanager` to install the legacy package `tools` by default. Google has removed that package, so the step failed before the build started. (The action's own fix, v4.0.2, only changes that default.) The workflow no longer uses that action: GitHub's Ubuntu runner already contains the Android SDK, so the workflow just accepts the SDK licences and lets Gradle fetch anything missing.
+* **A second bug, found before it could bite:** the "Validate the APK" step used `unzip -l | grep -q` under `set -o pipefail`. With a large APK `grep -q` closes the pipe early, `unzip` dies with SIGPIPE and the step reports a false "classes.dex is missing" (reproduced 200 / 200 times with a 3 000-entry APK). It now reads the file list once and searches that.
+* **Now executed for real** (Node 22, npm 10, Capacitor 7.6.11): `npm install` · `npm test` **19 / 19** · `tsc --noEmit` **0 errors** · `vite build` OK · `node scripts/android.mjs sync` creates the Android project and every patch applies to the real template (manifest, version code and name, release-signing hook, icons, splash); all generated XML is well-formed.
+* **Website tests:** the 3 tests listed below now check the real configuration instead of the placeholder; `npm test` → **476 / 476 pass**, `npm run check` → 142 modules parse (two empty 1-byte leftovers, `api/push/H` and `js/admin/push/mode.js`, were deleted).
+* **Added:** `package-lock.json` (reproducible `npm ci`), a fixed public test key for debug builds (see [SIGNING.md](SIGNING.md)), and a download link on the Releases page after every build.
+* **Still not executed:** the Gradle build itself (it needs Google's and Maven's servers, which were not reachable from the sandbox) and anything on a physical phone. The next GitHub Actions run is the first real Gradle build of this app.
+
+---
+
 Built and checked in a sandbox with **no internet access**. That decides what could and could not be run.
 
 ## Executed — and the real results
@@ -18,7 +28,7 @@ Built and checked in a sandbox with **no internet access**. That decides what co
 Browser smoke test coverage (phone 390×820, tablet 1024×768): signed-out redirect, email-only sign-in, Firebase password-reset request (Bengali mail, returns to website login, Google-only note), sign-up validation, public Privacy page; student Home / Exams / detail, eligibility checks, rules screen, timer, answer locking, autosave, submit, scoring (1 correct, 1 wrong with −0.5, 1 skipped = 17 %), result document / attempt / review snapshot / `userStats` written in the website's shape, saved copy removed, Results list, attempt history + review, attempt counter and retake, resume after a reload and from Home, student blocked from `/admin`, tablet navigation rail; admin dashboard aggregates, exam list, creating an exam with a question → `exams`, `examBundles`, refreshed `examIndex`, `adminLogs`.
 The smoke test caught one real bug (relative asset base broke a reload on a nested route); it is fixed (`base: "/"`).
 
-The 3 failing website tests (not caused by this work): *"dormant by default: nothing runs until the VAPID key is pasted"*, *"pwa-config.js exposes the documented settings and ships with the placeholder"*, *"manifest.webmanifest is valid, complete and every file it references exists with the right size"* — they expect placeholder configuration that has since been filled in with real values. I did not touch them.
+The 3 website tests that were failing (not caused by this work): *"dormant by default: nothing runs until the VAPID key is pasted"*, *"pwa-config.js exposes the documented settings and ships with the placeholder"*, *"manifest.webmanifest is valid, complete and every file it references exists with the right size"* — they expected placeholder configuration that has since been filled in with real values. **Fixed on 2026-11-26:** they now accept either the placeholder or a well-formed real value (VAPID key, screenshot link, short name).
 
 ## NOT executed — please treat these as unverified
 * `npm install`, the real TypeScript check with the real React / Ionic / Firebase / Capacitor type packages, `vite build`.

@@ -30,3 +30,6 @@ keyAlias=tve
 keyPassword=...
 ```
 Then `npm run android:release` → `dist-apk/TechVerseExam-<version>-release.apk`. Without the key the build produces an *unsigned* APK that Android refuses to install (the script warns you).
+
+## 4. Test (debug) builds use a fixed public test key
+`resources/android/debug.keystore` (alias `androiddebugkey`, password `android`) is a throw-away key that is **meant to be public**. The workflow copies it to `~/.android/debug.keystore`, so every test APK carries the same signature and installs over the previous one — without it each build would get a random key and Android would answer "App not installed" until you uninstall the old copy. Never use this key for a release you hand out: release builds are signed with **your** key from the secrets above.
